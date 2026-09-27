@@ -15,7 +15,8 @@ import {
 import { SCENARIOS } from '../src/sim/scenarios.js';
 
 test('scenario metadata exposes two playable eras', () => {
-  assert.deepEqual(SCENARIOS.map((s) => s.id), ['nevis', 'strait']);
+  assert.deepEqual(SCENARIOS.map((s) => s.id), ['nevis', 'dogger', 'strait']);
+  assert.equal(SCENARIOS.find((s) => s.id === 'dogger').era, 'dreadnought');
   assert.equal(SCENARIOS.find((s) => s.id === 'nevis').era, 'sail');
   assert.equal(SCENARIOS.find((s) => s.id === 'strait').era, 'modern');
 });

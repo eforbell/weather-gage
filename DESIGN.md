@@ -11,7 +11,8 @@ A working naval chart, not a generic dashboard. Paper, ink, restrained blue and 
 
 ## Product goals
 - Give a commodore useful decisions, then let captains execute.
-- Make two eras feel different using one simulation.
+- Make each era feel different using one simulation (sail, WWI dreadnought, fictional modern).
+- Teach as you play: a tactics primer in the briefing, a live flag-lieutenant advisor, and a debrief lesson.
 - Complete a mission from brief to outcome; save and resume locally.
 - Non-goals: full historical fidelity, campaign, multiplayer, aircraft/submarines, production-scale combat.
 - Success: both scenarios can be played, paused, finished, restarted, saved, and deterministically reproduced.
@@ -26,7 +27,7 @@ Single tactical workspace: identity/time bar, mission ribbon, squadron roster, p
 Command rather than micro-control. Information before firepower. Show uncertainty instead of cheating. Keep the map dominant. An initial limited model is preferable to a broad fake one.
 
 ## Visual language
-Warm paper #f2edde, ink #242b2d, muted #656b65, ocean #e2e8df, blue #285867, red #9d463c. Serif display with monospace operational labels; system fonts only, no network font dependency. 4px spacing rhythm, squared controls, thin rules, no floating-card shadows. Hex geometry and vector ship silhouettes instead of bitmap assets. No required animation.
+Warm paper #f2edde, ink #242b2d, muted #656b65, ocean #e2e8df, blue #285867, red #9d463c. Serif display with monospace operational labels; system fonts only, no network font dependency. 4px spacing rhythm, squared controls, thin rules, no floating-card shadows. Hex geometry and vector ship silhouettes instead of bitmap assets. Combat is animated on the chart (ship glide, muzzle flash, shell flight, splash/hit, torpedo wakes, sinking, callout banners) because a text-only transcript made play feel like reading a simulation. Animation is presentation only, derived from per-side `fx` events, and collapses to static markers under reduced motion. Sound is synthesized, optional and remembered per browser.
 
 ## Components
 Shared native buttons, selects, meters, dialog, roster entries and contact rows. SVG chart owns hex cells, contact uncertainty, ship symbols and order destinations. Tokens in `src/ui/style.css`; screen structure/rendering in `src/ui/app.js`. Selected, disabled, pending, stale, and terminal states must be distinct.

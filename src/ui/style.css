@@ -3,3 +3,94 @@
 @media(max-width:1150px){.edition{display:none}.workspace{grid-template-columns:200px minmax(0,1fr)}.command-panel{grid-column:1/-1;border-left:0;border-top:1px solid var(--line)}#inspector{display:grid;grid-template-columns:1fr 1fr;column-gap:28px}#inspector>fieldset{grid-column:2;grid-row:1/7}.command-panel .section-heading{justify-content:flex-start;gap:15px}.standing-order{align-self:start}.health-tracks{align-content:start}.chart-toolbar span:not(.live-dot){display:none}.dispatch-panel{grid-template-columns:200px 1fr}footer>span:last-child{display:none}.mission-bar{gap:20px}.clock{min-width:130px;padding-left:15px}.time-actions{flex-direction:column}.time-actions button{min-height:34px}}
 @media(max-width:650px){.masthead{padding:16px;gap:10px}.brand{font-size:19px;letter-spacing:.7px}.brand-mark{font-size:29px;padding-right:10px}.brand small{font-size:6px}.header-actions{gap:0}.header-actions button{font-size:9px;padding:6px}.header-actions #briefing{display:none}.mission-bar{padding:16px;gap:12px;flex-wrap:wrap}.mission-title{flex-basis:100%}.mission-title select{font-size:25px}.clock{border-left:0;padding-left:0;flex:1}.clock strong{font-size:23px}.time-actions{flex-direction:row}.time-actions button{min-height:44px}.workspace{display:flex;flex-direction:column}.roster-panel{order:1;border:0;border-top:1px solid var(--line);padding:0 16px 16px}#roster{display:grid;grid-template-columns:1fr 1fr;gap:10px}.roster-card{margin:0;padding:10px}.roster-card strong{font-size:16px}.admiralty-note{display:none}.contacts-heading{margin-top:12px}.chart-panel{order:0}.chart-wrap{padding:10px 0 30px;min-height:260px}#chart{min-height:215px}.chart-toolbar{padding:9px 14px}.chart-caption{font-size:6px;left:12px;right:12px}.chart-legend{gap:12px;padding:12px;font-size:7px}.situation{padding:12px 16px}.situation p{font-size:13px}.command-panel{order:2;padding:0 16px 18px}#inspector{display:block}.health-tracks{grid-template-columns:repeat(4,1fr);gap:10px}.track label{font-size:7px;display:block}.track b{display:block;margin-top:3px}#inspector>h3{font-size:26px}.order-grid{grid-template-columns:repeat(3,1fr)}.order-grid button{min-height:44px}.dispatch-panel{display:block;max-height:none}.dispatch-title{border:0;padding:16px}.dispatch-title h2{margin-bottom:5px}#log{max-height:180px;padding:0 16px 15px}#log li{font-size:9px;gap:10px}footer{flex-wrap:wrap;padding:12px;justify-content:center}footer div{display:flex;flex-wrap:wrap;justify-content:center}footer button{min-height:40px}dialog{padding:18px 22px}dialog h1{font-size:31px}dialog p,dialog li,dialog dd{font-size:14px}}
 @media(prefers-reduced-motion:reduce){*{transition:none!important;scroll-behavior:auto!important}}
+
+/* ---------- 0.2: motion, combat effects, dreadnought era ---------- */
+.vessel,.contact{transition:transform var(--move,500ms) cubic-bezier(.45,.05,.35,1)}
+.vessel .rot{transition:transform var(--move,500ms) ease-in-out}
+.vessel .selection{fill:none;stroke:var(--blue);stroke-width:1;stroke-dasharray:3 3;opacity:0}
+.vessel.selected .selection{opacity:1;animation:spin 14s linear infinite}
+.vessel.sunk .hullg{animation:sink 2.2s ease-in forwards}
+.vessel.escaped{opacity:.18}
+.vessel.struck .hull{fill:#7b8b8f}
+.turret{fill:#c9dfd6;stroke:#1d4350;stroke-width:.6}
+.funnel{fill:#1f3b44}
+.contact .turret{fill:var(--red)}
+.contact .contact-core{fill:var(--red);stroke:none}
+.emitter{fill:none;stroke:var(--red);stroke-width:1;opacity:.8;animation:blink 1.2s steps(2) infinite}
+.gun-range{fill:none;stroke:var(--blue);stroke-width:1;stroke-dasharray:2 5;opacity:.55;pointer-events:none}
+.torpedo-range{fill:#28586708;stroke:var(--blue);stroke-width:.8;stroke-dasharray:1 3;opacity:.6;pointer-events:none}
+.hex.mines{fill:url(#p-mines);stroke:#c49a8e}
+.mine-glyph{font:9px var(--mono);fill:#9d463c;text-anchor:middle;pointer-events:none;opacity:.8}
+.key.mines{background:repeating-linear-gradient(45deg,#e6d8cf 0 2px,#b77b6c 2px 3px)}
+.key.range{background:none;border:1px dashed var(--blue);border-radius:50%;width:9px;height:9px}
+.wind-arrow{stroke:#9d463c;stroke-width:1.6;fill:none;opacity:.75}
+.plume circle{transform-box:fill-box;transform-origin:center;animation:plume 1.8s ease-out infinite;opacity:0}
+.fire circle{fill:#e8792c;transform-box:fill-box;transform-origin:center;animation:flicker .35s ease-in-out infinite alternate}
+.fire circle+circle{animation-delay:.17s;fill:#f3b340}
+.fx-flash,.fx-puff,.fx-boom .core,.fx-boom .ring,.fx-splash .col,.fx-splash .ripple{transform-box:fill-box;transform-origin:center}
+.fx-flash{animation:flash .45s ease-out forwards;pointer-events:none}
+.fx-puff{animation:puff 2.1s ease-out forwards;pointer-events:none}
+.fx-boom{pointer-events:none}
+.fx-boom .core{animation:boom .7s ease-out forwards}
+.fx-boom .ring{fill:none;stroke:#f3b340;stroke-width:1.5;animation:ring .8s ease-out forwards}
+.fx-boom .debris{stroke:#5b3a2a;stroke-width:1.2;stroke-linecap:round;stroke-dasharray:3 30;animation:debris .9s ease-out forwards}
+.fx-boom.heavy .ring{stroke-width:2.5}
+.fx-splash .col{fill:#f7fbf6;stroke:#7fa3a6;stroke-width:.6;transform-origin:50% 100%;animation:column .9s ease-out forwards}
+.fx-splash .ripple{fill:none;stroke:#6f969b;stroke-width:1;animation:ring 1.1s ease-out forwards}
+.fx-float{font:bold 10px var(--mono);text-anchor:start;paint-order:stroke;stroke:#f2edde;stroke-width:3px;animation:rise 1.5s ease-out forwards;pointer-events:none}
+.fx-float.own{fill:#b1361e;font-size:12px}
+.fx-float.enemy{fill:#1f5a2c}
+.fx-float.muted{fill:#4f6a70;font-size:8px;letter-spacing:1px}
+.fx-shell{fill:#2b2b25}
+.fx-trail{stroke:#f3b340;stroke-width:1.2;stroke-linecap:round;opacity:.8}
+.fx-trail.heavy{stroke-width:2}
+.fx-missile{fill:#fff4d0;stroke:#b1361e;stroke-width:1}
+.fx-missile-trail{fill:none;stroke:#9aa39d;stroke-width:2.2;stroke-linecap:round;opacity:.55}
+.fx-torpedo .wake{fill:none;stroke:#f7fbf6;stroke-width:2.6;stroke-linecap:round;opacity:.9}
+.fx-torpedo .head{fill:var(--blue)}
+.fx-torpedo.hostile .head{fill:var(--red)}
+.fx-torpedo.hostile .wake{stroke:#f4d9d3}
+.chart-wrap{overflow:hidden}
+.chart-wrap.shake{animation:shake .35s linear}
+.chart-wrap.shake-strong{animation:shake .6s linear}
+.banner{position:absolute;left:50%;top:16px;transform:translate(-50%,-12px);opacity:0;pointer-events:none;background:var(--ink);color:var(--paper);font:bold 13px/1 var(--mono);letter-spacing:3px;padding:11px 18px;border:1px solid var(--paper);outline:1px solid var(--ink);transition:opacity .2s,transform .2s;white-space:nowrap;max-width:92%;overflow:hidden;text-overflow:ellipsis}
+.banner.show{opacity:1;transform:translate(-50%,0)}
+.banner.alert{background:var(--red)}
+.banner.good{background:var(--blue)}
+.toolbar-buttons{display:flex;gap:6px}
+.speed{display:flex;flex-direction:column;justify-content:center}
+.speed select{padding:5px 6px;font-size:11px;min-height:36px}
+.roster-card.hit{animation:hitflash .9s ease-out}
+.roster-card.lost{opacity:.6}
+.mini-bar i{transition:width .6s ease-out}
+.mini-bar.mid i{background:#b6822e}
+.mini-bar.low i{background:var(--red)}
+meter::-webkit-meter-suboptimum-value{background:#b6822e}
+meter::-webkit-meter-even-less-good-value{background:var(--red)}
+.fire-control{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+.fire-control .eyebrow{display:inline}
+.pips{display:inline-flex;gap:3px}
+.pips i{width:12px;height:6px;border:1px solid var(--blue);display:block}
+.pips i.on{background:var(--blue)}
+.fire-control small{flex-basis:100%;font-size:8px;color:var(--muted)}
+.primer{padding-left:18px}
+.primer li{margin-bottom:6px}
+.debrief-stats{flex-wrap:wrap;gap:32px}
+@keyframes spin{to{stroke-dashoffset:-60}}
+@keyframes sink{0%{transform:none;opacity:1}40%{transform:rotate(18deg) scale(.95);opacity:.9}100%{transform:rotate(28deg) scale(.55);opacity:.25}}
+@keyframes blink{50%{opacity:.15}}
+@keyframes plume{0%{opacity:.8;transform:translate(0,0) scale(.4)}100%{opacity:0;transform:translate(var(--dx),var(--dy)) scale(1.8)}}
+@keyframes flicker{from{transform:scale(.7);opacity:.7}to{transform:scale(1.25);opacity:1}}
+@keyframes flash{0%{transform:scale(.3);opacity:1}100%{transform:scale(1.6);opacity:0}}
+@keyframes puff{0%{transform:scale(.4);opacity:.9}100%{transform:scale(2.6) translate(4px,-4px);opacity:0}}
+@keyframes boom{0%{transform:scale(.2);opacity:1}60%{opacity:1}100%{transform:scale(1.5);opacity:0}}
+@keyframes ring{0%{transform:scale(.4);opacity:1}100%{transform:scale(3.2);opacity:0}}
+@keyframes debris{0%{stroke-dashoffset:0;opacity:1}100%{stroke-dashoffset:-30;opacity:0}}
+@keyframes column{0%{transform:scaleY(.1);opacity:.9}35%{transform:scaleY(1.2);opacity:1}100%{transform:scaleY(.2);opacity:0}}
+@keyframes rise{0%{transform:translateY(4px);opacity:0}15%{opacity:1}100%{transform:translateY(-16px);opacity:0}}
+@keyframes shake{0%,100%{transform:none}20%{transform:translate(-4px,2px)}40%{transform:translate(4px,-2px)}60%{transform:translate(-3px,-1px)}80%{transform:translate(2px,1px)}}
+@keyframes hitflash{0%{background:#f1c2b6;border-color:var(--red)}100%{}}
+@media(max-width:650px){.banner{font-size:10px;letter-spacing:2px;padding:8px 12px}.speed .eyebrow{display:none}}
+@media(prefers-reduced-motion:reduce){.fx-flash,.fx-puff,.fx-boom *,.fx-splash *,.fx-float,.plume circle,.fire circle,.emitter,.vessel .selection,.vessel.sunk .hullg,.chart-wrap,.roster-card.hit{animation:none!important}.plume circle{opacity:.5}.vessel.sunk .hullg{opacity:.3}}
+.chart-wrap{flex:none}
+.situation{flex:1}

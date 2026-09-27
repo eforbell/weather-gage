@@ -12,6 +12,19 @@ export const SCENARIOS = [
     tickLabel: 'turn',
   },
   {
+    id: 'dogger',
+    title: 'Smoke over the Dogger Bank',
+    subtitle: 'Dreadnoughts and destroyers under wireless command, 1915',
+    era: 'dreadnought',
+    briefing:
+      'Wireless intercepts put a German raiding force at sea before dawn. You have a battlecruiser, a battleship and two destroyers. Find them first, bring every turret to bear, and mind your battlecruiser: British magazines are not what they should be.',
+    objective: 'Sink or drive off both enemy capital ships while keeping one of yours in action. At the time limit, capital ships count triple.',
+    maxTicks: 50,
+    victory: 'capitals',
+    hexScale: '1 hex ≈ 1 nautical mile',
+    tickLabel: '3-minute',
+  },
+  {
     id: 'strait',
     title: 'The Strait of Qamar',
     subtitle: 'Fictional EMCON missile action, near future',
@@ -40,6 +53,25 @@ export const SCENARIO_SETUPS = {
       sailShip('b_baltimore', 'blue', 'USS Baltimore', 'Frigate', 2, 8, 0, 32),
       sailShip('r_insurgente', 'red', 'L’Insurgente', 'Heavy frigate', 16, 6, 3, 40),
       sailShip('r_volontaire', 'red', 'Volontaire', 'Frigate', 17, 8, 3, 32),
+    ],
+  },
+  dogger: {
+    wind: 3,
+    terrain: [
+      ...disc(10, 1, 1, 'mines'),
+      { q: 8, r: 12, type: 'mines' },
+      { q: 9, r: 12, type: 'mines' },
+      { q: 8, r: 13, type: 'mines' },
+    ],
+    ships: [
+      dreadShip('b_lion', 'blue', 'HMS Lion', 'Battlecruiser', 'battlecruiser', 3, 5, { guns: 8, speed: 3, secondary: 2, flashRisk: true }),
+      dreadShip('b_orion', 'blue', 'HMS Orion', 'Dreadnought battleship', 'battleship', 2, 7, { guns: 10, speed: 2, secondary: 2 }),
+      dreadShip('b_meteor', 'blue', 'HMS Meteor', 'Destroyer', 'destroyer', 4, 3),
+      dreadShip('b_laurel', 'blue', 'HMS Laurel', 'Destroyer', 'destroyer', 3, 9),
+      dreadShip('r_seydlitz', 'red', 'SMS Seydlitz', 'Battlecruiser', 'battlecruiser', 16, 4, { guns: 10, speed: 3, secondary: 3, facing: 3 }),
+      dreadShip('r_posen', 'red', 'SMS Posen', 'Dreadnought battleship', 'battleship', 17, 6, { guns: 8, speed: 2, secondary: 3, facing: 3 }),
+      dreadShip('r_v186', 'red', 'SMS V186', 'Torpedo boat', 'destroyer', 15, 3, { facing: 3 }),
+      dreadShip('r_s33', 'red', 'SMS S33', 'Torpedo boat', 'destroyer', 15, 8, { facing: 3 }),
     ],
   },
   strait: {
@@ -104,6 +136,27 @@ function modernShip(id, side, name, className, q, r, facing, ammo, defense) {
     ammo,
     defense,
     doctrine: { roe: 'free', range: 9, withdraw: 35 },
+  };
+}
+
+function dreadShip(id, side, name, className, type, q, r, opts = {}) {
+  const destroyer = type === 'destroyer';
+  return {
+    ...baseShip(id, side, name, className, q, r, opts.facing ?? 0),
+    era: 'dreadnought',
+    type,
+    speed: opts.speed ?? (destroyer ? 4 : 2),
+    guns: opts.guns ?? 3,
+    gunRange: destroyer ? 4 : 9,
+    calibre: destroyer ? 'light' : 'heavy',
+    secondary: opts.secondary ?? 0,
+    torpedoes: destroyer ? 2 : 0,
+    flashRisk: Boolean(opts.flashRisk),
+    value: destroyer ? 1 : 3,
+    emitUntil: -1,
+    firedAt: -1,
+    fc: { targetId: null, level: 0 },
+    doctrine: destroyer ? { roe: 'free', range: 3, withdraw: 35 } : { roe: 'free', range: 7, withdraw: 25 },
   };
 }
 

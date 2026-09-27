@@ -33,3 +33,10 @@ Screenshots and temporary QA save files are local ignored artifacts, not runtime
 - A browser-responsive layout is not the same as a polished phone game: the chart and labels are small on narrow displays; desktop/laptop remains the intended first-playtest surface.
 - AI pathfinding, combat balance, signal realism and multi-era architecture need further iteration. Local heuristics can stall around terrain; there is no global route planner.
 - Current scenarios are short abstract exercises, not the concept's finished 30–60 minute missions. Campaigns, aircraft/submarines, multiplayer and production hosting are outside this build.
+
+## Update — 0.2 (dreadnought era + animated combat), 2026-09-27
+- `npm test`: **50 tests pass** (adds `tests/dreadnought.test.js`: speed classes, fire-control ranging, per-side fx redaction, wireless detection, torpedo save/load determinism, save validation, minefield avoidance, capital-ship victory rule). `npm run check` passes.
+- Balance: 200-seed sweeps per plan, recorded in `docs/era-extension.md`.
+- An independent code review found a fog-of-war leak: sinkings of *sighted* but unidentified enemies reached the chart as named events. It is fixed; such events now show only as an unexplained explosion. The review also caught outcome and animation timers leaking into the next sortie, lax validation of the new save fields, and the missing capital-ship victory rule. All are fixed and covered by tests.
+- Chromium (Playwright) smoke at 1440px and 390px: full Dogger Bank sortie to debrief, frigate and missile scenarios animate, New sortie leaves no stray effects, no horizontal overflow on mobile. The only console error was the headless browser lacking an audio device.
+- Not yet verified: Safari/Firefox animation and Web Audio behaviour, real mobile devices, screen readers.
