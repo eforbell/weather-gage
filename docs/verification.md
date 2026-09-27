@@ -1,0 +1,35 @@
+# Verification — 2026-09-27
+
+## Automated evidence
+- `npm test`: **35 tests passed**, zero failures.
+- `npm run check`: all JavaScript source, scripts and tests pass Node syntax parsing.
+- Eight complete deterministic sorties: both eras with seeds 1, 42, 1799 and 2026. Each must produce combat, terminate by its limit, preserve input state, and reproduce every next tick after save/load.
+- Tests cover order delay/replacement, formation orders, autonomous search, edge geometry, withdrawal, wind, modern standoff range, finite missiles/defense, pending impacts, fog/contact views, last-known reports, event-time log redaction, malformed saves, mutual destruction, and terminal stepping.
+- Static server test checks module MIME types, inaccessible internal/reference paths, missing files and write-method rejection.
+
+## Browser smoke (Chromium via Playwright CLI)
+- Loaded briefing and chart; selected missions and issued formation/engage orders.
+- Advanced both scenarios through a terminal debrief; terminal clock controls were disabled.
+- Ran the sail clock and verified automatic pause on new contact.
+- Enabled radar and exercised finite missile combat in the modern scenario.
+- Saved locally, advanced, loaded, and verified the saved tick restored.
+- Imported a malformed save missing ship doctrine: rejected with the original tick/state preserved.
+- Imported a valid modern save and resumed; tested save/load with missiles pending.
+- Desktop screenshot: `output/playwright/desktop-final.png` (1440px wide, full page).
+- Mobile screenshot: `output/playwright/mobile-final.png` (390 × 844). Document width and viewport width both 390px: no horizontal document overflow.
+- Browser console: **0 errors, 0 warnings** in the final run.
+
+Screenshots and temporary QA save files are local ignored artifacts, not runtime dependencies.
+
+## Review findings resolved
+1. Malformed saves previously passed shallow validation. Nested state validation and transactional UI restore now prevent replacement by invalid imports.
+2. Global dispatches previously leaked enemy names/actions. Side-specific reports are now frozen when events occur; hidden enemy events are suppressed and unidentified names redacted.
+3. Simultaneous mutual destruction previously counted as victory. It now produces a draw.
+4. Integration also fixed idle default fleets, broken formation commands, edge-coordinate crashes, missile records appearing as command signals, unlimited empty point defense, and failure to leave the map on withdrawal.
+
+## Boundaries of this evidence
+- Verified in Chromium only. Safari, Firefox, physical mobile devices, screen readers and touch ergonomics have not been tested.
+- No TypeScript check, third-party linter or full accessibility certification is claimed. `check` is syntax/static parsing only.
+- A browser-responsive layout is not the same as a polished phone game: the chart and labels are small on narrow displays; desktop/laptop remains the intended first-playtest surface.
+- AI pathfinding, combat balance, signal realism and multi-era architecture need further iteration. Local heuristics can stall around terrain; there is no global route planner.
+- Current scenarios are short abstract exercises, not the concept's finished 30–60 minute missions. Campaigns, aircraft/submarines, multiplayer and production hosting are outside this build.

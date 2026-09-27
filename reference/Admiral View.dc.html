@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#d8d0bc;color:#1f1d1a;font-family:'Courier Prime',ui-monospace,monospace;-webkit-font-smoothing:antialiased}
+a{color:oklch(0.5 0.15 255)}
+a:hover{color:oklch(0.52 0.16 28)}
+*{box-sizing:border-box}
+button{font-family:inherit}
+</style>
+</helmet>
+<div style="width:1440px;height:900px;background:#f0eadb;display:grid;grid-template-rows:56px 1fr 150px;overflow:hidden;position:relative">
+
+  <div style="display:flex;align-items:center;gap:28px;padding:0 20px;border-bottom:3px double #1f1d1a;font-size:14px">
+    <span style="font-family:'Special Elite',monospace;font-size:24px;letter-spacing:.04em">WEATHER GAGE</span>
+    <span style="color:#5a554b;letter-spacing:.1em;text-transform:uppercase">Off Nevis · 9 Feb 1799</span>
+    <span style="flex:1"></span>
+    <span><span style="color:#5a554b">TURN</span> <strong>{{ turn }}</strong>/60</span>
+    <span><span style="color:#5a554b">TIME</span> <strong>{{ clock }}</strong></span>
+    <span><span style="color:#5a554b">WIND</span> <strong>NE · F4 · steady</strong></span>
+    <span><span style="color:#5a554b">VIS</span> <strong>Good · squalls E</strong></span>
+    <span style="border:2px solid oklch(0.52 0.16 28);color:oklch(0.52 0.16 28);padding:1px 8px;font-family:'Special Elite',monospace;letter-spacing:.08em;transform:rotate(-2deg)">GAGE: ENEMY</span>
+    <button onClick="{{ endTurn }}" style="border:1.5px solid #1f1d1a;background:#1f1d1a;color:#f0eadb;padding:8px 16px;font-weight:700;letter-spacing:.12em;cursor:pointer" style-hover="background:oklch(0.52 0.16 28);border-color:oklch(0.52 0.16 28)">END TURN ▸</button>
+  </div>
+
+  <div style="display:grid;grid-template-columns:290px 1fr 310px;min-height:0">
+
+    <div style="border-right:1.5px solid #1f1d1a;padding:16px;display:flex;flex-direction:column;gap:14px;overflow:auto">
+      <div style="font-size:12px;letter-spacing:.18em;color:#5a554b">SQUADRON · COMMODORE TRUXTUN</div>
+      <sc-for list="{{ ships }}" as="s" hint-placeholder-count="2">
+        <div onClick="{{ s.onSelect }}" style="border:1.5px solid #1f1d1a;padding:12px;cursor:pointer;background:{{ s.bg }}">
+          <div style="display:flex;justify-content:space-between;gap:8px"><strong>{{ s.name }}</strong><span style="font-size:12px;color:#5a554b">{{ s.hex }}</span></div>
+          <div style="font-size:13px;color:#5a554b">{{ s.cls }}</div>
+          <div style="font-size:13px;margin:2px 0 10px">{{ s.capt }} · <em>{{ s.trait }}</em></div>
+          <div style="display:grid;grid-template-columns:44px 1fr 30px;gap:4px 8px;align-items:center;font-size:12px">
+            <span style="color:#5a554b">HULL</span><div style="height:6px;border:1px solid #1f1d1a"><div style="height:100%;background:#1f1d1a;width:{{ s.hullW }}"></div></div><span>{{ s.hull }}</span>
+            <span style="color:#5a554b">RIG</span><div style="height:6px;border:1px solid #1f1d1a"><div style="height:100%;background:#1f1d1a;width:{{ s.rigW }}"></div></div><span>{{ s.rig }}</span>
+            <span style="color:#5a554b">GUNS</span><div style="height:6px;border:1px solid #1f1d1a"><div style="height:100%;background:#1f1d1a;width:{{ s.gunsW }}"></div></div><span>{{ s.guns }}</span>
+            <span style="color:#5a554b">CREW</span><div style="height:6px;border:1px solid #1f1d1a"><div style="height:100%;background:#1f1d1a;width:{{ s.crewW }}"></div></div><span>{{ s.crew }}</span>
+          </div>
+          <div style="border-top:1px dashed #9a927f;margin-top:10px;padding-top:8px;font-size:13px"><span style="color:#5a554b">ORDER</span> {{ s.order }}</div>
+          <div style="font-size:12px;color:oklch(0.5 0.15 255)">{{ s.status }}</div>
+        </div>
+      </sc-for>
+      <div style="border-top:1.5px solid #1f1d1a;padding-top:10px;font-size:13px;display:grid;gap:3px">
+        <div style="font-size:12px;letter-spacing:.18em;color:#5a554b;margin-bottom:4px">STANDING DOCTRINE</div>
+        <div><span style="color:#5a554b">ROE</span> Fire only if fired upon until colours shown</div>
+        <div><span style="color:#5a554b">RANGE</span> Effective (pistol shot if gage held)</div>
+        <div><span style="color:#5a554b">PURSUIT</span> 2 nm from flag</div>
+        <div><span style="color:#5a554b">WITHDRAW</span> Hull &lt; 40 or Crew &lt; 35</div>
+      </div>
+    </div>
+
+    <div style="position:relative;min-width:0;min-height:0;background:#ece5d3">
+      <svg viewBox="0 0 900 690" preserveAspectRatio="xMidYMid meet" style="width:100%;height:100%;display:block">
+        <sc-for list="{{ hexes }}" as="h">
+          <polygon points="{{ h.points }}" fill="{{ h.fill }}" stroke="#b9b09a" stroke-width="0.75" onClick="{{ h.onClick }}" style="cursor:crosshair"></polygon>
+        </sc-for>
+        <circle cx="{{ look.cx }}" cy="{{ look.cy }}" r="{{ look.r }}" fill="none" stroke="#1f1d1a" stroke-width="1" stroke-dasharray="2 5" opacity="0.6"></circle>
+        <sc-for list="{{ wpLines }}" as="w">
+          <line x1="{{ w.x1 }}" y1="{{ w.y1 }}" x2="{{ w.x2 }}" y2="{{ w.y2 }}" stroke="#1f1d1a" stroke-width="1.5" stroke-dasharray="6 4"></line>
+          <rect x="{{ w.rx }}" y="{{ w.ry }}" width="10" height="10" fill="#f0eadb" stroke="#1f1d1a" stroke-width="1.5" transform="{{ w.rot }}"></rect>
+        </sc-for>
+        <sc-for list="{{ contacts }}" as="c">
+          <circle cx="{{ c.cx }}" cy="{{ c.cy }}" r="{{ c.ring }}" fill="none" stroke="oklch(0.52 0.16 28)" stroke-width="1.25" stroke-dasharray="4 4"></circle>
+          <circle cx="{{ c.cx }}" cy="{{ c.cy }}" r="7" fill="#f0eadb" stroke="{{ c.stroke }}" stroke-width="2"></circle>
+        </sc-for>
+        <circle cx="{{ selRing.cx }}" cy="{{ selRing.cy }}" r="15" fill="none" stroke="oklch(0.5 0.15 255)" stroke-width="2"></circle>
+        <sc-for list="{{ marks }}" as="m">
+          <line x1="{{ m.cx }}" y1="{{ m.cy }}" x2="{{ m.hx }}" y2="{{ m.hy }}" stroke="#1f1d1a" stroke-width="3" stroke-linecap="round"></line>
+          <circle cx="{{ m.cx }}" cy="{{ m.cy }}" r="7" fill="#1f1d1a" onClick="{{ m.onSelect }}" style="cursor:pointer"></circle>
+        </sc-for>
+      </svg>
+      <div style="position:absolute;inset:0;pointer-events:none">{{ labelLayer }}</div>
+      <div style="position:absolute;left:14px;top:14px;background:#f0eadb;border:1.5px solid #1f1d1a;padding:10px 12px;font-size:12px;display:grid;gap:6px">
+        <div style="display:flex;align-items:center;gap:10px"><div style="width:44px;height:44px;border:1.5px solid #1f1d1a;border-radius:50%;position:relative;flex-shrink:0"><div style="position:absolute;left:50%;top:50%;width:2px;height:34px;background:#1f1d1a;transform:translate(-50%,-50%) rotate(45deg)"></div><div style="position:absolute;right:4px;top:4px;width:8px;height:8px;background:oklch(0.52 0.16 28);border-radius:50%"></div></div><div><strong>WIND FROM NE</strong><br>Force 4, steady</div></div>
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:14px;height:14px;background:#cfc6ad;display:inline-block"></span>In irons (no headway)</div>
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:14px;height:14px;background:#c9d0d6;display:inline-block"></span>Broadside arc</div>
+        <div style="display:flex;align-items:center;gap:8px"><span style="width:14px;border-top:1.5px dashed oklch(0.52 0.16 28);display:inline-block"></span>Contact uncertainty</div>
+        <div style="color:#5a554b">1 hex ≈ 400 yds · click a hex to plot</div>
+      </div>
+      <sc-if value="{{ command }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;right:18px;top:18px;transform:rotate(3deg);border:3px solid oklch(0.5 0.15 255);color:oklch(0.5 0.15 255);background:#f0eadbe6;padding:6px 14px;font-family:'Special Elite',monospace;font-size:18px;letter-spacing:.08em">ON THE QUARTERDECK · {{ selShort }}</div>
+      </sc-if>
+    </div>
+
+    <div style="border-left:1.5px solid #1f1d1a;display:grid;grid-template-rows:auto 1fr;min-height:0">
+      <div style="padding:16px;border-bottom:1.5px solid #1f1d1a;display:grid;gap:10px">
+        <div style="font-size:12px;letter-spacing:.18em;color:#5a554b">CONTACT REPORTS</div>
+        <div style="display:grid;grid-template-columns:22px 1fr;gap:8px;font-size:13px"><strong style="color:oklch(0.52 0.16 28)">B</strong><div><strong>CLASSIFIED</strong> · Frigate, ~36 guns<br>Brg 040° · 2 nm · course SW<br><span style="color:#5a554b">13:10 · colours not yet shown</span></div></div>
+        <div style="display:grid;grid-template-columns:22px 1fr;gap:8px;font-size:13px;border-top:1px dashed #9a927f;padding-top:8px"><strong style="color:oklch(0.52 0.16 28)">A</strong><div><strong>LAST KNOWN</strong> · Sail, unknown<br>Lost in squall · ring widening<br><span style="color:#5a554b">12:20 · 80 min stale</span></div></div>
+        <div style="display:grid;grid-template-columns:22px 1fr;gap:8px;font-size:13px;border-top:1px dashed #9a927f;padding-top:8px"><strong style="color:#5a554b">C</strong><div><strong>SIGHTED</strong> · Small sail, likely merchant<br><span style="color:#5a554b">12:05 · not a priority</span></div></div>
+      </div>
+      <div style="padding:16px;overflow:auto;min-height:0">
+        <div style="font-size:12px;letter-spacing:.18em;color:#5a554b;margin-bottom:10px">SIGNAL LOG</div>
+        <sc-for list="{{ log }}" as="e" hint-placeholder-count="5">
+          <div style="display:grid;grid-template-columns:48px 1fr;gap:8px;font-size:13px;padding:5px 0;border-bottom:1px dashed #cfc6ad"><span style="color:#5a554b">{{ e.t }}</span><span>{{ e.txt }}</span></div>
+        </sc-for>
+      </div>
+    </div>
+  </div>
+
+  <div style="border-top:3px double #1f1d1a;display:grid;grid-template-columns:290px 1fr 310px">
+    <div style="padding:14px 16px;border-right:1.5px solid #1f1d1a">
+      <div style="font-size:12px;letter-spacing:.18em;color:#5a554b">SELECTED</div>
+      <div style="font-size:18px;font-weight:700;margin:2px 0">{{ selName }}</div>
+      <div style="font-size:13px">{{ selMode }}</div>
+    </div>
+    <div style="padding:14px 18px;display:flex;flex-direction:column;gap:10px;min-width:0">
+      <sc-if value="{{ notCommand }}" hint-placeholder-val="{{ true }}">
+        <div style="font-size:12px;letter-spacing:.18em;color:#5a554b">SIGNAL ORDERS · delivered by flag hoist, needs line of sight</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <sc-for list="{{ verbs }}" as="v" hint-placeholder-count="8">
+            <button onClick="{{ v.onClick }}" style="border:1.5px solid #1f1d1a;background:#f0eadb;padding:8px 12px;font-size:14px;cursor:pointer" style-hover="background:#1f1d1a;color:#f0eadb">{{ v.label }}</button>
+          </sc-for>
+        </div>
+      </sc-if>
+      <sc-if value="{{ command }}" hint-placeholder-val="{{ false }}">
+        <div style="font-size:12px;letter-spacing:.18em;color:oklch(0.5 0.15 255)">CAPTAIN'S ORDERS · immediate, no signal delay · rest of squadron on doctrine</div>
+        <div style="display:flex;flex-wrap:wrap;gap:16px">
+          <sc-for list="{{ captGroups }}" as="g">
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:12px;color:#5a554b;letter-spacing:.12em">{{ g.grp }}</span>
+              <sc-for list="{{ g.items }}" as="a">
+                <button onClick="{{ a.onClick }}" style="border:1.5px solid oklch(0.5 0.15 255);color:oklch(0.5 0.15 255);background:#f0eadb;padding:7px 10px;font-size:13px;cursor:pointer" style-hover="background:oklch(0.5 0.15 255);color:#f0eadb">{{ a.label }}</button>
+              </sc-for>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+    </div>
+    <div style="padding:14px 16px;border-left:1.5px solid #1f1d1a;display:flex;flex-direction:column;justify-content:center;gap:8px">
+      <button onClick="{{ toggleCommand }}" style="border:3px solid oklch(0.5 0.15 255);background:#f0eadb;color:oklch(0.5 0.15 255);padding:12px;font-family:'Special Elite',monospace;font-size:18px;letter-spacing:.08em;cursor:pointer" style-hover="background:oklch(0.5 0.15 255);color:#f0eadb">{{ cmdLabel }}</button>
+      <div style="font-size:12px;color:#5a554b;text-wrap:pretty">{{ cmdHint }}</div>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;showArcs&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;showWindCone&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+const R = 22, HW = Math.sqrt(3) * R, COLS = 22, ROWS = 20, WIND = 45;
+const ctr = (q, r) => [24 + q * HW + (r & 1) * HW / 2, 26 + r * 1.5 * R];
+const cube = (q, r) => { const x = q - (r - (r & 1)) / 2; return [x, -x - r, r]; };
+const dist = (a, b) => { const A = cube(a[0], a[1]), B = cube(b[0], b[1]); return Math.max(Math.abs(A[0]-B[0]), Math.abs(A[1]-B[1]), Math.abs(A[2]-B[2])); };
+const brg = (x1, y1, x2, y2) => (Math.atan2(x2 - x1, -(y2 - y1)) * 180 / Math.PI + 360) % 360;
+const adiff = (a, b) => { let d = ((a - b) % 360 + 540) % 360 - 180; return d; };
+const terrain = (q, r) => {
+  const d1 = dist([q, r], [17, 15]), d2 = dist([q, r], [2, 18]), d3 = dist([q, r], [16, 3]);
+  if (d1 <= 2 || d2 <= 1) return 'land';
+  if (d1 === 3 || d2 === 2) return 'shoal';
+  if (d3 <= 2) return 'squall';
+  return 'sea';
+};
+const hexName = (q, r) => String.fromCharCode(65 + q) + (r + 1);
+const NB = [[[1,0],[0,-1],[-1,-1],[-1,0],[-1,1],[0,1]], [[1,0],[1,-1],[0,-1],[-1,0],[0,1],[1,1]]];
+const META = {
+  con: { name: 'USS Constellation', short: 'CONSTELLATION', cls: 'Frigate · 38 guns · flagship', capt: 'Capt. T. Truxtun', trait: 'Aggressive', hull: 92, rig: 100, guns: 100, crew: 88 },
+  nor: { name: 'USS Norfolk', short: 'NORFOLK', cls: 'Brig · 18 guns', capt: 'Lt. W. Bainbridge', trait: 'Cautious', hull: 100, rig: 84, guns: 100, crew: 95 }
+};
+const CONTACTS = [
+  { id: 'B', q: 15, r: 5, ring: 1.4, label: 'B · frigate?', stroke: 'oklch(0.52 0.16 28)' },
+  { id: 'A', q: 19, r: 9, ring: 2.6, label: 'A · last known 12:20', stroke: 'oklch(0.52 0.16 28)' },
+  { id: 'C', q: 4, r: 5, ring: 0.8, label: 'C · merchant?', stroke: '#5a554b' }
+];
+
+class Component extends DCLogic {
+  state = {
+    sel: 'con', command: false, turn: 14,
+    pos: { con: { q: 9, r: 12, hdg: 30 }, nor: { q: 6, r: 15, hdg: 45 } },
+    wps: {}, pending: [],
+    orders: { con: 'Chase · contact B', nor: 'Screen · to leeward' },
+    log: [
+      { t: '13:40', txt: 'Norfolk acknowledges: "Screen to leeward"' },
+      { t: '13:30', txt: 'Flag → Norfolk: "Screen to leeward"' },
+      { t: '13:10', txt: 'Contact B classified: frigate, ~36 guns' },
+      { t: '12:50', txt: 'Masthead: sail bearing NE, hull down' },
+      { t: '12:20', txt: 'Contact A lost in squall. Last position marked' },
+      { t: '12:05', txt: 'Contact C sighted: small sail to NW' }
+    ]
+  };
+  clock(turn) { const m = 11 * 60 + 20 + turn * 10; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); }
+  addLog(txt, s = this.state) { return [{ t: this.clock(s.turn), txt }, ...s.log].slice(0, 30); }
+  issue(verb) {
+    this.setState(s => {
+      const id = s.sel, flag = id === 'con';
+      const txt = flag ? `Flagship orders: "${verb}"` : `Flag → ${META[id].name.split(' ')[1]}: "${verb}" · awaiting ack`;
+      return { orders: { ...s.orders, [id]: verb }, log: this.addLog(txt, s), pending: flag ? s.pending : [...s.pending, { id, verb }] };
+    });
+  }
+  plot(q, r) {
+    if (terrain(q, r) === 'land') return;
+    this.setState(s => {
+      const id = s.sel, flag = id === 'con' || s.command;
+      const verb = 'Proceed to ' + hexName(q, r);
+      return {
+        wps: { ...s.wps, [id]: [q, r] }, orders: { ...s.orders, [id]: verb },
+        log: this.addLog(flag ? `${META[id].short}: ${verb}` : `Flag → ${META[id].short}: "${verb}" · awaiting ack`, s),
+        pending: flag ? s.pending : [...s.pending, { id, verb }]
+      };
+    });
+  }
+  endTurn() {
+    this.setState(s => {
+      const pos = { ...s.pos }, wps = { ...s.wps };
+      Object.keys(wps).forEach(id => {
+        const p = pos[id], w = wps[id]; let best = null, bd = dist([p.q, p.r], w);
+        NB[p.r & 1].forEach(([dq, dr]) => {
+          const n = [p.q + dq, p.r + dr];
+          if (n[0] < 0 || n[1] < 0 || n[0] >= COLS || n[1] >= ROWS || terrain(n[0], n[1]) === 'land') return;
+          const [x1, y1] = ctr(p.q, p.r), [x2, y2] = ctr(n[0], n[1]);
+          if (Math.abs(adiff(brg(x1, y1, x2, y2), WIND)) < 45) return;
+          const d = dist(n, w); if (d < bd) { bd = d; best = n; }
+        });
+        if (best) { const [x1, y1] = ctr(p.q, p.r), [x2, y2] = ctr(best[0], best[1]); pos[id] = { q: best[0], r: best[1], hdg: brg(x1, y1, x2, y2) }; }
+        if (!best || bd === 0) delete wps[id];
+      });
+      const turn = s.turn + 1; let log = s.log;
+      const t = this.clock(turn);
+      s.pending.forEach(p => { log = [{ t, txt: `${META[p.id].short} acknowledges: "${p.verb}"` }, ...log]; });
+      log = [{ t, txt: `— Turn ${turn} —` }, ...log].slice(0, 30);
+      return { pos, wps, turn, log, pending: [] };
+    });
+  }
+  renderVals() {
+    const s = this.state, showArcs = this.props.showArcs ?? true, showWind = this.props.showWindCone ?? true;
+    const sp = s.pos[s.sel], [sx, sy] = ctr(sp.q, sp.r);
+    const hexes = [];
+    for (let r = 0; r < ROWS; r++) for (let q = 0; q < COLS; q++) {
+      const [cx, cy] = ctr(q, r), t = terrain(q, r);
+      const pts = []; for (let i = 0; i < 6; i++) { const a = (60 * i - 90) * Math.PI / 180; pts.push((cx + R * Math.cos(a)).toFixed(1) + ',' + (cy + R * Math.sin(a)).toFixed(1)); }
+      let fill = t === 'land' ? '#bfb393' : t === 'shoal' ? '#e3dac2' : t === 'squall' ? '#dedbd3' : '#ece5d3';
+      if (t !== 'land') {
+        const d = dist([q, r], [sp.q, sp.r]), b = brg(sx, sy, cx, cy);
+        if (d > 0 && showArcs && d <= 4) { const rel = Math.abs(adiff(b, sp.hdg)); if (rel >= 55 && rel <= 125) fill = '#c9d0d6'; }
+        if (d > 0 && showWind && d <= 7 && Math.abs(adiff(b, WIND)) < 45 && fill !== '#c9d0d6') fill = '#cfc6ad';
+      }
+      hexes.push({ points: pts.join(' '), fill, onClick: () => this.plot(q, r) });
+    }
+    const ships = Object.keys(META).map(id => {
+      const m = META[id], p = s.pos[id], sel = id === s.sel;
+      const pend = s.pending.find(x => x.id === id);
+      const status = id === 'con' ? 'Flagship · orders immediate' : s.command ? 'On doctrine · commodore on the quarterdeck' : pend ? 'Signal hoisted · awaiting acknowledgement' : 'In sight of flag · acknowledged';
+      return { ...m, hex: hexName(p.q, p.r), order: s.orders[id], status, bg: sel ? '#e3dccb' : '#f0eadb', hullW: m.hull + '%', rigW: m.rig + '%', gunsW: m.guns + '%', crewW: m.crew + '%', onSelect: () => this.setState({ sel: id }) };
+    });
+    const marks = Object.keys(META).map(id => {
+      const p = s.pos[id], [cx, cy] = ctr(p.q, p.r), a = p.hdg * Math.PI / 180;
+      return { cx, cy, hx: cx + 18 * Math.sin(a), hy: cy - 18 * Math.cos(a), lx: cx + 14, ly: cy + 20, label: META[id].short, onSelect: () => this.setState({ sel: id }) };
+    });
+    const wpLines = Object.keys(s.wps).map(id => {
+      const p = s.pos[id], [x1, y1] = ctr(p.q, p.r), [x2, y2] = ctr(...s.wps[id]);
+      return { x1, y1, x2, y2, rx: x2 - 5, ry: y2 - 5, rot: `rotate(45 ${x2} ${y2})` };
+    });
+    const contacts = CONTACTS.map(c => { const [cx, cy] = ctr(c.q, c.r); return { ...c, cx, cy, ring: c.ring * HW, ty: cy + 3, lx: cx + 12, ly: cy - 12 }; });
+    const labels = [];
+    for (let q = 0; q < COLS; q += 3) labels.push({ x: ctr(q, 0)[0], y: 12, t: String.fromCharCode(65 + q) });
+    const cap = (label) => ({ label, onClick: () => this.setState(st => ({ log: this.addLog(`Captain's order (${META[st.sel].short}): ${label}`, st) })) });
+    const h = React.createElement, ff = 'Courier Prime, monospace';
+    const txt = [
+      ...labels.map((l, i) => h('text', { key: 'l' + i, x: l.x, y: l.y, fontSize: 10, fill: '#5a554b', fontFamily: ff, textAnchor: 'middle' }, l.t)),
+      ...contacts.flatMap(c => [
+        h('text', { key: 'ci' + c.id, x: c.cx, y: c.ty, fontSize: 9, fontWeight: 700, fill: c.stroke, fontFamily: ff, textAnchor: 'middle' }, c.id),
+        h('text', { key: 'cl' + c.id, x: c.lx, y: c.ly, fontSize: 12, fill: c.stroke, fontFamily: ff }, c.label)
+      ]),
+      ...marks.map((m, i) => h('text', { key: 'm' + i, x: m.lx, y: m.ly, fontSize: 12, fontWeight: 700, fill: '#1f1d1a', fontFamily: ff }, m.label))
+    ];
+    const labelLayer = h('svg', { viewBox: '0 0 900 690', preserveAspectRatio: 'xMidYMid meet', style: { width: '100%', height: '100%', display: 'block' } }, txt);
+    return {
+      labelLayer,
+      turn: s.turn, clock: this.clock(s.turn), command: s.command, notCommand: !s.command,
+      hexes, ships, marks, wpLines, contacts, labels, log: s.log,
+      selRing: { cx: sx, cy: sy }, look: { cx: sx, cy: sy, r: 8 * HW },
+      selName: META[s.sel].name, selShort: META[s.sel].short,
+      selMode: s.command ? 'Under your direct command' : `${META[s.sel].capt} commanding · ${s.orders[s.sel]}`,
+      verbs: ['Proceed to', 'Patrol', 'Shadow', 'Engage', 'Form line', 'Chase', 'Screen', 'Withdraw'].map(v => ({ label: v, onClick: () => this.issue(v) })),
+      captGroups: [
+        { grp: 'HELM', items: ['Port', 'Hold', 'Starboard'].map(cap) },
+        { grp: 'SAIL', items: ['Reef', 'Battle', 'Full'].map(cap) },
+        { grp: 'SHOT', items: ['Round', 'Chain', 'Grape'].map(cap) },
+        { grp: 'FIRE', items: ['Port broadside', 'Stbd broadside'].map(cap) }
+      ],
+      cmdLabel: s.command ? 'RETURN TO FLAG' : 'TAKE COMMAND',
+      cmdHint: s.command ? 'Your orders apply instantly to this ship. The rest of the squadron follows doctrine.' : "Step onto this ship's quarterdeck. You get direct control of this ship only; everyone else follows doctrine.",
+      toggleCommand: () => this.setState(st => ({ command: !st.command, log: this.addLog(st.command ? 'Commodore returns to the flag' : `Commodore takes direct command of ${META[st.sel].short}`, st) })),
+      endTurn: () => this.endTurn()
+    };
+  }
+}
+</script>
+</body>
+</html>

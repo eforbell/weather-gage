@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#d8d0bc;color:#1f1d1a;font-family:'Courier Prime',ui-monospace,monospace;-webkit-font-smoothing:antialiased}
+a{color:oklch(0.5 0.15 255)}
+a:hover{color:oklch(0.52 0.16 28)}
+*{box-sizing:border-box}
+button{font-family:inherit;color:inherit}
+</style>
+</helmet>
+<div style="width:1440px;height:900px;background:#f0eadb;display:grid;grid-template-rows:56px 1fr 150px;overflow:hidden;position:relative">
+
+  <div style="display:flex;align-items:center;gap:26px;padding:0 20px;border-bottom:3px double #1f1d1a;font-size:14px">
+    <span style="font-family:'Special Elite',monospace;font-size:24px;letter-spacing:.04em">WEATHER GAGE</span>
+    <span style="color:#5a554b;letter-spacing:.1em;text-transform:uppercase">Off Nevis · 1799 · v2 · Doctrine &amp; Signals</span>
+    <span style="flex:1"></span>
+    <span><span style="color:#5a554b">TURN</span> <strong>{{ turn }}</strong>/40</span>
+    <span><span style="color:#5a554b">WIND FROM</span> <strong>{{ windName }}</strong></span>
+    <span style="border:2px solid {{ gageColor }};color:{{ gageColor }};padding:1px 8px;font-family:'Special Elite',monospace;letter-spacing:.08em;transform:rotate(-2deg)">{{ gageText }}</span>
+    <button onClick="{{ endTurn }}" style="border:1.5px solid #1f1d1a;background:#1f1d1a;color:#f0eadb;padding:8px 16px;font-weight:700;letter-spacing:.12em;cursor:pointer;min-width:150px;opacity:{{ endOp }}" style-hover="background:oklch(0.52 0.16 28);border-color:oklch(0.52 0.16 28)">{{ endLabel }}</button>
+  </div>
+
+  <div style="display:grid;grid-template-columns:300px 1fr 320px;min-height:0">
+
+    <div style="border-right:1.5px solid #1f1d1a;padding:14px;display:flex;flex-direction:column;gap:10px;overflow:auto">
+      <sc-for list="{{ cards }}" as="s" hint-placeholder-count="4">
+        <div onClick="{{ s.onSelect }}" style="border:{{ s.border }};padding:10px 12px;cursor:pointer;background:{{ s.bg }}">
+          <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><strong style="color:{{ s.color }}">{{ s.name }}</strong><span style="font-size:11px;letter-spacing:.12em;color:{{ s.statusColor }};font-weight:700">{{ s.status }}</span></div>
+          <div style="font-size:12px;color:#5a554b">{{ s.cls }}</div>
+          <div style="font-size:12px;margin-bottom:7px">{{ s.capt }}</div>
+          <div style="display:grid;grid-template-columns:40px 1fr 26px;gap:3px 8px;align-items:center;font-size:11px">
+            <span style="color:#5a554b">HULL</span><div style="height:5px;border:1px solid #1f1d1a"><div style="height:100%;background:#1f1d1a;width:{{ s.hullW }}"></div></div><span>{{ s.hull }}</span>
+            <span style="color:#5a554b">RIG</span><div style="height:5px;border:1px solid #1f1d1a"><div style="height:100%;background:#1f1d1a;width:{{ s.rigW }}"></div></div><span>{{ s.rig }}</span>
+            <span style="color:#5a554b">GUNS</span><div style="height:5px;border:1px solid #1f1d1a"><div style="height:100%;background:#1f1d1a;width:{{ s.gunsW }}"></div></div><span>{{ s.guns }}</span>
+            <span style="color:#5a554b">CREW</span><div style="height:5px;border:1px solid #1f1d1a"><div style="height:100%;background:#1f1d1a;width:{{ s.crewW }}"></div></div><span>{{ s.crew }}</span>
+          </div>
+          <div style="border-top:1px dashed #9a927f;margin-top:8px;padding-top:6px;font-size:12px"><span style="color:#5a554b">ORDER</span> {{ s.order }}</div>
+          <div style="font-size:12px;color:{{ s.sigColor }}">{{ s.sig }}</div>
+        </div>
+      </sc-for>
+    </div>
+
+    <div style="position:relative;min-width:0;min-height:0;background:#ece5d3">
+      <div style="position:absolute;inset:0">{{ map }}</div>
+      <div style="position:absolute;left:14px;top:14px;background:#f0eadb;border:1.5px solid #1f1d1a;padding:10px 12px;font-size:12px;display:flex;gap:10px;align-items:center">
+        <div style="width:46px;height:46px;border:1.5px solid #1f1d1a;border-radius:50%;position:relative;flex-shrink:0;transform:rotate({{ windRot }})">
+          <div style="position:absolute;left:50%;top:5px;bottom:5px;width:2px;margin-left:-1px;background:#1f1d1a"></div>
+          <div style="position:absolute;left:50%;top:3px;width:9px;height:9px;margin-left:-4.5px;border-radius:50%;background:oklch(0.52 0.16 28)"></div>
+        </div>
+        <div><strong>WIND FROM {{ windName }}</strong><br>Force 4 · may shift</div>
+      </div>
+      <sc-if value="{{ hasCmd }}" hint-placeholder-val="{{ false }}">
+        <div style="position:absolute;right:18px;top:18px;transform:rotate(3deg);border:3px solid oklch(0.5 0.15 255);color:oklch(0.5 0.15 255);background:#f0eadbe6;padding:6px 14px;font-family:'Special Elite',monospace;font-size:18px;letter-spacing:.08em">ON THE QUARTERDECK · {{ cmdShort }}</div>
+      </sc-if>
+      <div style="position:absolute;left:14px;bottom:12px;background:#f0eadbe6;border:1px solid #9a927f;padding:6px 10px;font-size:12px;color:#5a554b">Dashed lines show each captain's intent · ⚑ = signal flying, not yet acknowledged · ◇ = assigned station · T take/return command · Enter end turn</div>
+    </div>
+
+    <div style="border-left:1.5px solid #1f1d1a;padding:14px 16px;overflow:auto;min-height:0">
+      <div style="font-size:12px;letter-spacing:.18em;color:#5a554b;margin-bottom:8px">LOG OF PROCEEDINGS</div>
+      <sc-for list="{{ log }}" as="e" hint-placeholder-count="4">
+        <div style="display:grid;grid-template-columns:34px 1fr;gap:8px;font-size:13px;padding:5px 0;border-bottom:1px dashed #cfc6ad;color:{{ e.color }}"><span style="color:#5a554b">{{ e.t }}</span><span style="text-wrap:pretty">{{ e.txt }}</span></div>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="border-top:3px double #1f1d1a;display:grid;grid-template-columns:300px 1fr 280px;min-height:0">
+    <div style="padding:12px 16px;border-right:1.5px solid #1f1d1a">
+      <div style="font-size:12px;letter-spacing:.18em;color:#5a554b">SELECTED</div>
+      <div style="font-size:18px;font-weight:700;margin:2px 0">{{ selName }}</div>
+      <div style="font-size:13px;text-wrap:pretty">{{ selInfo }}</div>
+    </div>
+    <div style="padding:12px 18px;display:flex;align-items:stretch;gap:22px;min-width:0">
+      <sc-if value="{{ showSignals }}" hint-placeholder-val="{{ true }}">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:11px;letter-spacing:.16em;color:#5a554b">{{ sigHeading }}</span>
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <sc-for list="{{ signals }}" as="b" hint-placeholder-count="5">
+              <button onClick="{{ b.onClick }}" style="border:1.5px {{ b.bstyle }} #1f1d1a;background:{{ b.bg }};color:{{ b.fg }};padding:6px 12px;cursor:pointer;display:grid;text-align:left;min-width:92px"><strong style="font-size:14px">{{ b.label }}</strong><span style="font-size:11px;opacity:.8">{{ b.sub }}</span></button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:11px;letter-spacing:.16em;color:#5a554b">SHOT DOCTRINE</span>
+          <div style="display:flex;gap:6px">
+            <sc-for list="{{ shotDocs }}" as="b" hint-placeholder-count="4">
+              <button onClick="{{ b.onClick }}" style="border:1.5px solid #1f1d1a;background:{{ b.bg }};color:{{ b.fg }};padding:6px 10px;cursor:pointer;font-size:13px">{{ b.label }}</button>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ showManual }}" hint-placeholder-val="{{ false }}">
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:11px;letter-spacing:.16em;color:oklch(0.5 0.15 255)">HELM</span>
+          <div style="display:flex;gap:6px">
+            <sc-for list="{{ helm }}" as="b" hint-placeholder-count="3">
+              <button onClick="{{ b.onClick }}" style="border:1.5px solid oklch(0.5 0.15 255);background:#f0eadb;padding:6px 12px;cursor:pointer;opacity:{{ b.op }};display:grid;text-align:left" style-hover="background:#e3dccb"><strong style="font-size:14px">{{ b.label }}</strong><span style="font-size:11px;color:#5a554b">{{ b.sub }}</span></button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <span style="font-size:11px;letter-spacing:.16em;color:oklch(0.5 0.15 255)">SHOT</span>
+          <div style="display:flex;gap:6px">
+            <sc-for list="{{ shots }}" as="b" hint-placeholder-count="3">
+              <button onClick="{{ b.onClick }}" style="border:1.5px solid oklch(0.5 0.15 255);background:{{ b.bg }};color:{{ b.fg }};padding:6px 12px;cursor:pointer;display:grid;text-align:left"><strong style="font-size:14px">{{ b.label }}</strong><span style="font-size:11px;opacity:.8">{{ b.sub }}</span></button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:6px;flex:1;min-width:0">
+          <span style="font-size:11px;letter-spacing:.16em;color:oklch(0.5 0.15 255)">BROADSIDES</span>
+          <div style="display:flex;gap:6px">
+            <sc-for list="{{ fire }}" as="b" hint-placeholder-count="2">
+              <button onClick="{{ b.onClick }}" style="flex:1;border:2px solid oklch(0.52 0.16 28);background:{{ b.bg }};color:{{ b.fg }};padding:6px 12px;cursor:pointer;opacity:{{ b.op }};display:grid;text-align:left;min-width:0"><strong style="font-size:14px;letter-spacing:.08em">{{ b.label }}</strong><span style="font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ b.sub }}</span></button>
+            </sc-for>
+          </div>
+        </div>
+      </sc-if>
+      <sc-if value="{{ showEnemy }}" hint-placeholder-val="{{ false }}">
+        <div style="align-self:center;font-size:14px;color:oklch(0.52 0.16 28);text-wrap:pretty">{{ enemyNote }}</div>
+      </sc-if>
+    </div>
+    <div style="padding:12px 16px;border-left:1.5px solid #1f1d1a;display:flex;flex-direction:column;justify-content:center;gap:8px">
+      <sc-if value="{{ canCmd }}" hint-placeholder-val="{{ true }}">
+        <button onClick="{{ toggleCmd }}" style="border:3px solid oklch(0.5 0.15 255);background:{{ cmdBg }};color:{{ cmdFg }};padding:12px;font-family:'Special Elite',monospace;font-size:18px;letter-spacing:.08em;cursor:pointer">{{ cmdLabel }}</button>
+        <div style="font-size:12px;color:#5a554b;text-wrap:pretty">{{ cmdHint }}</div>
+      </sc-if>
+    </div>
+  </div>
+
+  <sc-if value="{{ isOver }}" hint-placeholder-val="{{ false }}">
+    <div style="position:absolute;inset:0;background:rgba(31,29,26,.45);display:flex;align-items:center;justify-content:center">
+      <div style="background:#f0eadb;width:520px;padding:36px 40px;box-shadow:0 20px 50px -20px rgba(0,0,0,.5);display:grid;gap:14px;justify-items:start">
+        <div style="font-size:12px;letter-spacing:.18em;color:#5a554b">DISPATCH · TURN {{ turn }}</div>
+        <div style="border:3px solid {{ overColor }};color:{{ overColor }};padding:6px 16px;font-family:'Special Elite',monospace;font-size:34px;letter-spacing:.08em;transform:rotate(-3deg)">{{ overTitle }}</div>
+        <div style="font-size:16px;line-height:1.5;text-wrap:pretty">{{ overText }}</div>
+        <button onClick="{{ restart }}" style="border:1.5px solid #1f1d1a;background:#1f1d1a;color:#f0eadb;padding:10px 18px;font-weight:700;letter-spacing:.12em;cursor:pointer">FIGHT AGAIN</button>
+      </div>
+    </div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;$preview&quot;:{&quot;width&quot;:1440,&quot;height&quot;:900},&quot;difficulty&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Midshipman&quot;,&quot;Captain&quot;,&quot;Admiral&quot;],&quot;default&quot;:&quot;Captain&quot;,&quot;tsType&quot;:&quot;'Midshipman'|'Captain'|'Admiral'&quot;},&quot;resolveSpeed&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Slow&quot;,&quot;Normal&quot;,&quot;Fast&quot;],&quot;default&quot;:&quot;Normal&quot;,&quot;tsType&quot;:&quot;'Slow'|'Normal'|'Fast'&quot;},&quot;showIntent&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;showCosts&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+const COLS = 20, ROWS = 15, R = 25, HW = Math.sqrt(3) * R, SIGHT = 9;
+const INK = '#1f1d1a', RED = 'oklch(0.52 0.16 28)', BLUE = 'oklch(0.5 0.15 255)', MUTE = '#5a554b';
+const ctr = (q, r) => [26 + q * HW + (r & 1) * HW / 2, 30 + r * 1.5 * R];
+const cube = (q, r) => { const x = q - (r - (r & 1)) / 2; return [x, -x - r, r]; };
+const dist = (a, b) => { const A = cube(a.q, a.r), B = cube(b.q, b.r); return Math.max(Math.abs(A[0] - B[0]), Math.abs(A[1] - B[1]), Math.abs(A[2] - B[2])); };
+const adiff = (a, b) => ((a - b) % 360 + 540) % 360 - 180;
+const brg = (a, b) => { const [x1, y1] = ctr(a.q, a.r), [x2, y2] = ctr(b.q, b.r); return (Math.atan2(x2 - x1, -(y2 - y1)) * 180 / Math.PI + 360) % 360; };
+const OFF = [[[0, -1], [1, 0], [0, 1], [-1, 1], [-1, 0], [-1, -1]], [[1, -1], [1, 0], [1, 1], [0, 1], [-1, 0], [0, -1]]];
+const nb = (q, r, f) => { const o = OFF[r & 1][f]; return { q: q + o[0], r: r + o[1] }; };
+const fb = f => 30 + 60 * f;
+const WNAMES = ['N', 'NNE', 'ENE', 'E', 'ESE', 'SSE', 'S', 'SSW', 'WSW', 'W', 'WNW', 'NNW'];
+const terrain = (q, r) => {
+  const d = dist({ q, r }, { q: 14, r: 10 }), b = dist({ q, r }, { q: 6, r: 4 });
+  if (d <= 1) return 'land';
+  if (d === 2 || b <= 1) return 'shoal';
+  return 'sea';
+};
+const HEXES = [];
+for (let r = 0; r < ROWS; r++) for (let q = 0; q < COLS; q++) {
+  const [cx, cy] = ctr(q, r), pts = [];
+  for (let i = 0; i < 6; i++) { const a = (60 * i - 90) * Math.PI / 180; pts.push((cx + R * Math.cos(a)).toFixed(1) + ',' + (cy + R * Math.sin(a)).toFixed(1)); }
+  HEXES.push({ q, r, cx, cy, points: pts.join(' '), t: terrain(q, r) });
+}
+const sailCost = (f, w) => { const a = Math.abs(adiff(fb(f), w)); if (a < 45) return null; if (a < 75) return 3; if (a < 165) return 1; return 2; };
+const posName = (f, w) => { const a = Math.abs(adiff(fb(f), w)); return a < 45 ? 'In irons' : a < 75 ? 'Close-hauled' : a < 105 ? 'Beam reach' : a < 165 ? 'Broad reach' : 'Running'; };
+const SHOT = {
+  round: { max: 4, sub: 'range 4 · hull', w: { hull: .55, gunsP: .2, crew: .15, rig: .1 } },
+  chain: { max: 3, sub: 'range 3 · rigging', w: { rig: .75, hull: .15, crew: .1 } },
+  grape: { max: 2, sub: 'range 2 · crew', w: { crew: .8, gunsP: .1, rig: .1 } }
+};
+const TRK = { hull: 'Hull', rig: 'Rig', gunsP: 'Guns', crew: 'Crew' };
+const RF = [0, 1.5, 1, .6, .35];
+const ORDERS = [
+  { k: 'Engage', sub: 'close & fight' },
+  { k: 'Chase', sub: 'run down nearest' },
+  { k: 'Form line', sub: 'astern of flag' },
+  { k: 'Screen', sub: 'between flag & foe' },
+  { k: 'Withdraw', sub: 'break off' }
+];
+const MODE = { 'Engage': 'engage', 'Chase': 'chase', 'Form line': 'line', 'Screen': 'screen', 'Withdraw': 'withdraw' };
+const mk = seed => { let x = seed >>> 0; const f = () => { x = (x + 0x6D2B79F5) >>> 0; let t = x; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; f.seed = () => x; return f; };
+const active = s => s.status === 'ok' || s.status === 'wavering';
+const mpOf = s => Math.round(s.mpBase * s.rig / 100);
+const statusOf = s => s.hull <= 0 ? 'sunk' : (s.hull < 25 || s.crew < 20) ? 'struck' : (s.hull < 45 || s.crew < 40) ? 'wavering' : 'ok';
+const clone = ships => ships.map(x => ({ ...x, fired: { ...x.fired } }));
+const passable = (p, s, ships) => p.q >= 0 && p.r >= 0 && p.q < COLS && p.r < ROWS && terrain(p.q, p.r) !== 'land' && !(terrain(p.q, p.r) === 'shoal' && !s.shoal) && !ships.some(o => o.id !== s.id && o.status !== 'sunk' && o.q === p.q && o.r === p.r);
+const arcSide = (a, b) => { const d = dist(a, b); if (d < 1 || d > 4) return null; const rel = adiff(brg(a, b), fb(a.f)); if (rel >= 55 && rel <= 125) return 'stbd'; if (rel <= -55 && rel >= -125) return 'port'; return null; };
+const rake = (att, tgt) => { const rel = Math.abs(adiff(brg(tgt, att), fb(tgt.f))); return rel <= 35 ? { m: 1.5, k: 'ahead' } : rel >= 145 ? { m: 2, k: 'astern' } : { m: 1, k: null }; };
+const findTarget = (a, side, ships, maxR) => {
+  let best = null, bd = 99; const mx = maxR ?? SHOT[a.shot].max;
+  ships.forEach(t => { if (t.side === a.side || !active(t)) return; const d = dist(a, t); if (d <= mx && arcSide(a, t) === side && d < bd) { bd = d; best = t; } });
+  return best;
+};
+const doFire = (ships, a, side, g, mult) => {
+  if (a.fired[side] || !active(a)) return null;
+  const t = findTarget(a, side, ships); if (!t) return null;
+  const d = dist(a, t), rk = rake(a, t);
+  const D = (a.guns / 2) * (a.gunsP / 100) * RF[d] * (0.5 + 0.5 * a.crew / 100) * a.crewQ * rk.m * (0.7 + 0.6 * g()) * 0.65 / t.size * mult;
+  const parts = [], w = SHOT[a.shot].w;
+  Object.keys(w).forEach(k => { const v = Math.round(D * w[k]); if (v > 0) { t[k] = Math.max(0, t[k] - v); parts.push(TRK[k] + ' −' + v); } });
+  a.fired[side] = true;
+  const prev = t.status; t.status = statusOf(t);
+  const col = a.side === 'us' ? BLUE : RED;
+  const ev = [{ txt: `${a.short} fires ${side === 'port' ? 'port' : 'starboard'} broadside (${a.shot}) at ${t.short}, ${d} hex${rk.k ? ' · RAKING from ' + rk.k : ''}. ${parts.join(', ') || 'No effect'}.`, color: col }];
+  if (t.status !== prev) {
+    if (t.status === 'struck') ev.push({ txt: `${t.short.toUpperCase()} STRIKES HER COLOURS.`, color: INK });
+    else if (t.status === 'sunk') ev.push({ txt: `${t.short.toUpperCase()} FOUNDERS AND SINKS.`, color: INK });
+    else if (t.status === 'wavering') ev.push({ txt: `${t.short} is wavering.`, color: MUTE });
+  }
+  const [x1, y1] = ctr(a.q, a.r), [x2, y2] = ctr(t.q, t.r);
+  return { ev, shot: { x1, y1, x2, y2, color: col } };
+};
+const chooseShot = (a, t, d, mode) => {
+  if (a.side === 'us' && a.shotDoc !== 'auto') return a.shotDoc;
+  if (d <= 1 && t.crew > 30) return 'grape';
+  if ((a.pref === 'chain' || mode === 'chase') && d <= 3 && t.rig > 45) return 'chain';
+  return 'round';
+};
+const checkOver = ships => !ships.some(x => x.side === 'them' && active(x)) ? 'victory' : !ships.some(x => x.side === 'us' && active(x)) ? 'defeat' : null;
+const dirToward = (from, bearing) => { let bi = 0, bd = 999; for (let i = 0; i < 6; i++) { const d = Math.abs(adiff(fb(i), bearing)); if (d < bd) { bd = d; bi = i; } } return bi; };
+const TRAIT = {
+  Aggressive: { ideal: 1, rakeBonus: 14, risk: 5, exposed: 0 },
+  Cautious: { ideal: 3, rakeBonus: 8, risk: 14, exposed: 3 }
+};
+const goalFor = (e, ships) => {
+  const flag = ships.find(x => x.id === 'con'), foes = ships.filter(p => p.side !== e.side && active(p));
+  let mode = e.side === 'them' ? ((e.trait === 'Cautious' && e.status === 'wavering') ? 'withdraw' : 'engage') : MODE[e.order];
+  if ((mode === 'line' || mode === 'screen') && (e.id === 'con' || !active(flag))) mode = 'engage';
+  let station = null, target = null;
+  if (mode === 'line') { const d = (flag.f + 3) % 6, a = nb(flag.q, flag.r, d); station = nb(a.q, a.r, d); }
+  if (mode === 'screen' && foes.length) {
+    const near = foes.reduce((a, b) => dist(flag, a) <= dist(flag, b) ? a : b), d = dirToward(flag, brg(flag, near));
+    const a = nb(flag.q, flag.r, d); station = nb(a.q, a.r, d);
+  }
+  if ((mode === 'chase' || mode === 'engage') && foes.length) target = foes.reduce((a, b) => dist(e, a) <= dist(e, b) ? a : b);
+  return { mode, station, target, trait: TRAIT[e.trait] };
+};
+const plan = (e, ships, wind, goal) => {
+  const foes = ships.filter(p => p.side !== e.side && active(p)), T = goal.trait, flag = ships.find(x => x.id === 'con');
+  const aim = goal.mode === 'chase' && goal.target ? [goal.target] : foes;
+  const score = st => {
+    const me = { ...e, ...st }; let s = 0, bt = null, minD = 99;
+    foes.forEach(p => {
+      const d = dist(me, p); minD = Math.min(minD, d);
+      if (d <= 3 && arcSide(p, me)) s -= rake(p, me).m > 1 ? T.risk : T.exposed;
+    });
+    aim.forEach(p => {
+      const d = dist(me, p), side = arcSide(me, p);
+      if (side && d <= 3) { const v = 24 - 5 * Math.abs(d - T.ideal) + (rake(me, p).m > 1 ? T.rakeBonus : 0); bt = bt === null ? v : Math.max(bt, v); }
+    });
+    const aimD = aim.length ? Math.min(...aim.map(p => dist(me, p))) : 0;
+    if (goal.mode === 'engage') s += bt !== null ? bt : -aimD * 1.5;
+    else if (goal.mode === 'chase') s += (bt !== null ? bt : 0) - aimD * 3;
+    else if (goal.mode === 'line' || goal.mode === 'screen') {
+      s -= dist(me, goal.station) * 5 + (bt !== null ? -bt * .6 : 0);
+      if (goal.mode === 'line' && me.f === flag.f) s += 3;
+    } else if (goal.mode === 'withdraw') s += minD * 4;
+    if (sailCost(st.f, wind) === null) s -= 4;
+    return s;
+  };
+  let best = { s: -1e9, seq: [] };
+  const dfs = (st, seq, last) => {
+    const v = score(st); if (v > best.s) best = { s: v, seq };
+    if (seq.length >= 6) return;
+    if (st.mp >= 1 && last !== 'R') dfs({ ...st, f: (st.f + 5) % 6, mp: st.mp - 1 }, [...seq, 'L'], 'L');
+    if (st.mp >= 1 && last !== 'L') dfs({ ...st, f: (st.f + 1) % 6, mp: st.mp - 1 }, [...seq, 'R'], 'R');
+    const c = sailCost(st.f, wind), p = nb(st.q, st.r, st.f);
+    if (c !== null && st.mp >= c && passable(p, e, ships)) dfs({ ...st, q: p.q, r: p.r, mp: st.mp - c }, [...seq, 'F'], 'F');
+  };
+  dfs({ q: e.q, r: e.r, f: e.f, mp: e.mp }, [], null);
+  return best.seq;
+};
+const base = { hull: 100, rig: 100, gunsP: 100, crew: 100, status: 'ok', fired: { port: false, stbd: false }, shot: 'round', shotDoc: 'auto' };
+const initShips = () => [
+  { ...base, id: 'con', name: 'USS Constellation', short: 'Constellation', cls: 'Frigate · 38 guns · flagship', capt: 'Capt. T. Truxtun', trait: 'Aggressive', order: 'Engage', side: 'us', guns: 38, size: 1, mpBase: 4, crewQ: 1.1, shoal: false, q: 3, r: 10, f: 1 },
+  { ...base, id: 'nor', name: 'USS Norfolk', short: 'Norfolk', cls: 'Brig · 18 guns · shallow draught', capt: 'Lt. W. Bainbridge', trait: 'Cautious', order: 'Form line', side: 'us', guns: 18, size: .55, mpBase: 5, crewQ: 1, shoal: true, q: 2, r: 12, f: 1 },
+  { ...base, id: 'ins', name: "L'Insurgente", short: "L'Insurgente", cls: 'Frigate · 36 guns · fast', capt: 'Capt. M. Barreaut', trait: 'Aggressive', side: 'them', guns: 36, size: .95, mpBase: 5, crewQ: .95, shoal: false, q: 15, r: 3, f: 3, pref: 'chain' },
+  { ...base, id: 'vol', name: 'La Volage', short: 'La Volage', cls: 'Corvette · 22 guns · shallow draught', capt: 'Lt. de vaisseau Pitot', trait: 'Cautious', side: 'them', guns: 22, size: .7, mpBase: 4, crewQ: 1, shoal: true, q: 17, r: 5, f: 3, pref: 'round' }
+].map(s => ({ ...s, mp: mpOf(s) }));
+const initState = seed => ({
+  ships: initShips(), sel: 'con', cmd: null, pending: {}, turn: 1, wind: 0, seed, shots: [], over: null, resolving: false,
+  log: [
+    { t: 'T1', txt: "Orders: bring L'Insurgente to action. Your captains follow their signals and their own judgement. Press End Turn to watch them work.", color: INK },
+    { t: 'T1', txt: 'Standing signals: Constellation to Engage · Norfolk to Form Line astern.', color: MUTE },
+    { t: 'T1', txt: 'Enemy squadron sighted to windward, NE. Wind N, force 4.', color: MUTE }
+  ]
+});
+
+class Component extends DCLogic {
+  state = initState(1799);
+  componentDidMount() {
+    this.onKey = e => {
+      if (/INPUT|TEXTAREA/.test(e.target.tagName)) return;
+      const k = e.key.toLowerCase();
+      if (k === 'enter') return this.endTurn();
+      if (k === 't') return this.toggleCmd();
+      if (!this.state.cmd || this.state.sel !== this.state.cmd) return;
+      if (k === 'a') this.rotate(-1); else if (k === 'd') this.rotate(1); else if (k === 'w') this.forward();
+      else if (k === 'q') this.fire('port'); else if (k === 'e') this.fire('stbd');
+    };
+    window.addEventListener('keydown', this.onKey);
+  }
+  componentWillUnmount() { window.removeEventListener('keydown', this.onKey); clearTimeout(this.tmr); }
+  speed() { return { Slow: 380, Normal: 200, Fast: 70 }[this.props.resolveSpeed ?? 'Normal'] ?? 200; }
+  addLog(s, items) { return [...items.map(e => ({ t: 'T' + s.turn, ...e })).reverse(), ...s.log].slice(0, 100); }
+  withCmd(fn) {
+    this.setState(s => {
+      if (s.over || s.resolving || !s.cmd) return null;
+      const ships = clone(s.ships), a = ships.find(x => x.id === s.cmd);
+      if (!a || !active(a)) return null;
+      const r = fn(a, ships, s); return r === null ? null : { ships, ...r };
+    });
+  }
+  rotate(dir) { this.withCmd(a => { if (a.mp < 1) return null; a.f = (a.f + dir + 6) % 6; a.mp -= 1; return {}; }); }
+  forward() { this.withCmd((a, ships, s) => { const c = sailCost(a.f, s.wind), p = nb(a.q, a.r, a.f); if (c === null || a.mp < c || !passable(p, a, ships)) return null; a.q = p.q; a.r = p.r; a.mp -= c; return {}; }); }
+  stepTo(i) {
+    this.withCmd((a, ships, s) => {
+      const st = Math.min((i - a.f + 6) % 6, (a.f - i + 6) % 6), c = sailCost(i, s.wind), p = nb(a.q, a.r, i);
+      if (c !== null && st + c <= a.mp && passable(p, a, ships)) { a.f = i; a.q = p.q; a.r = p.r; a.mp -= st + c; return {}; }
+      if (st > 0 && st <= a.mp) { a.f = i; a.mp -= st; return {}; }
+      return null;
+    });
+  }
+  setShot(k) { this.withCmd(a => { a.shot = k; return {}; }); }
+  fire(side) {
+    this.withCmd((a, ships, s) => {
+      const g = mk(s.seed), res = doFire(ships, a, side, g, 1); if (!res) return null;
+      return { seed: g.seed(), log: this.addLog(s, res.ev), shots: [...s.shots, res.shot], over: checkOver(ships) };
+    });
+  }
+  signal(order) {
+    this.setState(s => {
+      if (s.over || s.resolving) return null;
+      const ships = clone(s.ships), a = ships.find(x => x.id === s.sel), flag = ships.find(x => x.id === 'con');
+      if (!a || a.side !== 'us' || !active(a) || a.id === s.cmd) return null;
+      if (a.id === 'con') { a.order = order; return { ships, log: this.addLog(s, [{ txt: `Constellation: Truxtun orders "${order}".`, color: INK }]) }; }
+      if (!active(flag)) return { log: this.addLog(s, [{ txt: 'The flagship is out of action. No signals can be made.', color: RED }]) };
+      if (a.order === order) { const p = { ...s.pending }; delete p[a.id]; return { pending: p }; }
+      return { pending: { ...s.pending, [a.id]: order }, log: this.addLog(s, [{ txt: `Flag hoists signal to ${a.short}: "${order}".`, color: INK }]) };
+    });
+  }
+  setShotDoc(k) {
+    this.setState(s => {
+      const ships = clone(s.ships), a = ships.find(x => x.id === s.sel);
+      if (!a || a.side !== 'us') return null; a.shotDoc = k; return { ships };
+    });
+  }
+  toggleCmd() {
+    this.setState(s => {
+      if (s.over || s.resolving) return null;
+      if (s.cmd && (s.cmd === s.sel || !s.ships.find(x => x.id === s.sel && x.side === 'us'))) {
+        const c = s.ships.find(x => x.id === s.cmd);
+        return { cmd: null, log: this.addLog(s, [{ txt: `The commodore returns to the flag. ${c.capt} resumes command of ${c.short} (${c.order}).`, color: BLUE }]) };
+      }
+      const a = s.ships.find(x => x.id === s.sel);
+      if (!a || a.side !== 'us' || !active(a)) return null;
+      return { cmd: a.id, log: this.addLog(s, [{ txt: `The commodore takes direct command of ${a.short}.`, color: BLUE }]) };
+    });
+  }
+  endTurn() {
+    const s = this.state; if (s.over || s.resolving) return;
+    const ids = s.ships.filter(x => active(x) && x.id !== s.cmd)
+      .sort((a, b) => mpOf(b) - mpOf(a) || (a.side === 'them' ? -1 : 1)).map(x => x.id);
+    this.setState(st => {
+      const ships = clone(st.ships);
+      ships.forEach(x => { if (x.side === 'them') { x.mp = mpOf(x); x.fired = { port: false, stbd: false }; } });
+      return { ships, resolving: true, shots: [] };
+    }, () => this.runActor(ids, 0));
+  }
+  runActor(ids, i) {
+    const s = this.state;
+    if (s.over || i >= ids.length) return this.finishTurn();
+    const e = s.ships.find(x => x.id === ids[i]);
+    if (!active(e)) return this.runActor(ids, i + 1);
+    const goal = goalFor(e, s.ships), seq = plan(e, s.ships, s.wind, goal), dl = this.speed();
+    const step = k => {
+      if (k >= seq.length) {
+        this.setState(st => this.fireAll(st, e.id, goal.mode));
+        this.tmr = setTimeout(() => this.runActor(ids, i + 1), dl * 1.6);
+        return;
+      }
+      this.setState(st => {
+        const ships = clone(st.ships), x = ships.find(y => y.id === e.id), a = seq[k];
+        if (a === 'L') { x.f = (x.f + 5) % 6; x.mp -= 1; }
+        else if (a === 'R') { x.f = (x.f + 1) % 6; x.mp -= 1; }
+        else { const p = nb(x.q, x.r, x.f), c = sailCost(x.f, st.wind); if (c !== null && passable(p, x, ships)) { x.q = p.q; x.r = p.r; x.mp -= c; } }
+        return { ships };
+      });
+      this.tmr = setTimeout(() => step(k + 1), dl);
+    };
+    step(0);
+  }
+  fireAll(st, id, mode) {
+    const ships = clone(st.ships), g = mk(st.seed), a = ships.find(x => x.id === id), ev = [], shots = [...st.shots];
+    const mult = a.side === 'them' ? ({ Midshipman: .7, Captain: 1, Admiral: 1.3 }[this.props.difficulty ?? 'Captain'] ?? 1) : 1;
+    if (mode === 'withdraw' && a.trait === 'Cautious') return null;
+    ['port', 'stbd'].forEach(side => {
+      const t = findTarget(a, side, ships, 4); if (!t) return;
+      a.shot = chooseShot(a, t, dist(a, t), mode);
+      const res = doFire(ships, a, side, g, mult); if (res) { ev.push(...res.ev); shots.push(res.shot); }
+    });
+    if (!ev.length) return null;
+    return { ships, seed: g.seed(), shots, log: this.addLog(st, ev), over: checkOver(ships) };
+  }
+  finishTurn() {
+    this.setState(s => {
+      const ships = clone(s.ships), g = mk(s.seed), ev = [], pending = { ...s.pending }, flag = ships.find(x => x.id === 'con');
+      let wind = s.wind, over = s.over || checkOver(ships);
+      Object.keys(pending).forEach(id => {
+        const x = ships.find(y => y.id === id);
+        if (!active(x) || !active(flag)) { delete pending[id]; return; }
+        if (dist(x, flag) <= SIGHT) { x.order = pending[id]; delete pending[id]; ev.push({ txt: `${x.short} acknowledges: "${x.order}".`, color: INK }); }
+        else ev.push({ txt: `${x.short} cannot make out the flag's signal. She is too far away.`, color: MUTE });
+      });
+      ships.forEach(x => {
+        if (x.side === 'us' && x.trait === 'Cautious' && x.status === 'wavering' && x.order !== 'Withdraw' && x.id !== s.cmd) {
+          x.order = 'Withdraw'; delete pending[x.id]; ev.push({ txt: `${x.capt} hauls ${x.short} off. Her damage is past what his doctrine allows.`, color: RED });
+        }
+      });
+      if (!over && g() < 0.2) { const v = g() < 0.5 ? 30 : -30; wind = (wind + v + 360) % 360; ev.push({ txt: `Wind ${v > 0 ? 'veers' : 'backs'} to ${WNAMES[wind / 30]}.`, color: MUTE }); }
+      ships.forEach(x => { if (x.side === 'us') { x.fired = { port: false, stbd: false }; x.mp = active(x) ? mpOf(x) : 0; } });
+      const turn = s.turn + 1;
+      if (!over && turn > 40) over = 'draw';
+      let cmd = s.cmd; if (cmd && !active(ships.find(x => x.id === cmd))) cmd = null;
+      let sel = s.sel; const cur = ships.find(x => x.id === sel);
+      if (cur.side === 'us' && !active(cur)) { const n = ships.find(x => x.side === 'us' && active(x)); if (n) sel = n.id; }
+      const log = [{ t: 'T' + turn, txt: `— Turn ${turn} —`, color: MUTE }, ...ev.map(e => ({ t: 'T' + s.turn, ...e })).reverse(), ...s.log].slice(0, 100);
+      return { ships, seed: g.seed(), wind, turn, log, over, sel, cmd, pending, resolving: false };
+    });
+  }
+  hexClick(q, r) {
+    const s = this.state, hit = s.ships.find(x => x.status !== 'sunk' && x.q === q && x.r === r);
+    if (hit) return this.setState({ sel: hit.id });
+    if (!s.cmd || s.sel !== s.cmd) return;
+    const a = s.ships.find(x => x.id === s.cmd);
+    for (let i = 0; i < 6; i++) { const p = nb(a.q, a.r, i); if (p.q === q && p.r === r) return this.stepTo(i); }
+  }
+  renderMap(s, sel) {
+    const h = React.createElement, ff = 'Courier Prime, monospace', showCosts = this.props.showCosts ?? true, showIntent = this.props.showIntent ?? true;
+    const manual = s.cmd && sel.id === s.cmd && active(sel) && !s.resolving;
+    const els = HEXES.map(x => {
+      let fill = x.t === 'land' ? '#bfb393' : x.t === 'shoal' ? '#e0d6bb' : '#ece5d3';
+      if (x.t !== 'land' && active(sel)) {
+        const side = arcSide(sel, x), mx = manual ? SHOT[sel.shot].max : sel.side === 'us' ? 3 : 4;
+        if (side && !sel.fired[side] && dist(sel, x) <= mx) fill = sel.side === 'us' ? '#cad2d8' : '#e8d2c6';
+      }
+      return h('polygon', { key: 'h' + x.q + '_' + x.r, points: x.points, fill, stroke: '#b9b09a', strokeWidth: .75, style: { cursor: 'pointer' }, onClick: () => this.hexClick(x.q, x.r) });
+    });
+    if (showIntent) s.ships.forEach(x => {
+      if (x.side !== 'us' || !active(x) || x.id === s.cmd) return;
+      const g = goalFor(x, s.ships), [x1, y1] = ctr(x.q, x.r);
+      if (g.station) {
+        const [x2, y2] = ctr(g.station.q, g.station.r);
+        els.push(h('line', { key: 'i' + x.id, x1, y1, x2, y2, stroke: MUTE, strokeWidth: 1.25, strokeDasharray: '5 4', pointerEvents: 'none' }));
+        els.push(h('rect', { key: 'st' + x.id, x: x2 - 6, y: y2 - 6, width: 12, height: 12, fill: '#f0eadb', stroke: MUTE, strokeWidth: 1.5, transform: `rotate(45 ${x2} ${y2})`, pointerEvents: 'none' }));
+      } else if (g.target) {
+        const [x2, y2] = ctr(g.target.q, g.target.r);
+        els.push(h('line', { key: 'i' + x.id, x1, y1, x2, y2, stroke: g.mode === 'chase' ? RED : MUTE, strokeWidth: 1.25, strokeDasharray: '5 4', pointerEvents: 'none' }));
+      }
+    });
+    if (manual) {
+      const fwd = nb(sel.q, sel.r, sel.f), fh = HEXES.find(x => x.q === fwd.q && x.r === fwd.r);
+      if (fh) els.push(h('polygon', { key: 'fwd', points: fh.points, fill: 'none', stroke: BLUE, strokeWidth: 2.5, pointerEvents: 'none' }));
+      if (showCosts) for (let i = 0; i < 6; i++) {
+        const p = nb(sel.q, sel.r, i); if (p.q < 0 || p.r < 0 || p.q >= COLS || p.r >= ROWS) continue;
+        if (s.ships.some(o => o.status !== 'sunk' && o.q === p.q && o.r === p.r)) continue;
+        const c = sailCost(i, s.wind), st = Math.min((i - sel.f + 6) % 6, (sel.f - i + 6) % 6), [cx, cy] = ctr(p.q, p.r);
+        const ok = c !== null && c + st <= sel.mp && passable(p, sel, s.ships);
+        els.push(h('text', { key: 'c' + i, x: cx, y: cy + 5, fontSize: 14, fontWeight: 700, fill: ok ? INK : '#a39b86', fontFamily: ff, textAnchor: 'middle', pointerEvents: 'none' }, c === null ? '✕' : String(c + st)));
+      }
+    }
+    s.shots.forEach((t, i) => {
+      els.push(h('line', { key: 's' + i, x1: t.x1, y1: t.y1, x2: t.x2, y2: t.y2, stroke: t.color, strokeWidth: 2, strokeDasharray: '2 5', strokeLinecap: 'round', pointerEvents: 'none' }));
+      els.push(h('circle', { key: 'sb' + i, cx: t.x2, cy: t.y2, r: 13, fill: 'none', stroke: t.color, strokeWidth: 1.5, pointerEvents: 'none' }));
+    });
+    s.ships.forEach(x => {
+      if (x.status === 'sunk') return;
+      const [cx, cy] = ctr(x.q, x.r), col = x.side === 'us' ? INK : RED, dead = !active(x), sc = x.size < .8 ? .8 : 1;
+      if (x.id === s.cmd) els.push(h('circle', { key: 'cmd', cx, cy, r: 23, fill: 'none', stroke: BLUE, strokeWidth: 3.5 }));
+      if (x.id === s.sel) els.push(h('circle', { key: 'sel', cx, cy, r: 19, fill: 'none', stroke: BLUE, strokeWidth: 1.75, strokeDasharray: x.id === s.cmd ? null : '3 2' }));
+      els.push(h('polygon', { key: 'p' + x.id, points: '0,-15 7,-4 7,12 -7,12 -7,-4', transform: `translate(${cx} ${cy}) rotate(${fb(x.f)}) scale(${sc})`, fill: dead ? '#f0eadb' : col, stroke: col, strokeWidth: dead ? 1.5 : 0, strokeDasharray: dead ? '2 2' : null, style: { cursor: 'pointer' }, onClick: () => this.setState({ sel: x.id }) }));
+      els.push(h('text', { key: 't' + x.id, x: cx, y: cy + 34, fontSize: 12, fontWeight: 700, fill: col, fontFamily: ff, textAnchor: 'middle', pointerEvents: 'none' }, x.short + (x.status === 'struck' ? ' (struck)' : '') + (x.id === s.cmd ? ' · YOU' : '')));
+      if (s.pending[x.id]) els.push(h('text', { key: 'f' + x.id, x: cx + 16, y: cy - 14, fontSize: 16, fill: RED, fontFamily: ff, pointerEvents: 'none' }, '⚑'));
+    });
+    return h('svg', { viewBox: '0 0 920 610', preserveAspectRatio: 'xMidYMid meet', style: { width: '100%', height: '100%', display: 'block' } }, els);
+  }
+  renderVals() {
+    const s = this.state, sel = s.ships.find(x => x.id === s.sel), flag = s.ships.find(x => x.id === 'con');
+    const ours = sel.side === 'us' && active(sel), manual = ours && s.cmd === sel.id;
+    const u = [Math.sin(s.wind * Math.PI / 180), -Math.cos(s.wind * Math.PI / 180)];
+    const proj = side => { const xs = s.ships.filter(x => x.side === side && active(x)); if (!xs.length) return 0; return xs.reduce((a, x) => { const [cx, cy] = ctr(x.q, x.r); return a + cx * u[0] + cy * u[1]; }, 0) / xs.length; };
+    const gage = proj('us') > proj('them');
+    const statusLbl = { ok: 'FIGHTING', wavering: 'WAVERING', struck: 'STRUCK', sunk: 'SUNK' };
+    const sigOf = x => {
+      if (x.side !== 'us') return ['Observed', MUTE];
+      if (!active(x)) return ['Out of action', MUTE];
+      if (x.id === s.cmd) return ['Under your direct command', BLUE];
+      if (x.id === 'con') return ['Flagship · orders take effect immediately', MUTE];
+      if (s.pending[x.id]) return [`⚑ "${s.pending[x.id]}" flying · awaiting ack`, RED];
+      return [dist(x, flag) <= SIGHT ? 'In sight of flag' : 'OUT OF SIGNAL RANGE', dist(x, flag) <= SIGHT ? MUTE : RED];
+    };
+    const cards = s.ships.map(x => {
+      const [sig, sigColor] = sigOf(x);
+      return {
+        name: x.name, cls: x.cls, capt: `${x.capt} · ${x.trait}`, status: statusLbl[x.status], statusColor: x.status === 'ok' ? MUTE : x.status === 'wavering' ? RED : INK,
+        color: x.side === 'us' ? INK : RED, bg: x.id === s.sel ? '#e3dccb' : '#f0eadb', border: x.id === s.cmd ? '3px solid ' + BLUE : '1.5px solid ' + (x.side === 'us' ? INK : RED),
+        hull: x.hull, rig: x.rig, guns: x.gunsP, crew: x.crew, hullW: x.hull + '%', rigW: x.rig + '%', gunsW: x.gunsP + '%', crewW: x.crew + '%',
+        order: x.side === 'us' ? (x.id === s.cmd ? 'Commodore commanding' : x.order) : 'Unknown intentions', sig, sigColor,
+        onSelect: () => this.setState({ sel: x.id })
+      };
+    });
+    const c = sailCost(sel.f, s.wind);
+    const fwdOk = manual && c !== null && sel.mp >= c && passable(nb(sel.q, sel.r, sel.f), sel, s.ships);
+    const helm = [
+      { label: '↺ Port', sub: '1 MP · A', onClick: () => this.rotate(-1), op: manual && sel.mp >= 1 ? 1 : .35 },
+      { label: 'Ahead', sub: c === null ? 'in irons' : `${c} MP · W`, onClick: () => this.forward(), op: fwdOk ? 1 : .35 },
+      { label: 'Stbd ↻', sub: '1 MP · D', onClick: () => this.rotate(1), op: manual && sel.mp >= 1 ? 1 : .35 }
+    ];
+    const shots = ['round', 'chain', 'grape'].map(k => ({ label: k[0].toUpperCase() + k.slice(1), sub: SHOT[k].sub, onClick: () => this.setShot(k), bg: sel.shot === k ? BLUE : '#f0eadb', fg: sel.shot === k ? '#f0eadb' : INK }));
+    const fire = ['port', 'stbd'].map(side => {
+      const t = manual ? findTarget(sel, side, s.ships) : null, done = sel.fired[side];
+      const sub = done ? 'Fired · reloading' : t ? `→ ${t.short} · ${dist(sel, t)} hex${rake(sel, t).k ? ' · RAKE' : ''}` : 'No target in arc/range';
+      const live = manual && t && !done;
+      return { label: side === 'port' ? 'FIRE PORT · Q' : 'FIRE STBD · E', sub, onClick: () => this.fire(side), op: live ? 1 : .4, bg: live ? RED : '#f0eadb', fg: live ? '#f0eadb' : RED };
+    });
+    const pend = s.pending[sel.id];
+    const signals = ORDERS.map(o => {
+      const cur = sel.order === o.k && !pend, isP = pend === o.k;
+      return { label: o.k, sub: cur ? 'current order' : isP ? '⚑ hoisted' : o.sub, onClick: () => this.signal(o.k), bg: cur ? INK : '#f0eadb', fg: cur ? '#f0eadb' : isP ? RED : INK, bstyle: isP ? 'dashed' : 'solid' };
+    });
+    const shotDocs = [['auto', "Captain's choice"], ['round', 'Round'], ['chain', 'Chain'], ['grape', 'Grape']].map(([k, l]) => ({ label: l, onClick: () => this.setShotDoc(k), bg: sel.shotDoc === k ? INK : '#f0eadb', fg: sel.shotDoc === k ? '#f0eadb' : INK }));
+    const prizes = s.ships.filter(x => x.side === 'them' && x.status === 'struck').length;
+    const OV = {
+      victory: ['VICTORY', `The enemy is beaten. ${prizes ? prizes + ' prize' + (prizes > 1 ? 's' : '') + ' taken under American colours.' : 'Both ships went down with their colours flying.'} Truxtun's dispatch will be read in Philadelphia.`, BLUE],
+      defeat: ['SQUADRON LOST', 'Your colours are struck. The Secretary of the Navy will want an explanation.', RED],
+      draw: ['NIGHTFALL', 'Darkness falls and the French slip away to Guadeloupe. Nobody wins.', INK]
+    }[s.over] || ['', '', INK];
+    const cmdShip = s.ships.find(x => x.id === s.cmd);
+    const selIsCmd = s.cmd && s.cmd === sel.id;
+    return {
+      map: this.renderMap(s, sel), turn: s.turn, windName: WNAMES[s.wind / 30], windRot: s.wind + 'deg',
+      gageText: gage ? 'GAGE: OURS' : 'GAGE: ENEMY', gageColor: gage ? BLUE : RED,
+      endLabel: s.resolving ? 'RESOLVING…' : 'END TURN ▸', endOp: s.resolving ? .5 : 1,
+      cards, log: s.log, helm, shots, fire, signals, shotDocs,
+      showSignals: ours && !manual, showManual: manual, showEnemy: sel.side !== 'us' || !active(sel),
+      enemyNote: sel.side !== 'us' ? 'Enemy vessel: you can watch her but not command her. Her broadside arcs are shaded red on the map.' : 'This ship is out of action.',
+      sigHeading: sel.id === 'con' ? "FLAGSHIP ORDERS · take effect immediately" : `SIGNAL TO ${sel.short.toUpperCase()} · acknowledged next turn if within ${SIGHT} hexes of the flag`,
+      hasCmd: !!cmdShip, cmdShort: cmdShip ? cmdShip.short.toUpperCase() : '',
+      canCmd: ours || !!s.cmd,
+      cmdLabel: selIsCmd || (s.cmd && !ours) ? 'RETURN TO FLAG' : s.cmd ? 'SWITCH COMMAND' : 'TAKE COMMAND',
+      cmdBg: selIsCmd ? BLUE : '#f0eadb', cmdFg: selIsCmd ? '#f0eadb' : BLUE,
+      cmdHint: selIsCmd ? `You're conning ${sel.short} this turn. Everyone else acts on their orders when you press End Turn.` : s.cmd && ours ? `Leave ${cmdShip.short} to ${cmdShip.capt} and take ${sel.short} instead.` : ours ? `Step onto ${sel.short}'s quarterdeck and handle her helm and guns yourself. The squadron keeps acting on doctrine.` : 'Return to the flag. The captain resumes command under his current order.',
+      selName: sel.name,
+      selInfo: sel.side === 'us' ? (active(sel) ? `${sel.capt} (${sel.trait}) · ${posName(sel.f, s.wind)} · ${manual ? sel.mp + ' MP left' : 'order: ' + sel.order}` : 'Out of action.') : `${sel.capt} (${sel.trait}) · ${statusLbl[sel.status].toLowerCase()}`,
+      endTurn: () => this.endTurn(), toggleCmd: () => this.toggleCmd(),
+      isOver: !!s.over, overTitle: OV[0], overText: OV[1], overColor: OV[2],
+      restart: () => { clearTimeout(this.tmr); this.setState(initState((Date.now() & 0xffff) + 1)); }
+    };
+  }
+}
+</script>
+</body>
+</html>

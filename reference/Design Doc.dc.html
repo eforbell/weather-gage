@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#d8d0bc;color:#1f1d1a;font-family:'Courier Prime',ui-monospace,monospace;-webkit-font-smoothing:antialiased}
+a{color:oklch(0.5 0.15 255);text-decoration:underline}
+a:hover{color:oklch(0.5 0.15 28)}
+*{box-sizing:border-box}
+</style>
+</helmet>
+<div style="padding:40px 16px 80px;display:flex;justify-content:center">
+<article style="width:100%;max-width:880px;background:#f0eadb;padding:clamp(28px,6vw,64px);box-shadow:0 1px 0 #c9bfa6,0 18px 40px -20px rgba(40,30,10,.35);position:relative;font-size:16px;line-height:1.6;text-wrap:pretty">
+
+<header style="border-bottom:3px double #1f1d1a;padding-bottom:20px;margin-bottom:28px;position:relative">
+  <div style="display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:#5a554b">
+    <span>Game Design Dispatch · No. 001</span><span>26 Sept 2026</span>
+  </div>
+  <div style="display:grid;grid-template-columns:90px 1fr;gap:4px 12px;margin-top:22px;font-size:15px">
+    <span style="color:#5a554b">TO:</span><span>Design Cell</span>
+    <span style="color:#5a554b">FROM:</span><span>Office of the Admiral</span>
+    <span style="color:#5a554b">SUBJ:</span><span style="font-weight:700">WEATHER GAGE: a naval command game, sail to dreadnought</span>
+  </div>
+  <sc-if value="{{ showStamps }}" hint-placeholder-val="{{ true }}">
+    <div style="display:flex;justify-content:flex-end;margin:24px 0 0">
+      <div style="transform:rotate(-4deg);border:3px solid oklch(0.52 0.16 28);color:oklch(0.52 0.16 28);padding:4px 12px;font-family:'Special Elite',monospace;font-size:18px;letter-spacing:.1em;opacity:.85">DRAFT · FOR DISCUSSION</div>
+    </div>
+  </sc-if>
+  <h1 style="font-family:'Special Elite','Courier Prime',monospace;font-weight:400;font-size:clamp(40px,7vw,68px);line-height:1;margin:28px 0 6px;letter-spacing:.02em">WEATHER GAGE</h1>
+  <p style="margin:0;font-size:15px;color:#5a554b">Working title. Alternates: <em>Line of Battle</em>, <em>Signal 16</em>, <em>Close Action</em>.</p>
+</header>
+
+<section style="margin-bottom:36px">
+  <h2 style="font-size:15px;letter-spacing:.18em;text-transform:uppercase;margin:0 0 12px">§1. The Pitch</h2>
+  <p style="margin:0 0 12px;font-size:18px">You are the commodore, not the captain. You get a squadron, a sealed order and a stretch of hostile sea. You don't aim the guns. You decide where the ships go, what they're told and when to commit. Missions are self-contained and take 30–60 minutes, like the old sims. The rules read as simply as Civilization's navy, but there's enough depth underneath to reward good seamanship.</p>
+  <p style="margin:0">Three eras, each with its own rules: <strong>Age of Sail</strong> (1775–1815), <strong>Ironclads &amp; Steam</strong> (1850–1890), <strong>Dreadnoughts</strong> (1905–1918). One hex engine runs all three, and each era changes the rules on top of it.</p>
+</section>
+
+<section style="margin-bottom:36px">
+  <h2 style="font-size:15px;letter-spacing:.18em;text-transform:uppercase;margin:0 0 16px">§2. Design Pillars</h2>
+  <div style="display:grid;gap:14px">
+    <div style="display:grid;grid-template-columns:36px 1fr;gap:12px;border-top:1px dashed #9a927f;padding-top:12px"><span style="font-weight:700">I.</span><div><strong>Command, not captaincy.</strong> You give orders to squadrons and divisions. Ships carry them out, sometimes badly. You never steer a ship directly.</div></div>
+    <div style="display:grid;grid-template-columns:36px 1fr;gap:12px;border-top:1px dashed #9a927f;padding-top:12px"><span style="font-weight:700">II.</span><div><strong>Information is the first weapon.</strong> Most of the time you're working from reports that are partial, late or wrong. Scouting and staying hidden decide as many battles as gunnery does.</div></div>
+    <div style="display:grid;grid-template-columns:36px 1fr;gap:12px;border-top:1px dashed #9a927f;padding-top:12px"><span style="font-weight:700">III.</span><div><strong>Every era changes the question.</strong> In sail you fight the wind. With ironclads you're working out what your new weapons can actually do. In WWI it's about range, speed and finding the enemy first. Each era should feel like a different game.</div></div>
+    <div style="display:grid;grid-template-columns:36px 1fr;gap:12px;border-top:1px dashed #9a927f;padding-top:12px"><span style="font-weight:700">IV.</span><div><strong>Short, decisive, replayable.</strong> Each mission has a clear brief, a clear end and a debrief. Build-up means preparing for this mission, not growing an empire.</div></div>
+    <div style="display:grid;grid-template-columns:36px 1fr;gap:12px;border-top:1px dashed #9a927f;padding-top:12px"><span style="font-weight:700">V.</span><div><strong>Readable precision (4/10).</strong> You can see every number if you want to, but you never have to. The fewer rules the better, as long as each one reflects something real.</div></div>
+  </div>
+</section>
+
+<section style="margin-bottom:36px">
+  <h2 style="font-size:15px;letter-spacing:.18em;text-transform:uppercase;margin:0 0 16px">§3. Core Loop</h2>
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:10px">
+    <div style="border:1.5px solid #1f1d1a;padding:12px 14px"><div style="font-size:12px;letter-spacing:.14em;color:#5a554b">01 · 2 MIN</div><div style="font-weight:700;margin:4px 0">Sealed Orders</div><div style="font-size:14px">Briefing: objectives, intelligence (some of it unreliable), your squadron, weather.</div></div>
+    <div style="border:1.5px solid #1f1d1a;padding:12px 14px"><div style="font-size:12px;letter-spacing:.14em;color:#5a554b">02 · 5 MIN</div><div style="font-weight:700;margin:4px 0">Fitting Out</div><div style="font-size:14px">Set loadouts, formation, doctrine and a signal plan. No shopping.</div></div>
+    <div style="border:1.5px solid #1f1d1a;padding:12px 14px"><div style="font-size:12px;letter-spacing:.14em;color:#5a554b">03 · 20–50 MIN</div><div style="font-weight:700;margin:4px 0">At Sea</div><div style="font-size:14px">Search, shadow, engage, disengage. Give orders and deal with what comes back.</div></div>
+    <div style="border:1.5px solid #1f1d1a;padding:12px 14px"><div style="font-size:12px;letter-spacing:.14em;color:#5a554b">04 · 3 MIN</div><div style="font-weight:700;margin:4px 0">Dispatch Home</div><div style="font-size:14px">The debrief is written as a period dispatch. You earn a grade and Admiralty Favour, and damage and experience carry into the campaign.</div></div>
+  </div>
+</section>
+
+<section style="margin-bottom:36px">
+  <h2 style="font-size:15px;letter-spacing:.18em;text-transform:uppercase;margin:0 0 12px">§4. Command Model</h2>
+  <p style="margin:0 0 12px">You give orders to <strong>groups</strong> (a squadron, a division or a detached ship) using a short list of verbs: <em>Proceed to · Patrol · Shadow · Engage · Form line · Chase · Screen · Withdraw</em>.</p>
+  <p style="margin:0 0 12px"><strong>Signal latency is the key era mechanic.</strong> An order only takes effect once the receiving ship actually gets it.</p>
+  <ul style="margin:0 0 12px;padding-left:22px">
+    <li><strong>Sail:</strong> flag hoists. The receiving ship has to be in line of sight, and smoke, darkness and fog block the signal. Detached ships act on their last orders plus their doctrine.</li>
+    <li><strong>Ironclads:</strong> flags plus dispatch vessels. Gun smoke on the battlefield makes signalling much less reliable.</li>
+    <li><strong>WWI:</strong> wireless. Orders arrive almost instantly, but transmitting can give away your position and messages can be garbled.</li>
+  </ul>
+  <p style="margin:0 0 12px"><strong>Take Command.</strong> At any time you can step onto one ship's quarterdeck. While you're there, your orders to that ship apply instantly with no signal delay: helm, sail, shot type and which broadside fires. The rest of the squadron follows doctrine until you return to the flag. You still never steer the ship directly or simulate its crew.</p>
+  <p style="margin:0"><strong>Doctrine</strong> sets what captains do when they have no orders: rules of engagement, preferred range, pursuit limit and the damage level at which they withdraw. A good doctrine plan is how you manage a battle you can't fully see.</p>
+</section>
+
+<section style="margin-bottom:36px">
+  <h2 style="font-size:15px;letter-spacing:.18em;text-transform:uppercase;margin:0 0 12px">§5. The Hex Sea</h2>
+  <ul style="margin:0;padding-left:22px">
+    <li><strong>Scale changes by era:</strong> one hex is about 400 yds in sail, about 1 nm for ironclads and about 2 nm for dreadnoughts. Maps stay about 40×30 hexes.</li>
+    <li><strong>Terrain:</strong> open sea, shoals (only shallow-draught ships can cross), coast, harbour, shore batteries, fog banks and squalls. Fog banks and squalls drift across the map.</li>
+    <li><strong>Wind (sail):</strong> a global direction that shifts during the mission. Movement cost depends on your point of sail. Upwind hexes are shaded on the map so you can read it at a glance. Holding the weather gage is a real tactical asset.</li>
+    <li><strong>Facing matters:</strong> ships have six facings. Firing arcs are drawn on the hexes: broadsides for sail, turret arcs for WWI.</li>
+  </ul>
+</section>
+
+<section style="margin-bottom:36px">
+  <h2 style="font-size:15px;letter-spacing:.18em;text-transform:uppercase;margin:0 0 12px">§6. Time Model</h2>
+  <p style="margin:0 0 12px">You chose turns for sail and real-time for the modern end. None of the v1 eras are modern, so I suggest one step per era:</p>
+  <div style="display:grid;grid-template-columns:minmax(0,1fr) minmax(0,2fr);gap:0;border-top:1.5px solid #1f1d1a">
+    <div style="padding:8px 0;border-bottom:1px dashed #9a927f;font-weight:700">Sail</div><div style="padding:8px 0;border-bottom:1px dashed #9a927f">Alternating turns, like Civ. Slow ships, heavy decisions, room to think.</div>
+    <div style="padding:8px 0;border-bottom:1px dashed #9a927f;font-weight:700">Ironclads</div><div style="padding:8px 0;border-bottom:1px dashed #9a927f">Simultaneous turns: both sides plot orders, then the turn plays out together. Collisions and rams get messy.</div>
+    <div style="padding:8px 0;border-bottom:1px dashed #9a927f;font-weight:700">Dreadnoughts</div><div style="padding:8px 0;border-bottom:1px dashed #9a927f">Pausable real-time on the hex grid, like Fleet Command. It auto-pauses when a new contact appears or a signal arrives.</div>
+  </div>
+  <p style="margin:12px 0 0"><strong>Engineering note:</strong> build all three on one fixed-tick simulation. A "turn" is just N ticks followed by an automatic pause. That keeps one codebase and lets later eras (WWII, carriers) plug straight in.</p>
+</section>
+
+<section style="margin-bottom:36px">
+  <h2 style="font-size:15px;letter-spacing:.18em;text-transform:uppercase;margin:0 0 12px">§7. Detection &amp; Fog (7/10)</h2>
+  <p style="margin:0 0 14px">Every enemy starts as a report, not a ship. Each contact moves through these states:</p>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
+    <span style="border:1.5px dashed #1f1d1a;padding:4px 10px">? UNKNOWN</span><span style="align-self:center">→</span>
+    <span style="border:1.5px solid #1f1d1a;padding:4px 10px">SIGHTED “sail to NE”</span><span style="align-self:center">→</span>
+    <span style="border:1.5px solid #1f1d1a;padding:4px 10px">CLASSIFIED “frigate”</span><span style="align-self:center">→</span>
+    <span style="border:1.5px solid #1f1d1a;background:#1f1d1a;color:#f0eadb;padding:4px 10px">IDENTIFIED “HMS Serapis, 44”</span>
+  </div>
+  <ul style="margin:0 0 12px;padding-left:22px">
+    <li><strong>Sensors:</strong> masthead lookouts (sight range depends on mast height and visibility), scouting frigates, WWI cruisers and seaplanes, and wireless intercepts.</li>
+    <li><strong>Signature:</strong> your own presence gives you away. Sail is visible from far off in clear weather. Coal smoke shows up <em>before</em> the hull does. Gunfire gives away your position. In WWI, transmitting a wireless message does too.</li>
+    <li><strong>Decay:</strong> contacts you stop tracking become "last known position" markers with a widening uncertainty ring. Some reports are false, e.g. fishing boats or doubled sightings.</li>
+    <li><strong>You are observed too:</strong> an enemy awareness meter decides whether stealth missions succeed.</li>
+  </ul>
+</section>
+
+<section style="margin-bottom:36px">
+  <h2 style="font-size:15px;letter-spacing:.18em;text-transform:uppercase;margin:0 0 12px">§8. Combat</h2>
+  <p style="margin:0 0 12px">Combat resolves automatically once ships are in range and arc, following their doctrine. You decide the geometry, meaning who gets to fire at whom and from where. You don't pull triggers.</p>
+  <ul style="margin:0 0 12px;padding-left:22px">
+    <li><strong>Four damage tracks per ship:</strong> Hull (sinking), Propulsion (rigging or engines), Guns and Crew (morale). Ships strike their colours or flee before they sink. Captured prizes count toward the score.</li>
+    <li><strong>Range bands:</strong> Long, Effective and Close, plus Boarding in sail. Hit chance comes from band, crew quality, sea state and angle.</li>
+    <li><strong>Geometry bonuses:</strong> raking (sail), ramming beam-on (ironclads) and crossing the T (WWI). The one tactical idea worth teaching in each era.</li>
+    <li><strong>Fire control (WWI):</strong> accuracy builds while you keep firing on the same target, and resets when you change target or turn.</li>
+  </ul>
+</section>
+
+<section style="margin-bottom:36px">
+  <h2 style="font-size:15px;letter-spacing:.18em;text-transform:uppercase;margin:0 0 14px">§9. Eras at a Glance</h2>
+  <div style="overflow-x:auto">
+  <div style="display:grid;grid-template-columns:120px repeat(3,minmax(170px,1fr));min-width:640px;font-size:14px;border-top:1.5px solid #1f1d1a">
+    <div style="padding:8px 8px 8px 0;border-bottom:1.5px solid #1f1d1a"></div>
+    <div style="padding:8px;border-bottom:1.5px solid #1f1d1a;font-weight:700">SAIL 1775–1815</div>
+    <div style="padding:8px;border-bottom:1.5px solid #1f1d1a;font-weight:700">IRONCLAD 1850–1890</div>
+    <div style="padding:8px;border-bottom:1.5px solid #1f1d1a;font-weight:700">DREADNOUGHT 1905–18</div>
+    <div style="padding:8px 8px 8px 0;border-bottom:1px dashed #9a927f;color:#5a554b">Movement</div><div style="padding:8px;border-bottom:1px dashed #9a927f">Wind &amp; point of sail</div><div style="padding:8px;border-bottom:1px dashed #9a927f">Steam + sail; coal budget</div><div style="padding:8px;border-bottom:1px dashed #9a927f">Speed classes; coal/oil endurance</div>
+    <div style="padding:8px 8px 8px 0;border-bottom:1px dashed #9a927f;color:#5a554b">Weapons</div><div style="padding:8px;border-bottom:1px dashed #9a927f">Broadsides; round/chain/grape</div><div style="padding:8px;border-bottom:1px dashed #9a927f">Rifled guns, ram, spar torpedo</div><div style="padding:8px;border-bottom:1px dashed #9a927f">Turrets, torpedoes, mines</div>
+    <div style="padding:8px 8px 8px 0;border-bottom:1px dashed #9a927f;color:#5a554b">Signals</div><div style="padding:8px;border-bottom:1px dashed #9a927f">Flags, line of sight</div><div style="padding:8px;border-bottom:1px dashed #9a927f">Flags + dispatch boats</div><div style="padding:8px;border-bottom:1px dashed #9a927f">Wireless; can be intercepted</div>
+    <div style="padding:8px 8px 8px 0;border-bottom:1px dashed #9a927f;color:#5a554b">Scouting</div><div style="padding:8px;border-bottom:1px dashed #9a927f">Frigates, lookouts</div><div style="padding:8px;border-bottom:1px dashed #9a927f">Smoke plumes, pickets</div><div style="padding:8px;border-bottom:1px dashed #9a927f">Cruiser screens, seaplanes, zeppelins</div>
+    <div style="padding:8px 8px 8px 0;border-bottom:1px dashed #9a927f;color:#5a554b">Signature</div><div style="padding:8px;border-bottom:1px dashed #9a927f;font-weight:700">The weather gage</div><div style="padding:8px;border-bottom:1px dashed #9a927f;font-weight:700">Armour vs. shell</div><div style="padding:8px;border-bottom:1px dashed #9a927f;font-weight:700">Find them first</div>
+    <div style="padding:8px 8px 8px 0;color:#5a554b">Time</div><div style="padding:8px">Turn-based</div><div style="padding:8px">Simultaneous (WEGO)</div><div style="padding:8px">Pausable real-time</div>
+  </div>
+  </div>
+</section>
+
+<section style="margin-bottom:36px">
+  <h2 style="font-size:15px;letter-spacing:.18em;text-transform:uppercase;margin:0 0 12px">§10. Fitting Out (light prep)</h2>
+  <ul style="margin:0;padding-left:22px">
+    <li><strong>Loadout:</strong> shot mix (sail), coal load vs. speed (steam), and AP vs. HE shells plus torpedo reloads (WWI).</li>
+    <li><strong>Formation:</strong> line ahead, line abreast, scouting screen, or escort box around a convoy.</li>
+    <li><strong>Doctrine:</strong> rules of engagement, preferred range, pursuit limit, withdraw threshold.</li>
+    <li><strong>Signal plan:</strong> pre-agreed contingencies ("if enemy sighted to leeward, form line and engage"). Use them to act before your signals can reach the fleet.</li>
+  </ul>
+</section>
+
+<section style="margin-bottom:36px">
+  <h2 style="font-size:15px;letter-spacing:.18em;text-transform:uppercase;margin:0 0 14px">§11. Sample Missions</h2>
+  <div style="display:grid;gap:16px">
+    <div style="border-top:1px dashed #9a927f;padding-top:12px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><strong>First Blood: Constellation vs. L'Insurgente · Nevis, 1799</strong><span style="font-size:13px;color:oklch(0.52 0.16 28)">SAIL · TUTORIAL · HISTORICAL</span></div><div>The recommended first mission. It opens with a quiet patrol so you can learn the wind, lookouts and signals. Then comes a frigate duel you're favoured to win. Even if you handle the ship badly you'll probably survive, but a good approach wins decisively.</div></div>
+    <div style="border-top:1px dashed #9a927f;padding-top:12px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><strong>The Burning of the Philadelphia · Tripoli, 1804</strong><span style="font-size:13px;color:#5a554b">SAIL · STEALTH · HISTORICAL</span></div><div>Take one captured ketch into a defended harbour at night. Burn the frigate before the enemy awareness meter fills, then get out. A good first mission because it teaches detection before gunnery.</div></div>
+    <div style="border-top:1px dashed #9a927f;padding-top:12px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><strong>Corsair Patrol · Barbary Coast</strong><span style="font-size:13px;color:#5a554b">SAIL · PATROL · PROCEDURAL</span></div><div>Two frigates have 40 turns to protect merchant traffic. Contacts are ambiguous: every sail could be a pirate or a neutral trader. Chase too hard and you open a gap in the patrol line.</div></div>
+    <div style="border-top:1px dashed #9a927f;padding-top:12px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><strong>Flamborough Head · 1779</strong><span style="font-size:13px;color:#5a554b">SAIL · FLEET ACTION · HISTORICAL</span></div><div>John Paul Jones's squadron against a Baltic convoy and its escorts. <em>Serapis</em> outguns you. Win by boarding or by capturing the convoy while the escort is tied up.</div></div>
+    <div style="border-top:1px dashed #9a927f;padding-top:12px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><strong>Hampton Roads · 1862</strong><span style="font-size:13px;color:#5a554b">IRONCLAD · DUEL · HISTORICAL</span></div><div>Play either side. As the Confederacy, your ironclad is breaking a wooden blockade until an unknown contact shows up. Shoals shape the whole map.</div></div>
+    <div style="border-top:1px dashed #9a927f;padding-top:12px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><strong>The Wilmington Run · 1863</strong><span style="font-size:13px;color:#5a554b">IRONCLAD · EVASION · PROCEDURAL</span></div><div>A blockade runner on a moonless night, with a coal budget, smoke to hide and a picket line to slip through.</div></div>
+    <div style="border-top:1px dashed #9a927f;padding-top:12px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><strong>The Hunt for von Spee · Falklands, 1914</strong><span style="font-size:13px;color:#5a554b">DREADNOUGHT · PURSUIT · HISTORICAL</span></div><div>Your battlecruisers are coaling when smoke appears on the horizon. Get to sea, win the speed race and keep his cruisers from scattering.</div></div>
+    <div style="border-top:1px dashed #9a927f;padding-top:12px"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><strong>Jutland: The Run to the North · 1916</strong><span style="font-size:13px;color:#5a554b">DREADNOUGHT · FLEET ACTION · HISTORICAL</span></div><div>As Beatty, lure the High Seas Fleet onto the Grand Fleet while wireless reports conflict, the mist is thick and your battlecruisers keep blowing up. The flagship scenario for the information pillar.</div></div>
+  </div>
+</section>
+
+<section style="margin-bottom:36px">
+  <h2 style="font-size:15px;letter-spacing:.18em;text-transform:uppercase;margin:0 0 12px">§12. Missions &amp; Campaigns</h2>
+  <ul style="margin:0;padding-left:22px">
+    <li><strong>Standalone:</strong> historical scenarios with fixed forces, plus procedurally generated patrol, escort and raid missions.</li>
+    <li><strong>Campaign:</strong> a chain of about 8 missions per era, with a persistent squadron. Named captains gain traits, damage takes time to repair, and prizes can join your fleet.</li>
+    <li><strong>Admiralty Favour</strong> replaces a points budget. Spend it between missions to request ships, refits or better intelligence. Losing ships or ignoring orders costs Favour.</li>
+  </ul>
+</section>
+
+<section style="margin-bottom:36px">
+  <h2 style="font-size:15px;letter-spacing:.18em;text-transform:uppercase;margin:0 0 12px">§13. Out of Scope for v1</h2>
+  <p style="margin:0">Player-controlled submarines, carriers and aircraft strikes, WWII and later, multiplayer, and economy or base-building. U-boats appear in WWI only as enemy threats. The tick engine and sensor model are designed so that WWII wolfpacks and carrier strikes (Midway) can be a later expansion era.</p>
+</section>
+
+<section style="margin-bottom:36px">
+  <h2 style="font-size:15px;letter-spacing:.18em;text-transform:uppercase;margin:0 0 12px">§14. Prototype Recommendations</h2>
+  <p style="margin:0 0 12px"><strong>Stack:</strong> TypeScript. Keep the simulation separate from rendering, with deterministic ticks and seeded randomness so replays are exact. Draw the hex map with PixiJS or Canvas 2D and keep the UI panels in HTML. Store ships and scenarios as JSON data. For hex math, use the axial coordinates in Red Blob Games' hex guide.</p>
+  <p style="margin:0 0 10px"><strong>First playable slice:</strong> two frigates against two frigates in a shifting wind. It tests the hardest and most distinctive system first.</p>
+  <ol style="margin:0;padding-left:22px">
+    <li><strong>M1:</strong> hex map, wind, facing, movement costs, turn loop.</li>
+    <li><strong>M2:</strong> broadside arcs, range bands, the four damage tracks, striking colours.</li>
+    <li><strong>M3:</strong> fog of war, contact states, lookout ranges, last-known-position markers.</li>
+    <li><strong>M4:</strong> orders and doctrine for groups, plus signal latency.</li>
+    <li><strong>M5:</strong> the Philadelphia mission end to end: briefing, fitting out, mission, dispatch.</li>
+  </ol>
+</section>
+
+<section style="border-top:3px double #1f1d1a;padding-top:20px;position:relative">
+  <h2 style="font-size:15px;letter-spacing:.18em;text-transform:uppercase;margin:0 0 12px">§15. Decisions Received</h2>
+  <ol style="margin:0;padding-left:22px">
+    <li><strong>Time model:</strong> approved. One tick engine, with each era choosing how it's presented.</li>
+    <li><strong>Direct control:</strong> yes, via Take Command (§4). Orders are immediate and unimpeded, with no detailed model of the ship.</li>
+    <li><strong>Both sides:</strong> only for selected battles, marked as dual-perspective. Each side needs its own objectives and its own fog of war, so plan for about 1 in 4 scenarios.</li>
+    <li><strong>First mission:</strong> Constellation vs. L'Insurgente (§11). It's forgiving and teaches the wind before the guns.</li>
+    <li><strong>Next deliverable:</strong> <a href="Admiral View.dc.html">Admiral's view mockup</a>.</li>
+  </ol>
+  <sc-if value="{{ showStamps }}" hint-placeholder-val="{{ true }}">
+    <div style="margin-top:28px;display:flex;justify-content:flex-end"><div style="transform:rotate(4deg);border:3px solid oklch(0.5 0.15 255);color:oklch(0.5 0.15 255);padding:6px 14px;font-family:'Special Elite',monospace;font-size:20px;letter-spacing:.1em;opacity:.85">ACKNOWLEDGED</div></div>
+  </sc-if>
+</section>
+
+</article>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;showStamps&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+class Component extends DCLogic {
+  renderVals() {
+    return { showStamps: this.props.showStamps ?? true };
+  }
+}
+</script>
+</body>
+</html>
