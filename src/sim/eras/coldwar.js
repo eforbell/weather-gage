@@ -3,7 +3,7 @@
 // seekers and arming distances, noisemaker decoys, and captain personalities.
 import {
   DIRECTIONS, distance, isActive, addLog, addFx, applyDamage, resolveStatus, nextRandom,
-  directionToward, turnDistance, inBounds, terrainAt, clamp, CONF_RANK, hostile, markAttack, assertCoord, sidesOf, chance, seededHash, believedHostile, worthClosing,
+  directionToward, turnDistance, inBounds, terrainAt, clamp, CONF_RANK, hostile, markAttack, assertCoord, sidesOf, chance, seededHash, believedHostile, worthClosing, contactsForShip,
 } from '../core.js';
 import { steamMove, headingTo, nearest } from './steam.js';
 
@@ -115,7 +115,7 @@ function heardTorpedo(state, ship) {
 }
 
 function contactsFor(state, ship, filter) {
-  return (state.contacts[ship.side] || [])
+  return contactsForShip(state, ship)
     .filter((c) => !c.stale)
     .map((c) => ({ c, s: state.ships.find((x) => x.id === c.targetId) }))
     .filter(({ c, s }) => s && isActive(s) && filter(s, c))
@@ -272,17 +272,20 @@ function strike(state, t, victim) {
   return resolveStatus(state, victim);
 }
 
-// What each side can see of weapons in the water: its own exactly; others only when
-// loud and close to one of its boats, and then only roughly.
-export function publicEntities(state, side) {
-  const own = state.ships.filter((s) => s.side === side && isActive(s));
+// The selected boat knows its own weapons exactly; other weapons are heard only
+// nearby and only roughly. The side-wide fallback serves legacy callers.
+export function publicEntities(state, side, observerId = null) {
+  const own = observerId ? state.ships.filter((s) => s.id === observerId && s.side === side && isActive(s))
+    : state.ships.filter((s) => s.side === side && isActive(s));
   return (state.entities || []).flatMap((e) => {
-    if (e.side === side) return [{ id: e.id, kind: e.kind, q: e.q, r: e.r, facing: e.facing ?? 0, own: true, armed: e.kind === 'torpedo' ? e.travelled >= e.armAt : undefined }];
+    if (e.side === side && (!observerId || e.shooterId === observerId || (e.kind === 'decoy' && e.id.endsWith(`_${observerId}`)))) {
+      return [{ id: e.id, kind: e.kind, q: e.q, r: e.r, facing: e.facing ?? 0, own: true, armed: e.kind === 'torpedo' ? e.travelled >= e.armAt : undefined }];
+    }
     if (!own.some((s) => distance(s, e) <= HEAR_TORPEDO)) return [];
     // Heard, not tracked: an opaque id and a position that wanders by up to a hex each tick.
-    const h = seededHash(state, `heard|${side}|${state.tick}|${e.id}`);
+    const h = seededHash(state, `heard|${observerId || side}|${state.tick}|${e.id}`);
     const [dq, dr] = DIRECTIONS[h % 6];
     const off = (h >>> 3) % 2;
-    return [{ id: `h_${seededHash(state, `entity|${side}|${e.id}`).toString(36)}`, kind: e.kind, q: clamp(e.q + dq * off, 0, state.map.width - 1), r: clamp(e.r + dr * off, 0, state.map.height - 1), own: false }];
+    return [{ id: `h_${seededHash(state, `entity|${observerId || side}|${e.id}`).toString(36)}`, kind: e.kind, q: clamp(e.q + dq * off, 0, state.map.width - 1), r: clamp(e.r + dr * off, 0, state.map.height - 1), own: false }];
   });
 }

@@ -27,7 +27,7 @@ const PRIMERS = {
   ],
   coldwar: [
     ['Hear, don’t be heard', 'Speed is noise. Silent running is slow but nearly inaudible; at flank speed you are loud and deaf. Hunters sprint, then drift to listen.'],
-    ['A bearing is not a position', 'Passive contacts sit somewhere inside their ring. Hold contact and the ring shrinks; hold it three ticks and sonar will classify it, not always correctly.'],
+    ['A bearing is not a position', 'Each boat has its own sonar picture: select a submarine to see what she hears. Passive contacts sit somewhere inside their ring. Hold contact and the ring shrinks; hold it three ticks and sonar will classify it, not always correctly.'],
     ['One ping only', 'Active sonar gives an exact fix and tells everyone where you are. It is also how one captain says hello to another.'],
     ['Torpedoes have no loyalty', 'A seeker homes on the loudest boat ahead of it, including the one that fired it. Inside its arming distance a torpedo is just a heavy object.'],
     ['Don’t start a war', 'Peacetime rules: Dallas holds fire. Shoot first and Konovalov is your enemy too. But an attack on a boat under your protection is an attack on you.'],
@@ -64,16 +64,16 @@ export function advise(view, sc) {
   }
 
   if (sc.era === 'coldwar') {
-    const dallas = own.find(s => s.side === 'blue');
+    const listener = own.find(s => s.id === view.sonarOf) || own.find(s => s.side === 'blue');
     const defector = own.find(s => s.side !== 'blue');
     const quiet = fresh.find(c => /seismic|magma/i.test(c.className || ''));
     const heard = view.entities.find(e => !e.own && e.kind === 'torpedo');
     if (heard) return 'Torpedo in the water! Captains will evade on their own; a noisemaker or a turn into an unarmed fish may save them.';
     if (defector && defector.doctrine.depth === 'surface') return `${defector.name} is on the surface and visible for miles. Keep Dallas between her and the hunter, and be ready to defend her.`;
     if (defector) return `${defector.name} is under your command. Her route, speed and depth are yours to set; an attack on her is now an attack on you.`;
-    if (quiet && dallas && distance(dallas, quiet) <= 8) return 'That “seismic noise” is moving at a steady course and speed. Nature doesn’t do that. One ping might get an answer.';
+    if (quiet && listener && distance(listener, quiet) <= 8) return 'That “seismic noise” is moving at a steady course and speed. Nature doesn’t do that. One ping might get an answer.';
     if (quiet) return 'Sonar reports faint seismic noise that keeps a steady bearing drift. Close the range quietly and listen.';
-    if (dallas && dallas.doctrine.speed === 'flank') return 'Dallas is at flank speed: loud and half-deaf. Slow down to hear anything.';
+    if (listener && listener.doctrine.speed === 'flank') return `${listener.name} is at flank speed: loud and half-deaf. Slow down to hear anything.`;
     return 'Nothing on sonar you can trust yet. Slow, quiet and patient finds more than fast and loud.';
   }
 

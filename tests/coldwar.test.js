@@ -11,6 +11,19 @@ const bare = (seed = 5) => {
 };
 // Out of the way without ending the game (escaping would count as the rendezvous).
 const park = (state, id) => Object.assign(ship(state, id), { q: 0, r: 13, order: { type: 'hold' }, doctrine: { ...ship(state, id).doctrine, roe: 'hold' } });
+const twoBlueBoats = () => {
+  const state = bare(23);
+  const dallas = ship(state, 'b_dallas');
+  Object.assign(dallas, { q: 10, r: 9, facing: 3, order: { type: 'hold' }, doctrine: { ...dallas.doctrine, roe: 'hold' } });
+  const scout = structuredClone(dallas);
+  Object.assign(scout, { id: 'b_scout', name: 'USS Scout', q: 15, r: 9, sonar: 0, torpedoes: 2, doctrine: { ...scout.doctrine, speed: 'silent' } });
+  state.ships.push(scout);
+  state.contactTracks[scout.id] = [];
+  const hunter = ship(state, 'r_konovalov');
+  Object.assign(hunter, { q: 7, r: 9, quiet: 1, noise: 1, order: { type: 'hold' }, doctrine: { ...hunter.doctrine, roe: 'hold' } });
+  park(state, 'g_red_october');
+  return state;
+};
 
 test('three sides each get their own picture, and hostility starts one-sided', () => {
   const state = createGame('defector', 1);
@@ -43,6 +56,60 @@ test('the baffles are deaf astern', () => {
   park(state, 'g_red_october');
   state = step(state);
   assert.ok(!state.contacts.blue.some((c) => c.targetId === 'r_konovalov' && !c.stale));
+});
+
+test('each boat has its own sonar picture, including in the selected-boat view', () => {
+  let state = step(twoBlueBoats());
+  assert.ok(state.contactTracks.b_dallas.some((c) => c.targetId === 'r_konovalov' && !c.stale));
+  assert.ok(!state.contactTracks.b_scout.some((c) => c.targetId === 'r_konovalov' && !c.stale));
+  assert.ok(state.contacts.blue.some((c) => c.targetId === 'r_konovalov'), 'command summary can retain reports');
+  assert.ok(getView(state, 'blue', 'b_dallas').contacts.length > 0);
+  assert.equal(getView(state, 'blue', 'b_scout').contacts.length, 0, 'the scout does not inherit Dallas’s fix');
+  assert.equal(getView(state, 'blue', 'r_konovalov').sonarOf, 'b_dallas', 'a caller cannot select an enemy observer');
+  addFx(state, { type: 'torpedo', shooterId: 'r_konovalov', targetId: 'b_dallas' });
+  assert.ok(getView(state, 'blue', 'b_dallas').fx.some((e) => e.type === 'torpedo'));
+  assert.ok(!getView(state, 'blue', 'b_scout').fx.some((e) => e.type === 'torpedo'), 'another boat’s sonar does not reveal chart effects');
+  const withFish = structuredClone(state);
+  withFish.entities.push({ id: 'probe', kind: 'torpedo', side: 'red', shooterId: 'r_konovalov', q: 9, r: 8, facing: 0, travelled: 0, run: 18, armAt: 2, aimQ: 10, aimR: 8, seeking: null });
+  assert.equal(getView(withFish, 'blue', 'b_dallas').entities.length, 1);
+  assert.equal(getView(withFish, 'blue', 'b_scout').entities.length, 0, 'another boat’s hearing does not reveal a weapon');
+
+  state = activePing(state, ['b_dallas']);
+  state = step(state);
+  assert.equal(state.contactTracks.b_dallas.find((c) => c.targetId === 'r_konovalov').uncertainty, 0);
+  assert.ok(!state.contactTracks.b_scout.some((c) => c.targetId === 'r_konovalov' && !c.stale), 'one boat’s ping does not update another’s sonar');
+});
+
+test('a boat cannot fire using another boat’s classified track', () => {
+  let state = twoBlueBoats();
+  for (let i = 0; i < 4; i++) state = step(state);
+  assert.equal(state.contactTracks.b_dallas.find((c) => c.targetId === 'r_konovalov').confidence, 'classified');
+  const scout = ship(state, 'b_scout');
+  Object.assign(scout, { q: 10, r: 10, facing: 3, sonar: 5, order: { type: 'engage' }, doctrine: { ...scout.doctrine, roe: 'free', range: 12 } });
+  const ammo = scout.torpedoes;
+  state = step(state);
+  assert.equal(state.contactTracks.b_scout.find((c) => c.targetId === 'r_konovalov').confidence, 'sighted');
+  assert.equal(ship(state, 'b_scout').torpedoes, ammo);
+  assert.ok(!state.entities.some((e) => e.shooterId === 'b_scout'));
+});
+
+test('old saves rebuild separate sonar tracks instead of copying the side report', () => {
+  const legacy = twoBlueBoats();
+  legacy.contacts.blue = [{ id: 'legacy', targetId: 'r_konovalov', q: 7, r: 9, confidence: 'identified', lastSeen: 0, stale: false }];
+  Object.assign(ship(legacy, 'b_dallas'), { q: 19, r: 13 });
+  delete legacy.contactTracks;
+  const loaded = deserialize(JSON.stringify(legacy));
+  assert.ok(!loaded.contactTracks.b_dallas.some((c) => c.targetId === 'r_konovalov' && !c.stale));
+  assert.ok(!loaded.contactTracks.b_scout.some((c) => c.targetId === 'r_konovalov' && !c.stale));
+  assert.equal(getView(loaded, 'blue', 'b_scout').contacts.length, 0);
+});
+
+test('malformed per-boat contact tracks are rejected', () => {
+  const state = twoBlueBoats();
+  delete state.contactTracks.b_scout;
+  assert.throws(() => deserialize(JSON.stringify(state)), /Invalid contact tracks/);
+  state.contactTracks.b_scout = [{ id: 'bad', targetId: 'missing', q: 1, r: 1, confidence: 'sighted', lastSeen: 0, stale: false }];
+  assert.throws(() => deserialize(JSON.stringify(state)), /Invalid contact target/);
 });
 
 test('one ping: exact fix for the pinger, position revealed to everyone, and the defector answers', () => {

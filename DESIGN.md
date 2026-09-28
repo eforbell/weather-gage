@@ -41,6 +41,8 @@ Three columns on wide screens; command panel moves below chart on medium screens
 ## Interaction states
 Brief visible on first visit. No loading spinner: static ESM startup. Empty contact list says no contacts. Save failures remain playable and show a message; invalid imports do not replace current state. Outcome stops clock and opens a debrief. Running clocks pause on new fresh contact, outcome, hidden tab, briefing, and save/load operations.
 
+In Cold War sorties, the chart and contact list show the selected submarine's sonar track. Each captain moves and fires from that boat's own track; side-level summaries remain for command dispatches, not instant target sharing. Selecting another boat changes the sonar picture. Older saves rebuild tracks from each boat's current sensors rather than copying the former shared report.
+
 ## Content voice
 Short dispatches. Explain game rules rather than imply real-world accuracy. Modern setting is fictional. Keep display time/ticks explicitly abstract.
 

@@ -218,8 +218,13 @@ export function clamp(n, min, max) { return Math.min(max, Math.max(min, n)); }
 
 export function deepClone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
 
+// Cold War captains act on their own sonar track; other eras share side reports.
+export function contactsForShip(state, ship) {
+  return state.contactTracks ? state.contactTracks[ship.id] || [] : state.contacts[ship.side] || [];
+}
+
 export function bestContactFor(state, side, maxRange, allowStale = false, fromShip = null) {
-  return (state.contacts[side] || [])
+  return (fromShip ? contactsForShip(state, fromShip) : state.contacts[side] || [])
     .filter((c) => (allowStale || !c.stale) && distance(fromShip || c, c) <= (fromShip ? maxRange : Infinity))
     .filter((c) => !fromShip || distance(fromShip, c) <= maxRange)
     .sort((a, b) => (a.stale - b.stale) || distance(fromShip || a, a) - distance(fromShip || b, b) || CONF_RANK[b.confidence] - CONF_RANK[a.confidence])[0] || null;

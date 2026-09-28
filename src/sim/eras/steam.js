@@ -1,7 +1,7 @@
 // Steam-era movement shared by the ironclad and dreadnought rule modules: speed in
 // half-hexes per tick, limited turn rate, draught vs shoals, captains avoiding
 // declared minefields. Each era supplies its own desired-heading logic.
-import { DIRECTIONS, distance, isActive, addLog, addFx, applyDamage, resolveStatus, roll, terrainAt, directionToward, turnDistance, inBounds, key } from '../core.js';
+import { DIRECTIONS, distance, isActive, addLog, addFx, applyDamage, resolveStatus, roll, terrainAt, directionToward, turnDistance, inBounds, key, contactsForShip } from '../core.js';
 
 // Speed is in half-hexes per tick, so a 3 steams 1, 2, 1, 2… hexes.
 export function movesThisTick(state, ship, ordered = ship.speed) {
@@ -98,10 +98,11 @@ function navigable(state, ship, c) {
 }
 
 function routeField(state, ship, destination) {
-  // Avoid your own ships and where your side has reported others; captains cannot route around boats they don't know about.
+  // Avoid your own ships and reported contacts; submarine captains cannot route
+  // around boats detected only by another sonar operator.
   const blocked = new Set([
     ...state.ships.filter((s) => s !== ship && s.side === ship.side && isActive(s)).map((s) => key(s.q, s.r)),
-    ...(state.contacts?.[ship.side] || []).filter((c) => !c.stale).map((c) => key(c.q, c.r)),
+    ...contactsForShip(state, ship).filter((c) => !c.stale).map((c) => key(c.q, c.r)),
   ]);
   const field = new Map([[key(destination.q, destination.r), 0]]);
   const queue = [destination];
@@ -118,4 +119,3 @@ function routeField(state, ship, destination) {
   }
   return field;
 }
-

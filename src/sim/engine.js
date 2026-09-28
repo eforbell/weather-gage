@@ -1,7 +1,7 @@
 import { SCENARIO_SETUPS, SCENARIOS } from './scenarios.js';
 import {
   WIDTH, HEIGHT, DIRECTIONS, ALL_SIDES, CONF_RANK, MAX_LOG, MAX_FX, sidesOf, hostile, chance, contactId, believedHostile, worthClosing,
-  distance, isActive, assertCoord, nonEmptyString, addLog, reportText, addFx, publicFx, applyDamage, resolveStatus, roll, nextRandom, terrainAt, terrainAtMap, directionToward, hexDistanceRaw, turnDistance, inBounds, key, clamp, deepClone, bestContactFor,
+  distance, isActive, assertCoord, nonEmptyString, addLog, reportText, addFx, publicFx, applyDamage, resolveStatus, roll, nextRandom, terrainAt, terrainAtMap, directionToward, hexDistanceRaw, turnDistance, inBounds, key, clamp, deepClone, bestContactFor, contactsForShip,
 } from './core.js';
 
 export { WIDTH, HEIGHT, DIRECTIONS, distance, isActive };
@@ -44,6 +44,7 @@ export function createGame(scenarioId = 'nevis', seed = 1799) {
   if (setup.sides) state.sides = [...setup.sides];
   if (setup.hostile) state.hostile = deepClone(setup.hostile);
   if (setup.entities) state.entities = [];
+  if (meta.era === 'coldwar') state.contactTracks = Object.fromEntries(state.ships.map((ship) => [ship.id, []]));
   // Scripted events: each seed picks a tick inside the event's window, so the same
   // mission plays out differently without anything being random at run time.
   if (setup.events) state.events = setup.events.map((e) => ({ ...deepClone(e), at: pickTick(state, e), done: false }));
@@ -128,10 +129,16 @@ export function activePing(input, shipIds) {
   return trimLog(addLog(state, `${ships.map((s) => s.name).join(', ')} ordered to ping.`, 'order', [ships[0].side]));
 }
 
-export function getView(input, side = 'blue') {
+export function getView(input, side = 'blue', observerId = null) {
   const state = validateState(input);
   const safeSide = sidesOf(state).includes(side) ? side : 'blue';
   const mine = commanded(state, safeSide);
+  const observer = state.contactTracks && (state.ships.find((s) => s.id === observerId && mine.includes(s.side) && isActive(s))
+    || state.ships.find((s) => mine.includes(s.side) && isActive(s)));
+  const ownIds = new Set(state.ships.filter((s) => mine.includes(s.side)).map((s) => s.id));
+  const contacts = state.contactTracks ? (observer ? contactsForShip(state, observer).filter((c) => !ownIds.has(c.targetId)) : []) : mergedContacts(state, mine);
+  const visibleIds = new Set(contacts.filter((c) => !c.stale).map((c) => contactId(state, safeSide, c.targetId)));
+  const effects = (state.fx || []).map((e) => observer ? e?.[observer.side] : mine.map((sd) => e?.[sd]).find(Boolean)).filter(Boolean);
   return {
     version: state.version,
     scenarioId: state.scenarioId,
@@ -139,13 +146,14 @@ export function getView(input, side = 'blue') {
     wind: state.wind,
     map: deepClone(state.map),
     ships: state.ships.filter((s) => mine.includes(s.side)).map((s) => publicOwnShip(s, state, safeSide)),
-    contacts: mergedContacts(state, mine).map((c) => publicContact({ ...c, id: contactId(state, safeSide, c.targetId) })),
+    ...(observer ? { sonarOf: observer.id } : {}),
+    contacts: contacts.map((c) => publicContact({ ...c, id: contactId(state, safeSide, c.targetId) })),
     pending: state.pending
       .filter((p) => !p.kind && p.order && state.ships.some((s) => s.id === p.shipId && mine.includes(s.side)))
       .map((p) => ({ shipId: p.shipId, order: deepClone(p.order), deliverAt: p.deliverAt })),
     log: state.log.slice(-MAX_LOG).map((e) => mine.map((sd) => publicLogEntry(e, state, sd)).find(Boolean)).filter(Boolean),
-    fx: (state.fx || []).map((e) => mine.map((sd) => e?.[sd]).find(Boolean)).filter(Boolean).map(deepClone),
-    entities: uniqueEntities(mine.flatMap((sd) => rulesFor(state).publicEntities?.(state, sd) || [])),
+    fx: state.contactTracks ? (observer ? effects.map((e) => observerFx(e, observer, visibleIds, state, safeSide)).filter(Boolean) : []) : effects.map(deepClone),
+    entities: state.contactTracks ? (observer ? rulesFor(state).publicEntities?.(state, observer.side, observer.id) || [] : []) : uniqueEntities(mine.flatMap((sd) => rulesFor(state).publicEntities?.(state, sd) || [])),
     hostileFrom: sidesOf(state).filter((s) => hostile(state, s, safeSide)),
     hostileTo: state.hostile ? [...(state.hostile[safeSide] || [])] : sidesOf(state).filter((s) => s !== safeSide),
     outcome: state.outcome ? { ...state.outcome } : null,
@@ -224,6 +232,12 @@ function validateState(value) {
   }
   if (value.entities !== undefined) (ERA_RULES[meta.era]?.validateEntities || (() => { throw new Error('Entities are not part of this era'); }))(value.entities, ids, value);
   validateContacts(value.contacts, ids, sidesOf(value));
+  if (value.contactTracks !== undefined) {
+    if (meta.era !== 'coldwar' || !value.contactTracks || typeof value.contactTracks !== 'object' || Array.isArray(value.contactTracks)) throw new Error('Invalid contact tracks');
+    const trackIds = Object.keys(value.contactTracks);
+    if (trackIds.length !== ids.size || !trackIds.every((id) => ids.has(id))) throw new Error('Invalid contact tracks');
+    validateContacts(value.contactTracks, ids, sidesOf(value), trackIds);
+  }
   validatePending(value.pending, ids, value.tick, value.map, value.ships);
   validateLog(value.log);
   validateOutcome(value.outcome);
@@ -231,6 +245,12 @@ function validateState(value) {
   const cloned = cloneState(value);
   cloned.fx = cloned.fx || [];
   cloned.log = cloned.log.slice(-MAX_LOG);
+  // Version-1 Cold War saves predate per-boat tracks. Re-sense from each boat's
+  // current position rather than copying a side-wide report into every captain.
+  if (meta.era === 'coldwar' && !cloned.contactTracks) {
+    cloned.contactTracks = Object.fromEntries(cloned.ships.map((ship) => [ship.id, []]));
+    return updateContacts(cloned);
+  }
   return cloned;
 }
 
@@ -294,11 +314,11 @@ function validateDoctrine(doctrine) {
   if (doctrine.depth !== undefined && !DEPTHS.has(doctrine.depth)) throw new Error('Invalid doctrine depth');
 }
 
-function validateContacts(contacts, shipIds, sides) {
-  if (!contacts || typeof contacts !== 'object' || !sides.every((side) => Array.isArray(contacts[side]))) throw new Error('Invalid contacts');
-  for (const side of sides) {
+function validateContacts(contacts, shipIds, sides, keys = sides) {
+  if (!contacts || typeof contacts !== 'object' || !keys.every((key) => Array.isArray(contacts[key]))) throw new Error('Invalid contacts');
+  for (const key of keys) {
     const ids = new Set();
-    for (const contact of contacts[side]) {
+    for (const contact of contacts[key]) {
       if (!contact || typeof contact !== 'object' || Array.isArray(contact)) throw new Error('Invalid contact');
       if (!nonEmptyString(contact.id) || ids.has(contact.id)) throw new Error('Invalid contact id');
       ids.add(contact.id);
@@ -565,9 +585,9 @@ function movementTarget(state, ship) {
   return searchTarget(state, ship);
 }
 
-// Captains close on contacts their side is hostile to, not on every sound in the water.
+// Captains close on their own reports of hostile or unknown contacts, not every sound in the water.
 function hostileContact(state, ship, maxRange, fresh = false) {
-  return (state.contacts[ship.side] || [])
+  return contactsForShip(state, ship)
     .filter((c) => distance(ship, c) <= maxRange && (fresh ? !c.stale && believedHostile(state, ship, c) : worthClosing(state, ship, c)))
     .sort((a, b) => (a.stale - b.stale) || distance(ship, a) - distance(ship, b) || (a.id < b.id ? -1 : 1))[0] || null;
 }
@@ -725,13 +745,29 @@ function broadsideArc(ship, target) {
 
 function updateContacts(state) {
   state = cloneState(state);
+  if (state.contactTracks) {
+    for (const observer of state.ships) {
+      // Preserve the legacy bearing scatter for a side's first boat; additional
+      // boats get independent scatter without changing existing sorties.
+      const scope = state.ships.find((ship) => ship.side === observer.side)?.id === observer.id ? observer.side : observer.id;
+      state.contactTracks[observer.id] = scanContacts(state, observer.side, isActive(observer) ? [observer] : [], state.contactTracks[observer.id] || [], scope);
+    }
+    for (const side of sidesOf(state)) {
+      state.contacts[side] = bestContacts(state.ships.filter((ship) => ship.side === side).flatMap((ship) => state.contactTracks[ship.id] || []));
+    }
+    return state;
+  }
   for (const side of sidesOf(state)) state.contacts[side] = updateSideContacts(state, side);
   return state;
 }
 
 function updateSideContacts(state, side) {
-  const prior = new Map((state.contacts?.[side] || []).map((c) => [c.targetId || c.id, c]));
   const observers = state.ships.filter((s) => s.side === side && isActive(s));
+  return scanContacts(state, side, observers, state.contacts?.[side] || [], side);
+}
+
+function scanContacts(state, side, observers, previous, scope) {
+  const prior = new Map(previous.map((c) => [c.targetId, c]));
   const enemies = state.ships.filter((s) => s.side !== side);
   const contacts = [];
   for (const enemy of enemies) {
@@ -756,7 +792,7 @@ function updateSideContacts(state, side) {
         range: best.range,
         emitter: Boolean(enemy.radar) || (enemy.emitUntil ?? -1) >= state.tick || (enemy.pingAt ?? -1) === state.tick,
       };
-      if (best.uncertainty !== undefined) trackMotion(state, side, enemy, contact, best, prior.get(enemy.id));
+      if (best.uncertainty !== undefined) trackMotion(state, scope, enemy, contact, best, prior.get(enemy.id));
       if (CONF_RANK[contact.confidence] >= 3) { contact.name = enemy.name; if (sidesOf(state).length > 2) contact.side = enemy.side; }
       if (CONF_RANK[contact.confidence] >= 2) contact.className = contact.uncertainty && enemy.passiveClass ? enemy.passiveClass : enemy.className;
       contacts.push(contact);
@@ -842,9 +878,12 @@ function commanded(state, side) {
 
 function mergedContacts(state, sides) {
   const ownIds = new Set(state.ships.filter((s) => sides.includes(s.side)).map((s) => s.id));
+  return bestContacts(sides.flatMap((sd) => state.contacts[sd] || []).filter((c) => !ownIds.has(c.targetId)));
+}
+
+function bestContacts(contacts) {
   const best = new Map();
-  for (const c of sides.flatMap((sd) => state.contacts[sd] || [])) {
-    if (ownIds.has(c.targetId)) continue;
+  for (const c of contacts) {
     const prev = best.get(c.targetId);
     const better = !prev || (prev.stale && !c.stale) || (prev.stale === c.stale && (CONF_RANK[c.confidence] > CONF_RANK[prev.confidence] || (CONF_RANK[c.confidence] === CONF_RANK[prev.confidence] && (c.uncertainty ?? 0) < (prev.uncertainty ?? 0))));
     if (better) best.set(c.targetId, c);
@@ -864,11 +903,32 @@ function publicLogEntry(entry, state, side) {
   return text === null ? null : { tick: entry.tick, text, kind: entry.kind };
 }
 
+// Side dispatches remain shared command reports, but chart effects must not reveal
+// a contact or weapon heard only by another submarine.
+function observerFx(effect, observer, visibleIds, state, viewSide) {
+  const out = deepClone(effect);
+  if (observer.side !== viewSide) {
+    for (const ref of [out.from, out.to]) {
+      if (!ref || ref.own) continue;
+      const target = (state.contacts[observer.side] || []).find((c) => contactId(state, observer.side, c.targetId) === ref.id);
+      if (target) ref.id = contactId(state, viewSide, target.targetId);
+    }
+  }
+  const seen = (ref) => !ref || (ref.own ? ref.id === observer.id : visibleIds.has(ref.id));
+  if (out.type === 'event') {
+    if (!seen(out.to)) out.to = null;
+    return out;
+  }
+  if (!seen(out.from) || !seen(out.to)) return null;
+  if (!out.from && !out.to && out.at && distance(observer, out.at) > 6) return null;
+  return out;
+}
+
 // Bearing-only tracking: a passive contact is reported somewhere inside an uncertainty
 // ring that shrinks while it is held (target motion analysis); held long enough it
 // is classified. The scatter is a stable hash of tick and contact, not the game RNG,
 // so the three contact updates in a tick agree and no randomness is consumed.
-function trackMotion(state, side, enemy, contact, best, prior) {
+function trackMotion(state, scope, enemy, contact, best, prior) {
   const holdSince = prior && !prior.stale && prior.holdSince !== undefined ? prior.holdSince : state.tick;
   const held = state.tick - holdSince;
   const unc = Math.max(0, best.uncertainty - held);
@@ -876,7 +936,7 @@ function trackMotion(state, side, enemy, contact, best, prior) {
   contact.uncertainty = unc;
   if (held >= 3 && contact.confidence === 'sighted') contact.confidence = 'classified';
   if (unc > 0) {
-    const h = hashString(`${state.seed}|${state.tick}|${side}|${enemy.id}`);
+    const h = hashString(`${state.seed}|${state.tick}|${scope}|${enemy.id}`);
     const [dq, dr] = DIRECTIONS[h % 6];
     const dist = (h >>> 3) % (unc + 1);
     contact.q = clamp(enemy.q + dq * dist, 0, WIDTH - 1);
@@ -920,4 +980,3 @@ function sortKeys(value) {
   if (!value || typeof value !== 'object') return value;
   return Object.fromEntries(Object.keys(value).sort().map((k) => [k, sortKeys(value[k])]));
 }
-

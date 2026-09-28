@@ -55,7 +55,7 @@ $('#app').innerHTML = `
   </section>
   <div class="workspace">
     <aside class="roster-panel"><div class="section-heading"><h2>Your squadron</h2><span id="fleet-count"></span></div><div id="roster"></div>
-      <div class="section-heading contacts-heading"><h2>Contact reports</h2><span class="tiny">INTELLIGENCE</span></div><div id="contacts"></div>
+      <div class="section-heading contacts-heading"><h2>Contact reports</h2><span id="contacts-source" class="tiny">INTELLIGENCE</span></div><div id="contacts"></div>
       <div class="admiralty-note"><span class="eyebrow">FLAG LIEUTENANT ADVISES</span><p id="era-note" aria-live="polite"></p></div>
     </aside>
     <section class="chart-panel" aria-label="Tactical chart"><div class="chart-toolbar"><div><span class="live-dot"></span><strong>TACTICAL CHART</strong><span id="chart-region"></span></div><div class="toolbar-buttons"><button id="sound" aria-pressed="false" title="Synthesized sea, machinery and combat sounds">Sound</button><button id="layers" aria-pressed="true">Sensor overlay</button></div></div>
@@ -312,7 +312,7 @@ let lastHull = {};
 function render() {
   const sc = scenario();
   fx.setScene(sc.era);
-  const view = getView(state);
+  const view = getView(state, 'blue', selected);
   if (!view.ships.some(s => s.id === selected && s.status !== 'reserve')) selected = view.ships.find(s => s.status !== 'reserve')?.id;
   $('#scenario').value = state.scenarioId;
   $('#speed').value = speed;
@@ -324,6 +324,7 @@ function render() {
   $('#play').disabled = $('#step').disabled = !!state.outcome;
   $('#sound').setAttribute('aria-pressed', fx.soundOn());
   $('#sound').textContent = fx.soundOn() ? '♪ Sound on' : '♪ Sound off';
+  $('#contacts-source').textContent = sc.era === 'coldwar' ? view.ships.find((s) => s.id === selected)?.name || 'SONAR' : 'INTELLIGENCE';
   $('#fleet-count').textContent = `${view.ships.filter(isActive).length} VESSELS`;
   $('#objective').textContent = sc.objective;
   $('#chart-region').textContent = era().region;
@@ -349,9 +350,9 @@ function pause() { running = false; clearInterval(timer); }
 function startClock() { clearInterval(timer); timer = setInterval(advance, SPEEDS[speed]); }
 function advance() {
   if (state.outcome) return;
-  const known = new Set(getView(state).contacts.filter(c => !c.stale).map(c => c.id));
+  const known = new Set(getView(state, 'blue', selected).contacts.filter(c => !c.stale).map(c => c.id));
   state = step(state);
-  const after = getView(state);
+  const after = getView(state, 'blue', selected);
   const newContact = after.contacts.some(c => !c.stale && !known.has(c.id));
   notice = `Tick ${state.tick} resolved. Captains are following standing orders.`;
   if (newContact) fx.banner(known.size ? 'NEW CONTACT' : 'ENEMY IN SIGHT', 'alert');
@@ -480,7 +481,7 @@ $('#help').onclick = showHelp;
 $('#close-dialog').onclick = $('#acknowledge').onclick = () => $('#dialog').close();
 $('#scenario').onchange = e => newSortie(e.target.value);
 $('#restart').onclick = () => newSortie(state.scenarioId);
-$('#layers').onclick = () => { overlays = !overlays; $('#layers').setAttribute('aria-pressed', overlays); drawChart(getView(state)); };
+$('#layers').onclick = () => { overlays = !overlays; $('#layers').setAttribute('aria-pressed', overlays); drawChart(getView(state, 'blue', selected)); };
 $('#roster').onclick = e => { const card = e.target.closest('[data-select]'); if (card) { selected = card.dataset.select; plotting = false; render(); } };
 $('#chart').onclick = e => {
   const vessel = e.target.closest('[data-ship]');
