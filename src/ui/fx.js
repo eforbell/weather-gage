@@ -327,12 +327,65 @@ export function createFx({ layer, tracks, wrap, banner, pt }) {
     setSound: (on) => sfx.enable(on),
     soundOn: () => sfx.enabled(),
     unlock: () => sfx.unlock(),
+    setScene: (era) => sfx.setScene(era),
+    pauseAudio: () => sfx.pause(),
   };
 }
 
-// Tiny Web Audio synth: filtered noise for guns, splashes and explosions. No assets.
-function createSound() {
-  let ctx = null, out = null, noise = null, on = true;
+// Tiny Web Audio synth: quiet environmental beds and event sounds. No assets.
+export function createSound() {
+  let ctx = null, out = null, noise = null, on = false, scene = 'sail', ambient = null;
+  const scenes = {
+    sail: { wash: 650, level: 0.26, spray: 0.035, pulse: 0.11 },
+    ironclad: { wash: 470, level: 0.18, spray: 0.025, pulse: 0.13, motor: 54, motorLevel: 0.04 },
+    dreadnought: { wash: 540, level: 0.18, spray: 0.03, pulse: 0.12, motor: 48, motorLevel: 0.035 },
+    coldwar: { wash: 190, level: 0.15, spray: 0.003, pulse: 0.08, motor: 61, motorLevel: 0.035 },
+    modern: { wash: 510, level: 0.18, spray: 0.03, pulse: 0.12, motor: 64, motorLevel: 0.03 },
+  };
+  function stopAmbient(immediate = false) {
+    if (!ambient || !ctx) return;
+    const { gate, sources } = ambient;
+    ambient = null;
+    gate.gain.cancelScheduledValues(ctx.currentTime);
+    if (immediate) {
+      gate.gain.setValueAtTime(0, ctx.currentTime);
+      for (const source of sources) source.stop();
+      gate.disconnect();
+    } else {
+      gate.gain.setValueAtTime(gate.gain.value, ctx.currentTime);
+      gate.gain.linearRampToValueAtTime(0, ctx.currentTime + 0.15);
+      for (const source of sources) source.stop(ctx.currentTime + 0.16);
+      setTimeout(() => gate.disconnect(), 220);
+    }
+  }
+  function startAmbient() {
+    if (!on || !ctx || ctx.state !== 'running' || ambient) return;
+    const p = scenes[scene] || scenes.sail;
+    const gate = ctx.createGain();
+    gate.gain.setValueAtTime(0, ctx.currentTime);
+    gate.gain.linearRampToValueAtTime(1, ctx.currentTime + 0.2);
+    gate.connect(out);
+    const wash = ctx.createBufferSource(); wash.buffer = noise; wash.loop = true;
+    const filter = ctx.createBiquadFilter(); filter.type = 'lowpass'; filter.frequency.value = p.wash;
+    const level = ctx.createGain(); level.gain.value = p.level;
+    wash.connect(filter); filter.connect(level); level.connect(gate);
+    const spray = ctx.createBufferSource(); spray.buffer = noise; spray.loop = true;
+    const sprayFilter = ctx.createBiquadFilter(); sprayFilter.type = 'highpass'; sprayFilter.frequency.value = 1100;
+    const sprayLevel = ctx.createGain(); sprayLevel.gain.value = p.spray;
+    spray.connect(sprayFilter); sprayFilter.connect(sprayLevel); sprayLevel.connect(gate);
+    const pulse = ctx.createOscillator(); pulse.type = 'sine'; pulse.frequency.value = p.pulse;
+    const depth = ctx.createGain(); depth.gain.value = p.level * 0.6;
+    pulse.connect(depth); depth.connect(level.gain);
+    const sources = [wash, spray, pulse];
+    if (p.motor) {
+      const motor = ctx.createOscillator(); motor.type = 'triangle'; motor.frequency.value = p.motor;
+      const motorGain = ctx.createGain(); motorGain.gain.value = p.motorLevel;
+      motor.connect(motorGain); motorGain.connect(gate);
+      sources.push(motor);
+    }
+    for (const source of sources) source.start();
+    ambient = { gate, sources };
+  }
   function unlock() {
     if (!on) return null;
     try {
@@ -341,11 +394,14 @@ function createSound() {
         const comp = ctx.createDynamicsCompressor();
         out = ctx.createGain(); out.gain.value = 0.45;
         out.connect(comp); comp.connect(ctx.destination);
-        noise = ctx.createBuffer(1, ctx.sampleRate * 2.5, ctx.sampleRate);
+        noise = ctx.createBuffer(1, ctx.sampleRate * 8, ctx.sampleRate);
         const data = noise.getChannelData(0);
         for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
       }
-      if (ctx.state === 'suspended') ctx.resume();
+      if (ctx.state === 'suspended') {
+        const current = ctx;
+        Promise.resolve(ctx.resume()).then(() => { if (ctx === current) startAmbient(); }).catch(() => {});
+      } else startAmbient();
     } catch { ctx = null; }
     return ctx;
   }
@@ -381,8 +437,10 @@ function createSound() {
   };
   return {
     unlock,
-    enable(v) { on = Boolean(v); if (!on && ctx) ctx.suspend?.(); },
+    enable(v) { on = Boolean(v); if (!on && ctx) { stopAmbient(true); ctx.suspend?.(); } },
     enabled: () => on,
+    setScene(era) { if (scene !== era) { scene = era; stopAmbient(); startAmbient(); } },
+    pause() { if (ctx) { stopAmbient(true); ctx.suspend?.(); } },
     play(kind, delay = 0) { if (on && ctx) kinds[kind]?.(delay); },
   };
 }

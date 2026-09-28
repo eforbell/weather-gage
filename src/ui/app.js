@@ -58,7 +58,7 @@ $('#app').innerHTML = `
       <div class="section-heading contacts-heading"><h2>Contact reports</h2><span class="tiny">INTELLIGENCE</span></div><div id="contacts"></div>
       <div class="admiralty-note"><span class="eyebrow">FLAG LIEUTENANT ADVISES</span><p id="era-note" aria-live="polite"></p></div>
     </aside>
-    <section class="chart-panel" aria-label="Tactical chart"><div class="chart-toolbar"><div><span class="live-dot"></span><strong>TACTICAL CHART</strong><span id="chart-region"></span></div><div class="toolbar-buttons"><button id="sound" aria-pressed="false">Sound</button><button id="layers" aria-pressed="true">Sensor overlay</button></div></div>
+    <section class="chart-panel" aria-label="Tactical chart"><div class="chart-toolbar"><div><span class="live-dot"></span><strong>TACTICAL CHART</strong><span id="chart-region"></span></div><div class="toolbar-buttons"><button id="sound" aria-pressed="false" title="Synthesized sea, machinery and combat sounds">Sound</button><button id="layers" aria-pressed="true">Sensor overlay</button></div></div>
       <div class="chart-wrap" id="chart-wrap"><svg id="chart" viewBox="0 0 925 445" role="img" aria-labelledby="chart-title chart-desc"><title id="chart-title">Naval tactical chart</title><desc id="chart-desc">Friendly vessels, reported contacts and terrain on an axial hex grid. Gunfire, hits and sinkings are animated. Use the coordinate order controls as a keyboard alternative to clicking the map.</desc>
         <defs><radialGradient id="g-flash"><stop offset="0" stop-color="#fffbe0"/><stop offset=".35" stop-color="#f7c35a"/><stop offset=".7" stop-color="#d9622b" stop-opacity=".8"/><stop offset="1" stop-color="#9d463c" stop-opacity="0"/></radialGradient><radialGradient id="g-smoke"><stop offset="0" stop-color="#4c524f" stop-opacity=".55"/><stop offset="1" stop-color="#4c524f" stop-opacity="0"/></radialGradient><pattern id="p-mines" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#e6d8cf"/><path d="M0 0V6" stroke="#b77b6c" stroke-width="1.2"/></pattern></defs>
         <g id="l-sea"></g><g id="l-overlay"></g><g id="l-tracks"></g><g id="l-contacts"></g><g id="l-entities"></g><g id="l-ships"></g><g id="l-fx"></g><g id="l-hud"></g></svg>
@@ -77,7 +77,7 @@ $('#app').innerHTML = `
 <dialog id="dialog" aria-labelledby="dialog-title"><div class="dialog-top"><span class="eyebrow">OFFICE OF THE ADMIRAL</span><button id="close-dialog" aria-label="Close dialog">×</button></div><div id="dialog-content"></div><button id="acknowledge" class="primary">Return to the chart →</button></dialog>`;
 
 const fx = createFx({ layer: $('#l-fx'), tracks: $('#l-tracks'), wrap: $('#chart-wrap'), banner: $('#banner'), pt });
-fx.setSound(pref('sound', 'on') === 'on');
+fx.setSound(pref('sound', 'off') === 'on');
 
 // ---------- Chart ----------
 
@@ -311,6 +311,7 @@ function renderInspector(view) {
 let lastHull = {};
 function render() {
   const sc = scenario();
+  fx.setScene(sc.era);
   const view = getView(state);
   if (!view.ships.some(s => s.id === selected && s.status !== 'reserve')) selected = view.ships.find(s => s.status !== 'reserve')?.id;
   $('#scenario').value = state.scenarioId;
@@ -515,7 +516,7 @@ $('#load').onclick = () => { pause(); try { const saved = localStorage.getItem(s
 $('#export').onclick = () => { pause(); const url = URL.createObjectURL(new Blob([serialize(state)], { type: 'application/json' })); const a = document.createElement('a'); a.href = url; a.download = `weather-gage-${state.scenarioId}-tick-${state.tick}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); notice = 'Save exported. Keep this JSON file to resume on another browser.'; render(); };
 $('#import').onclick = () => { pause(); render(); $('#file').click(); };
 $('#file').onchange = async e => { const file = e.target.files[0]; if (!file) return; try { if (file.size > 2_000_000) throw Error('Save file is too large.'); restore(await file.text()); } catch (error) { notice = `Import rejected: ${error.message}`; render(); } e.target.value = ''; };
-document.addEventListener('visibilitychange', () => { if (document.hidden) { pause(); render(); } });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { pause(); fx.pauseAudio(); render(); } else fx.unlock(); });
 document.addEventListener('keydown', e => { if ($('#dialog').open || $('#launcher').open || /INPUT|SELECT|TEXTAREA|BUTTON/.test(e.target.tagName)) return; if (e.code === 'Space') { e.preventDefault(); $('#play').click(); } if (e.key.toLowerCase() === 'n') { e.preventDefault(); $('#step').click(); } });
 document.documentElement.style.setProperty('--move', `${Math.round(SPEEDS[speed] * 0.45)}ms`);
 render();
