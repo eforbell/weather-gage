@@ -1,17 +1,21 @@
 import { SCENARIO_SETUPS, SCENARIOS } from './scenarios.js';
-import * as dreadnought from './dreadnought.js';
+import {
+  WIDTH, HEIGHT, DIRECTIONS, SIDES, CONF_RANK, MAX_LOG, MAX_FX,
+  distance, isActive, assertCoord, nonEmptyString, addLog, reportText, addFx, publicFx, applyDamage, resolveStatus, roll, nextRandom, terrainAt, terrainAtMap, directionToward, hexDistanceRaw, turnDistance, inBounds, key, clamp, deepClone, bestContactFor,
+} from './core.js';
+
+export { WIDTH, HEIGHT, DIRECTIONS, distance, isActive };
+import * as dreadnought from './eras/dreadnought.js';
+import * as ironclad from './eras/ironclad.js';
+
+// Era rule modules. Each may provide: validateShip, onOrder, orderDelay, beforeTick,
+// moveShip, afterMove, combat, detection. Sail and modern still use the engine's
+// built-in rules below and are the next candidates to move out.
+const ERA_RULES = { dreadnought, ironclad };
+const rulesFor = (state) => ERA_RULES[scenarioFor(state.scenarioId).era] || {};
 
 export const VERSION = 1;
-export const WIDTH = 20;
-export const HEIGHT = 14;
-export const DIRECTIONS = Object.freeze([[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]]);
-const SIDES = ['blue', 'red'];
 const TERRAIN_TYPES = new Set(['land', 'shoal', 'mines']);
-const MAX_FX = 60;
-const FX_NEEDS_ID = new Set(['sunk', 'struck', 'magazine', 'torpedo-hit', 'torpedo-miss', 'mine', 'missile-hit', 'intercept', 'aground']);
-const FX_SEEN_AS_EXPLOSION = new Set(['sunk', 'magazine', 'torpedo-hit', 'mine', 'missile-hit']);
-const CONF_RANK = { unknown: 0, sighted: 1, classified: 2, identified: 3 };
-const MAX_LOG = 80;
 const VALID_ORDERS = new Set(['engage', 'hold', 'proceed', 'withdraw', 'line', 'screen']);
 
 export function createGame(scenarioId = 'nevis', seed = 1799) {
@@ -42,13 +46,16 @@ export function step(input) {
   const meta = scenarioFor(state.scenarioId);
   state.tick += 1;
   state.fx = [];
+  const rules = rulesFor(state);
+  state = arriveReserves(state);
   state = shiftWind(state, meta.era);
+  if (rules.beforeTick) state = rules.beforeTick(state);
   state = deliverPending(state);
   state = updateContacts(state);
   state = autoDoctrine(state);
   state = moveShips(state, meta.era);
   state = updateContacts(state);
-  state = runTorpedoes(state);
+  if (rules.afterMove) state = rules.afterMove(state);
   state = resolveCombat(state, meta.era);
   state = updateContacts(state);
   state = checkOutcome(state, meta);
@@ -67,19 +74,12 @@ export function issueOrder(input, shipIds, order) {
   if (!ships.length) return addLog(state, 'No active ships could receive that order.', 'warn');
   const replaceIds = new Set(ships.map((s) => s.id));
   state.pending = state.pending.filter((p) => p.kind || !replaceIds.has(p.shipId));
-  const era = scenarioFor(state.scenarioId).era;
-  let garbled = false;
-  if (era === 'dreadnought') {
-    // Wireless: near-instant, but the transmission can be intercepted and occasionally garbled.
-    const flag = state.ships.find((s) => s.side === ships[0].side && isActive(s));
-    if (flag) flag.emitUntil = state.tick + 1;
-    garbled = roll(state, 0.08);
-  }
+  const extraDelay = rulesFor(state).onOrder?.(state, ships) || 0;
   for (const ship of ships) {
-    state.pending.push({ shipId: ship.id, order: clean, deliverAt: state.tick + orderDelay(state, ship) + (garbled ? 1 : 0) });
+    state.pending.push({ shipId: ship.id, order: clean, deliverAt: state.tick + orderDelay(state, ship) + extraDelay });
   }
   state = addLog(state, signalText(ships, clean), 'order');
-  if (garbled) state = addLog(state, 'Wireless garbled in transmission; the signal is being repeated.', 'order', [ships[0].side]);
+  if (extraDelay) state = addLog(state, 'The signal was garbled and is being repeated.', 'order', [ships[0].side]);
   return trimLog(state);
 }
 
@@ -132,16 +132,7 @@ export function deserialize(text) {
   return validateState(parsed);
 }
 
-export function distance(a, b) {
-  assertCoord(a); assertCoord(b);
-  const as = -a.q - a.r;
-  const bs = -b.q - b.r;
-  return Math.max(Math.abs(a.q - b.q), Math.abs(a.r - b.r), Math.abs(as - bs));
-}
 
-export function isActive(ship) {
-  return Boolean(ship && ship.status === 'active' && ship.hull > 0 && ship.crew > 0);
-}
 
 function scenarioFor(id) {
   const meta = SCENARIOS.find((scenario) => scenario.id === id);
@@ -209,7 +200,7 @@ function validateShip(ship, ids, era, map) {
   if (!SIDES.includes(ship.side)) throw new Error('Invalid ship side');
   if (!Number.isInteger(ship.facing) || ship.facing < 0 || ship.facing > 5) throw new Error('Invalid ship facing');
   for (const k of ['hull', 'propulsion', 'weapons', 'crew']) if (!Number.isInteger(ship[k]) || ship[k] < 0 || ship[k] > 100) throw new Error(`Invalid ${k}`);
-  if (!['active', 'sunk', 'struck', 'escaped'].includes(ship.status)) throw new Error('Invalid ship status');
+  if (!['active', 'sunk', 'struck', 'escaped', 'reserve'].includes(ship.status)) throw new Error('Invalid ship status');
   if (typeof ship.radar !== 'boolean') throw new Error('Invalid radar');
   if (!Number.isInteger(ship.ammo) || ship.ammo < 0) throw new Error('Invalid ammo');
   if (!Number.isInteger(ship.defense) || ship.defense < 0) throw new Error('Invalid defense');
@@ -217,7 +208,9 @@ function validateShip(ship, ids, era, map) {
   validateOrder(ship.order, map);
   validateDoctrine(ship.doctrine);
   if (ship.era === 'sail' && (!Number.isInteger(ship.guns) || ship.guns <= 0)) throw new Error('Invalid guns');
-  if (ship.era === 'dreadnought') dreadnought.validateShip(ship);
+  ERA_RULES[era]?.validateShip?.(ship);
+  if (ship.arriveAt !== undefined && (!Number.isInteger(ship.arriveAt) || ship.arriveAt < 0)) throw new Error('Invalid reserve arrival');
+  if (ship.status === 'reserve' && ship.arriveAt === undefined) throw new Error('Invalid reserve arrival');
 }
 
 function validateOrder(order, map = null) {
@@ -276,6 +269,7 @@ function validatePending(pending, shipIds, tick, map, ships) {
       if (!Number.isInteger(item.salvo) || item.salvo < 1) throw new Error('Invalid missile salvo');
       if (Object.hasOwn(item, 'order')) throw new Error('Missile pending cannot include order');
     } else if (item.kind === 'torpedo') {
+      if (!ships.some((s) => s.era === 'dreadnought')) throw new Error('Torpedoes are not part of this era');
       if (!nonEmptyString(item.shipId) || !shipIds.has(item.shipId)) throw new Error('Invalid torpedo shooter');
       if (!nonEmptyString(item.targetId) || !shipIds.has(item.targetId)) throw new Error('Invalid torpedo target');
       if (!SIDES.includes(item.side)) throw new Error('Invalid torpedo side');
@@ -326,13 +320,7 @@ function validateOutcome(outcome) {
   if (!['victory', 'defeat', 'draw'].includes(outcome.result) || !nonEmptyString(outcome.title) || !nonEmptyString(outcome.summary)) throw new Error('Invalid outcome');
 }
 
-function nonEmptyString(value) {
-  return typeof value === 'string' && value.length > 0;
-}
 
-function assertCoord(c) {
-  if (!c || !Number.isInteger(c.q) || !Number.isInteger(c.r) || c.q < 0 || c.r < 0 || c.q >= WIDTH || c.r >= HEIGHT) throw new Error('Invalid coordinate');
-}
 
 function cleanOrder(order) {
   if (!order || typeof order !== 'object' || !VALID_ORDERS.has(order.type)) return null;
@@ -360,7 +348,9 @@ function cleanDoctrinePatch(patch) {
 
 function orderDelay(state, ship) {
   const era = scenarioFor(state.scenarioId).era;
-  if (era === 'modern' || era === 'dreadnought') return 1;
+  const rules = ERA_RULES[era];
+  if (rules?.orderDelay) return rules.orderDelay(state, ship);
+  if (era === 'modern') return 1;
   const flagship = state.ships.find((s) => s.side === ship.side && isActive(s));
   if (!flagship || flagship.id === ship.id) return 1;
   return distance(flagship, ship) <= 4 ? 2 : 3;
@@ -394,17 +384,27 @@ function deliverPending(state) {
   return state;
 }
 
-function runTorpedoes(state) {
-  const due = state.pending.filter((p) => p.kind === 'torpedo' && p.deliverAt <= state.tick);
-  if (!due.length) return state;
-  state.pending = state.pending.filter((p) => !due.includes(p));
-  for (const item of due) state = dreadnought.torpedoRun(state, item);
+// Reinforcements: ships held in reserve join the action at their scheduled tick.
+function arriveReserves(state) {
+  for (const ship of state.ships) {
+    if (ship.status !== 'reserve' || ship.arriveAt > state.tick) continue;
+    const taken = (c) => state.ships.some((s) => s !== ship && isActive(s) && s.q === c.q && s.r === c.r);
+    if (taken(ship)) {
+      // Arrival hex blocked: come in on the nearest open water instead of waiting forever.
+      const spot = DIRECTIONS.map(([dq, dr]) => ({ q: ship.q + dq, r: ship.r + dr }))
+        .find((c) => inBounds(c) && !taken(c) && terrainAt(state, c.q, c.r) !== 'land' && !(ship.draft === 'deep' && terrainAt(state, c.q, c.r) === 'shoal'));
+      if (!spot) continue;
+      ship.q = spot.q; ship.r = spot.r;
+    }
+    ship.status = 'active';
+    state = addLog(state, `${ship.name} joins the action.`, 'info', [ship.side]);
+  }
   return state;
 }
 
 function autoDoctrine(state) {
   for (const ship of state.ships) {
-    if (!isActive(ship)) continue;
+    if (!isActive(ship) || ship.speed === 0) continue; // ships at anchor fight until they strike
     if (ship.hull <= ship.doctrine.withdraw || ship.crew <= ship.doctrine.withdraw || ship.propulsion <= 15) ship.order = { type: 'withdraw' };
   }
   return state;
@@ -421,8 +421,9 @@ function moveShips(state, era) {
       continue;
     }
     if (ship.order.type === 'hold' || ship.propulsion <= 0) continue;
-    if (era === 'dreadnought') {
-      state = dreadnought.moveShip(state, ship, occupied, movementTarget(state, ship));
+    const rules = ERA_RULES[era];
+    if (rules?.moveShip) {
+      state = rules.moveShip(state, ship, occupied, movementTarget(state, ship));
       if (isActive(ship) && ship.order.type === 'withdraw' && escapeEdge(ship)) {
         ship.status = 'escaped';
         state = addLog(state, `${ship.name} withdraws beyond the action.`, 'escape');
@@ -544,7 +545,7 @@ function turnToward(ship, targetFacing) {
 
 function resolveCombat(state, era) {
   if (era === 'modern') return modernCombat(state);
-  if (era === 'dreadnought') return dreadnought.combat(state);
+  if (ERA_RULES[era]?.combat) return ERA_RULES[era].combat(state);
   return sailCombat(state);
 }
 
@@ -606,12 +607,6 @@ function targetFromContacts(state, ship, maxRange) {
   return target && isActive(target) ? target : null;
 }
 
-function bestContactFor(state, side, maxRange, allowStale = false, fromShip = null) {
-  return (state.contacts[side] || [])
-    .filter((c) => (allowStale || !c.stale) && distance(fromShip || c, c) <= (fromShip ? maxRange : Infinity))
-    .filter((c) => !fromShip || distance(fromShip, c) <= maxRange)
-    .sort((a, b) => (a.stale - b.stale) || distance(fromShip || a, a) - distance(fromShip || b, b) || CONF_RANK[b.confidence] - CONF_RANK[a.confidence])[0] || null;
-}
 
 function broadsideArc(ship, target) {
   const dir = directionToward(ship, target);
@@ -619,16 +614,6 @@ function broadsideArc(ship, target) {
   return rel === 1 || rel === 2 || rel === 4 || rel === 5;
 }
 
-function directionToward(a, b) {
-  let best = 0;
-  let bestDist = Infinity;
-  for (let i = 0; i < DIRECTIONS.length; i += 1) {
-    const [dq, dr] = DIRECTIONS[i];
-    const d = hexDistanceRaw({ q: a.q + dq, r: a.r + dr }, b);
-    if (d < bestDist) { bestDist = d; best = i; }
-  }
-  return best;
-}
 
 function updateContacts(state) {
   state = cloneState(state);
@@ -646,7 +631,7 @@ function updateSideContacts(state, side) {
     if (isActive(enemy)) {
       for (const obs of observers) {
         const era = scenarioFor(state.scenarioId).era;
-        const detected = era === 'dreadnought' ? dreadnought.detection(obs, enemy, state) : detection(obs, enemy, era);
+        const detected = ERA_RULES[era]?.detection ? ERA_RULES[era].detection(obs, enemy, state) : detection(obs, enemy, era);
         if (!detected) continue;
         if (!best || CONF_RANK[detected.confidence] > CONF_RANK[best.confidence] || detected.range < best.range) best = detected;
       }
@@ -670,7 +655,7 @@ function updateSideContacts(state, side) {
       if (old) contacts.push({ ...old, stale: true, range: undefined, name: old.name, className: old.className });
     }
   }
-  return contacts.sort((a, b) => a.id.localeCompare(b.id));
+  return contacts.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
 function detection(observer, enemy, era) {
@@ -691,74 +676,42 @@ function detection(observer, enemy, era) {
 }
 
 function checkOutcome(state, meta) {
-  const blueActive = state.ships.some((s) => s.side === 'blue' && isActive(s) && (meta.victory !== 'capitals' || (s.value || 1) > 1));
-  const counts = (s) => meta.victory !== 'capitals' || (s.value || 1) > 1;
-  const redActive = state.ships.some((s) => s.side === 'red' && isActive(s) && counts(s));
+  // A scenario can name the ships that decide it; otherwise every ship counts.
+  // Reserves still to arrive keep their side in the fight.
+  const alive = (s) => isActive(s) || s.status === 'reserve';
+  const decisive = (side) => {
+    const ids = meta.victory?.[side === 'blue' ? 'own' : 'enemy'];
+    return state.ships.filter((s) => s.side === side && (!ids || ids.includes(s.id)));
+  };
+  const blueActive = decisive('blue').some(alive);
+  const redActive = decisive('red').some(alive);
   if (!blueActive && !redActive) return { ...state, outcome: { result: 'draw', title: 'Mutual Destruction', summary: 'Neither squadron has ships remaining in action.' } };
   if (!redActive) return { ...state, outcome: { result: 'victory', title: 'Enemy Squadron Defeated', summary: 'Blue retains fighting power and the opposing force is out of action.' } };
-  if (!blueActive) return { ...state, outcome: { result: 'defeat', title: 'Squadron Lost', summary: 'Blue has no ships remaining in action.' } };
+  if (!blueActive) return { ...state, outcome: { result: 'defeat', title: 'Squadron Lost', summary: meta.victory ? 'The ships your orders depended on are out of action.' : 'Blue has no ships remaining in action.' } };
   if (state.tick >= meta.maxTicks) {
-    const blueScore = forceScore(state, 'blue');
-    const redScore = forceScore(state, 'red');
+    // With named decisive ships, compare each side's surviving share of its own starting strength.
+    const pct = (side, ids) => { const max = state.ships.filter((s) => s.side === side && ids.includes(s.id)).reduce((n, s) => n + 100 * (s.value || 1), 0); return Math.round((100 * forceScore(state, side, ids)) / max); };
+    const blueScore = meta.victory ? pct('blue', meta.victory.own) : forceScore(state, 'blue');
+    const redScore = meta.victory ? pct('red', meta.victory.enemy) : forceScore(state, 'red');
     const delta = blueScore - redScore;
-    const result = Math.abs(delta) < 20 ? 'draw' : delta > 0 ? 'victory' : 'defeat';
+    const result = Math.abs(delta) < (meta.victory ? 10 : 20) ? 'draw' : delta > 0 ? 'victory' : 'defeat';
     return { ...state, outcome: { result, title: result === 'draw' ? 'Indecisive Action' : result === 'victory' ? 'Favorable Dispatch' : 'Unfavorable Dispatch', summary: `Blue score ${blueScore}, Red score ${redScore}.` } };
   }
   return state;
 }
 
-function forceScore(state, side) {
-  return Math.round(state.ships.filter((s) => s.side === side).reduce((sum, s) => sum + (isActive(s) ? (s.hull + s.weapons + s.crew + s.propulsion) * (s.value || 1) : 0) / 4, 0));
+function forceScore(state, side, decisive) {
+  return Math.round(state.ships.filter((s) => s.side === side && (!decisive || decisive.includes(s.id))).reduce((sum, s) => sum + (isActive(s) ? (s.hull + s.weapons + s.crew + s.propulsion) * (s.value || 1) : 0) / 4, 0));
 }
 
-function resolveStatus(state, ship) {
-  if (ship.hull <= 0) {
-    ship.status = 'sunk'; ship.hull = 0;
-    state = addFx(state, { type: 'sunk', targetId: ship.id });
-    return addLog(state, `${ship.name} sinks.`, 'loss');
-  }
-  if (ship.crew <= 12 || (ship.hull <= 18 && ship.weapons <= 20)) {
-    ship.status = 'struck';
-    state = addFx(state, { type: 'struck', targetId: ship.id });
-    return addLog(state, `${ship.name} strikes and falls out of action.`, 'loss');
-  }
-  return state;
-}
 
-function applyDamage(ship, dmg) {
-  for (const [keyName, value] of Object.entries(dmg)) ship[keyName] = clamp(Math.round(ship[keyName] - value), 0, 100);
-}
 
-function terrainAt(state, q, r) {
-  return terrainAtMap(state.map, q, r);
-}
 
-function terrainAtMap(map, q, r) {
-  return map.terrain.find((t) => t.q === q && t.r === r)?.type || 'sea';
-}
 
 function publicOwnShip(s) {
   return deepClone(s);
 }
 
-// Freeze public reports when events occur. Later identification must not retroactively
-// reveal hidden actions or damage in an earlier dispatch.
-function reportText(entry, state, side) {
-  let text = entry.text;
-  const mentioned = state.ships.filter(ship => text.includes(ship.name));
-  const hasOwnShip = mentioned.some(ship => ship.side === side);
-  if (entry.kind === 'order' && mentioned.length && !hasOwnShip) return null;
-  for (const ship of mentioned) {
-    if (ship.side === side) continue;
-    const contact = state.contacts[side].find(c => c.targetId === ship.id);
-    const observed = contact && !contact.stale;
-    const identified = observed && contact.confidence === 'identified';
-    if (!hasOwnShip && !observed) return null;
-    if (['loss', 'damage', 'defense', 'escape'].includes(entry.kind) && !identified) return null;
-    text = text.split(ship.name).join(identified ? contact.name : 'enemy contact');
-  }
-  return text;
-}
 
 function publicLogEntry(entry, state, side) {
   const text = entry.reports ? entry.reports[side] : reportText(entry, state, side);
@@ -773,65 +726,13 @@ function publicContact(c) {
   return out;
 }
 
-function addLog(state, text, kind = 'info', audience = SIDES) {
-  const entry = { tick: state.tick, text, kind };
-  entry.reports = Object.fromEntries(SIDES.map(side => [side, audience.includes(side) ? reportText(entry, state, side) : null]));
-  state.log = [...state.log, entry].slice(-MAX_LOG);
-  return state;
-}
 
-// Visual combat events for the chart, frozen per side like dispatch reports. Enemy
-// positions appear only if that ship was an observed contact when the event happened;
-// exact damage appears only on the player's own ships.
-function addFx(state, fx) {
-  const shooter = state.ships.find((s) => s.id === fx.shooterId);
-  const target = state.ships.find((s) => s.id === fx.targetId);
-  const entry = Object.fromEntries(SIDES.map((side) => [side, publicFx(state, side, fx, shooter, target)]));
-  state.fx = [...(state.fx || []), entry].slice(-MAX_FX);
-  return state;
-}
 
-function publicFx(state, side, fx, shooter, target) {
-  const seen = (ship) => ship && (ship.side === side || state.contacts[side].some((c) => c.targetId === ship.id && !c.stale));
-  const involved = [shooter, target].filter(Boolean);
-  if (!involved.some((s) => s.side === side) && !involved.every(seen)) return null;
-  const ref = (ship) => {
-    if (!ship || !seen(ship)) return null;
-    return ship.side === side ? { id: ship.id, q: ship.q, r: ship.r, own: true } : { id: `c_${side}_${ship.id}`, q: ship.q, r: ship.r, own: false };
-  };
-  let type = fx.type;
-  if (target && target.side !== side && FX_NEEDS_ID.has(type)) {
-    // Same rule as dispatches: losses and damage on an enemy need an identified contact.
-    const identified = state.contacts[side].some((c) => c.targetId === target.id && !c.stale && c.confidence === 'identified');
-    if (!identified) {
-      if (!FX_SEEN_AS_EXPLOSION.has(type) || !seen(target)) return null;
-      type = 'explosion';
-      fx = { at: fx.at };
-    }
-  }
-  const out = { type, from: type === 'explosion' ? null : ref(shooter), to: ref(target) };
-  if (!out.from && !out.to && !fx.at) return null;
-  if (fx.at) out.at = { q: fx.at.q, r: fx.at.r };
-  for (const k of ['hits', 'shots', 'heavy', 'straddle', 'crossingT', 'smoke', 'eta', 'fc']) if (fx[k] !== undefined) out[k] = fx[k];
-  if (target && target.side === side && fx.damage !== undefined) out.damage = fx.damage;
-  return out;
-}
 
 function trimLog(state) { state.log = state.log.slice(-MAX_LOG); return state; }
 function signalText(ships, order) { return `${ships.map((s) => s.name).join(', ')} signaled to ${describeOrder(order)}.`; }
 function describeOrder(order) { return order.type === 'proceed' ? `proceed to ${order.q},${order.r}` : order.type; }
-function key(q, r) { return `${q},${r}`; }
-function inBounds(c) { return c.q >= 0 && c.r >= 0 && c.q < WIDTH && c.r < HEIGHT; }
-function turnDistance(a, b) { const d = Math.abs(a - b) % 6; return Math.min(d, 6 - d); }
-function hexDistanceRaw(a, b) { const as = -a.q - a.r; const bs = -b.q - b.r; return Math.max(Math.abs(a.q - b.q), Math.abs(a.r - b.r), Math.abs(as - bs)); }
-function clamp(n, min, max) { return Math.min(max, Math.max(min, n)); }
-function roll(state, p) { return nextRandom(state) < p; }
-function nextRandom(state) {
-  state.rng = (1664525 * (state.rng >>> 0) + 1013904223) >>> 0;
-  return state.rng / 0x100000000;
-}
 function cloneState(state) { return deepClone(state); }
-function deepClone(value) { return value === undefined ? undefined : JSON.parse(JSON.stringify(value)); }
 function uniqueTerrain(terrain) {
   const byKey = new Map();
   for (const t of terrain) if (inBounds(t)) byKey.set(key(t.q, t.r), { q: t.q, r: t.r, type: t.type });
@@ -846,8 +747,3 @@ function sortKeys(value) {
   return Object.fromEntries(Object.keys(value).sort().map((k) => [k, sortKeys(value[k])]));
 }
 
-// Shared rule helpers for era modules (src/sim/dreadnought.js). Not a stable public API.
-export {
-  addLog, addFx, applyDamage, resolveStatus, roll, nextRandom, terrainAt, directionToward, turnDistance,
-  inBounds, key, clamp, bestContactFor, CONF_RANK, WIDTH as MAP_WIDTH, assertCoord,
-};

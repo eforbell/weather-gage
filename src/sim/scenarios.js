@@ -8,8 +8,27 @@ export const SCENARIOS = [
       'Command two frigates in confused trade-wind waters. Preserve the squadron, gain the weather gage, and force the opposing division to strike before nightfall.',
     objective: 'Disable or force both enemy frigates to strike while keeping at least one blue frigate in action. At time limit, surviving fighting strength decides.',
     maxTicks: 64,
+    year: 1799,
+    difficulty: 1,
+    teaches: 'The weather gage, broadside arcs, signal delay',
     hexScale: '1 hex ≈ 400 yards',
     tickLabel: 'turn',
+  },
+  {
+    id: 'hampton',
+    title: 'Iron at Hampton Roads',
+    subtitle: 'The first ironclad sortie against a wooden blockade, 1862',
+    era: 'ironclad',
+    briefing:
+      'CSS Virginia steams out of the Elizabeth River to break the Union blockade. Her iron shrugs off broadsides that would sink any wooden ship, and her ram can hole a frigate. But she is slow, draws 22 feet, and there are rumours of a Yankee ironclad on its way south.',
+    objective: 'Sink, burn or force the surrender of the three wooden blockaders (Cumberland, Congress, Minnesota). Virginia must survive. The unknown contact does not count.',
+    maxTicks: 60,
+    year: 1862,
+    difficulty: 1,
+    teaches: 'Armour against shell, the ram, shoal water, raking fire',
+    victory: { enemy: ['r_cumberland', 'r_congress', 'r_minnesota'], own: ['b_virginia'] },
+    hexScale: '1 hex ≈ 600 yards',
+    tickLabel: '5-minute',
   },
   {
     id: 'dogger',
@@ -18,9 +37,12 @@ export const SCENARIOS = [
     era: 'dreadnought',
     briefing:
       'Wireless intercepts put a German raiding force at sea before dawn. You have a battlecruiser, a battleship and two destroyers. Find them first, bring every turret to bear, and mind your battlecruiser: British magazines are not what they should be.',
-    objective: 'Sink or drive off both enemy capital ships while keeping one of yours in action. At the time limit, capital ships count triple.',
+    objective: 'Sink or drive off both enemy capital ships while keeping one of yours in action. At the time limit, only the capital ships are scored.',
     maxTicks: 50,
-    victory: 'capitals',
+    year: 1915,
+    difficulty: 2,
+    teaches: 'Crossing the T, fire control, torpedo attacks, the lee gage',
+    victory: { enemy: ['r_seydlitz', 'r_posen'], own: ['b_lion', 'b_orion'] },
     hexScale: '1 hex ≈ 1 nautical mile',
     tickLabel: '3-minute',
   },
@@ -33,6 +55,9 @@ export const SCENARIOS = [
       'A compact surface action group must contest a narrow strait under emission control. Radar reveals; missiles decide; point defense buys time.',
     objective: 'Win the missile duel or force the hostile screen to disengage without losing both blue ships. At time limit, surviving fighting strength decides.',
     maxTicks: 48,
+    year: 2030,
+    difficulty: 3,
+    teaches: 'Emission control, missile salvos against finite defences',
     hexScale: '1 hex ≈ 5 nautical miles',
     tickLabel: 'minute',
   },
@@ -53,6 +78,26 @@ export const SCENARIO_SETUPS = {
       sailShip('b_baltimore', 'blue', 'USS Baltimore', 'Frigate', 2, 8, 0, 32),
       sailShip('r_insurgente', 'red', 'L’Insurgente', 'Heavy frigate', 16, 6, 3, 40),
       sailShip('r_volontaire', 'red', 'Volontaire', 'Frigate', 17, 8, 3, 32),
+    ],
+  },
+  hampton: {
+    wind: 0,
+    terrain: [
+      ...row(0, 0, 19, 'land'), ...row(1, 0, 9, 'land'), ...row(2, 0, 3, 'land'), // Newport News peninsula
+      ...row(1, 17, 19, 'land'), ...row(2, 18, 19, 'land'), // Old Point Comfort
+      ...row(13, 0, 19, 'land'), ...row(12, 0, 7, 'land'), ...row(12, 11, 19, 'land'), ...row(11, 0, 4, 'land'), ...row(11, 14, 19, 'land'), // south shore, Elizabeth River mouth
+      ...row(2, 4, 12, 'shoal'), ...row(3, 5, 9, 'shoal'), ...row(3, 12, 14, 'shoal'), // northern flats
+      ...row(6, 9, 12, 'shoal'), ...row(7, 10, 13, 'shoal'), ...row(8, 11, 12, 'shoal'), // the Middle Ground
+      ...row(11, 5, 7, 'shoal'), ...row(11, 11, 13, 'shoal'), ...row(10, 3, 5, 'shoal'), ...row(10, 13, 15, 'shoal'), // southern flats
+    ],
+    ships: [
+      ironShip('b_virginia', 'blue', 'CSS Virginia', 'Casemate ironclad', 'ironclad', 9, 12, 4, { battery: 10, speed: 1, ram: true, draft: 'deep', ammunition: 'shell', value: 3 }),
+      ironShip('b_patrick_henry', 'blue', 'CSS Patrick Henry', 'Side-wheel gunboat', 'wooden', 0, 7, 0, { battery: 5, speed: 3, order: 'screen' }),
+      ironShip('b_jamestown', 'blue', 'CSS Jamestown', 'Side-wheel gunboat', 'wooden', 0, 9, 0, { battery: 3, speed: 3, order: 'screen' }),
+      ironShip('r_cumberland', 'red', 'USS Cumberland', 'Sloop of war', 'wooden', 4, 4, 0, { battery: 12, speed: 0, signature: 'sail', ammunition: 'shot' }),
+      ironShip('r_congress', 'red', 'USS Congress', 'Sail frigate', 'wooden', 7, 4, 0, { battery: 13, speed: 0, signature: 'sail', ammunition: 'shot' }),
+      ironShip('r_minnesota', 'red', 'USS Minnesota', 'Steam frigate', 'wooden', 16, 4, 3, { battery: 18, speed: 2, draft: 'deep', ammunition: 'shot', value: 2 }),
+      { ...ironShip('r_monitor', 'red', 'USS Monitor', 'Turret ironclad', 'ironclad', 18, 3, 3, { battery: 14, speed: 2, turret: true, signature: 'low', ammunition: 'shot', value: 2 }), status: 'reserve', arriveAt: 7 },
     ],
   },
   dogger: {
@@ -137,6 +182,33 @@ function modernShip(id, side, name, className, q, r, facing, ammo, defense) {
     defense,
     doctrine: { roe: 'free', range: 9, withdraw: 35 },
   };
+}
+
+function ironShip(id, side, name, className, type, q, r, facing, opts = {}) {
+  return {
+    ...baseShip(id, side, name, className, q, r, facing),
+    era: 'ironclad',
+    type,
+    battery: opts.battery ?? 4,
+    speed: opts.speed ?? 2,
+    draft: opts.draft ?? 'shallow',
+    ammunition: opts.ammunition ?? 'shell',
+    signature: opts.signature ?? 'smoke',
+    turret: Boolean(opts.turret),
+    ram: Boolean(opts.ram),
+    burning: false,
+    value: opts.value ?? 1,
+    firedAt: -1,
+    ramReadyAt: 0,
+    order: opts.speed === 0 ? { type: 'hold' } : { type: opts.order ?? 'engage' },
+    doctrine: { roe: 'free', range: 2, withdraw: type === 'ironclad' ? 20 : 30 },
+  };
+}
+
+function row(r, q0, q1, type) {
+  const cells = [];
+  for (let q = q0; q <= q1; q += 1) cells.push({ q, r, type });
+  return cells;
 }
 
 function dreadShip(id, side, name, className, type, q, r, opts = {}) {

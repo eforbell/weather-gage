@@ -111,9 +111,28 @@ export function createFx({ layer, tracks, wrap, banner, pt }) {
   }
 
   // ---------- torpedo wakes persist across ticks ----------
+  // Enemy torpedoes are never tracked exactly: a bearing wedge fades in at launch, then
+  // lookouts report wakes now and then, somewhere near the likely track.
+  function pingTorpedo(t, tick) {
+    const p = Math.min(0.95, (tick - t.launch + 0.5) / (t.arrive - t.launch));
+    if (tick > t.launch && Math.random() < 0.4) return; // not every sweep finds the wake
+    const guess = t.a === t.b ? jitter(t.b, 26) : jitter({ x: t.a.x + (t.b.x - t.a.x) * p, y: t.a.y + (t.b.y - t.a.y) * p }, 14);
+    const g = el('g', { class: 'fx-ping', transform: `translate(${guess.x.toFixed(1)} ${guess.y.toFixed(1)})` }, tracks);
+    g.innerHTML = '<circle class="ping-ring" r="5"/><circle class="ping-dot" r="1.6"/><text y="-8">WAKE</text>';
+    temp(g, 1600);
+  }
+
   function drawTorpedoes(tick, ms) {
     torpedoes = torpedoes.filter(t => tick < t.arrive + 1);
-    for (const t of torpedoes) {
+    for (const t of torpedoes.filter(x => !x.own)) {
+      if (tick === t.launch && t.a !== t.b) {
+        const ang = Math.atan2(t.b.y - t.a.y, t.b.x - t.a.x), len = Math.hypot(t.b.x - t.a.x, t.b.y - t.a.y) * 1.2, spread = 0.38;
+        const pt2 = (d) => `${(t.a.x + Math.cos(ang + d) * len).toFixed(1)},${(t.a.y + Math.sin(ang + d) * len).toFixed(1)}`;
+        temp(el('path', { class: 'fx-bearing', d: `M${t.a.x.toFixed(1)},${t.a.y.toFixed(1)} L${pt2(-spread)} L${pt2(spread)} Z` }, tracks), ms * 3);
+      }
+      if (tick < t.arrive) later(ms * 0.3, () => pingTorpedo(t, tick));
+    }
+    for (const t of torpedoes.filter(x => x.own)) {
       if (!t.node) {
         t.node = el('g', { class: `fx-torpedo ${t.own ? 'own' : 'hostile'}` }, tracks);
         t.node.innerHTML = '<path class="wake"/><circle class="head" r="2"/>';
@@ -149,7 +168,7 @@ export function createFx({ layer, tracks, wrap, banner, pt }) {
       const from = f.from && pt(f.from);
       const to = f.to && pt(f.to);
       const at = f.at && pt(f.at);
-      if (f.to && !f.to.own && f.hits) observed.set(f.to.id, (observed.get(f.to.id) || 0) + f.hits * (f.type === 'salvo' && !f.heavy ? 0.4 : f.type === 'salvo' || f.type === 'broadside' ? 1 : 3));
+      if (f.to && !f.to.own && f.hits && f.type !== 'ram') observed.set(f.to.id, (observed.get(f.to.id) || 0) + f.hits * (f.type === 'salvo' && !f.heavy ? 0.4 : f.type === 'salvo' || f.type === 'broadside' ? 1 : 3));
       if (f.from?.own && (f.type === 'salvo' || f.type === 'broadside')) { stats.fired += 1; stats.hits += f.hits || 0; if (f.crossingT) stats.tees += 1; }
       if (f.to?.own && f.hits) stats.taken += f.hits;
 
@@ -175,7 +194,7 @@ export function createFx({ layer, tracks, wrap, banner, pt }) {
               } else {
                 const spread = f.straddle ? 10 : 22;
                 for (let k = 0; k < Math.min(f.shots || 2, 4); k++) later(k * 70, () => splash(jitter(to, spread)));
-                if (f.straddle) floatText(to, 'STRADDLE', 'muted');
+                if (f.straddle) floatText(to, f.type === 'broadside' ? 'GLANCES OFF' : 'STRADDLE', 'muted');
                 sound('splash', 0);
               }
               if (f.crossingT && f.from?.own && view.tick - lastTee > 5) { lastTee = view.tick; showBanner('CROSSING THE T', 'good'); }
@@ -204,6 +223,7 @@ export function createFx({ layer, tracks, wrap, banner, pt }) {
           });
           break;
         case 'torpedo': {
+          // Own spreads: exact aim point. Hostile: only the launch point (if seen) and whom it threatens.
           const aim = at || to;
           if (!aim) break;
           const a = from || aim;
@@ -212,6 +232,22 @@ export function createFx({ layer, tracks, wrap, banner, pt }) {
           if (f.to?.own) showBanner('TORPEDOES IN THE WATER', 'alert');
           break;
         }
+        case 'ram':
+          if (to) later(t0, () => {
+            explosion(jitter(to, 3), f.heavy);
+            for (let k = 0; k < 3; k++) later(k * 80, () => splash(jitter(to, 10), k === 0));
+            floatText(to, f.to.own ? `−${f.damage}` : f.heavy ? 'RAMMED!' : 'GLANCING', f.to.own ? 'own' : 'enemy');
+            sound('explode', 0);
+            if (f.to.own) shake(true);
+            if (f.heavy) showBanner(f.to.own ? `${label(f.to)} IS RAMMED` : `${label(f.to)} RAMMED AMIDSHIPS`, f.to.own ? 'alert' : 'good');
+            if (f.to && !f.to.own) observed.set(f.to.id, (observed.get(f.to.id) || 0) + (f.heavy ? 4 : 1));
+          });
+          break;
+        case 'fire':
+          if (to) later(start + flight + i * gap, () => { smokePuff(jitter(to, 6), 14); floatText(to, 'FIRE!', f.to.own ? 'own' : 'enemy'); });
+          if (f.to && !f.to.own) observed.set(f.to.id, Math.max(6, observed.get(f.to.id) || 0));
+          if (f.to) showBanner(`${label(f.to)} IS ON FIRE`, f.to.own ? 'alert' : 'good');
+          break;
         case 'explosion': {
           // Something big happened aboard an unidentified contact; what, exactly, is unknown.
           const p = to || at;

@@ -94,3 +94,44 @@ meter::-webkit-meter-even-less-good-value{background:var(--red)}
 @media(prefers-reduced-motion:reduce){.fx-flash,.fx-puff,.fx-boom *,.fx-splash *,.fx-float,.plume circle,.fire circle,.emitter,.vessel .selection,.vessel.sunk .hullg,.chart-wrap,.roster-card.hit{animation:none!important}.plume circle{opacity:.5}.vessel.sunk .hullg{opacity:.3}}
 .chart-wrap{flex:none}
 .situation{flex:1}
+.fx-bearing{fill:#9d463c;fill-opacity:.12;animation:fadeout 3s ease-out forwards;pointer-events:none}
+.fx-ping{pointer-events:none}
+.fx-ping .ping-ring{fill:none;stroke:var(--red);stroke-width:1.2;transform-box:fill-box;transform-origin:center;animation:ring 1.4s ease-out forwards}
+.fx-ping .ping-dot{fill:var(--red);animation:fadeout 1.6s ease-in forwards}
+.fx-ping text{font:7px var(--mono);letter-spacing:1px;fill:var(--red);text-anchor:middle;animation:fadeout 1.6s ease-in forwards}
+@keyframes fadeout{0%{opacity:1}100%{opacity:0}}
+@media(prefers-reduced-motion:reduce){.fx-bearing,.fx-ping *{animation:none!important}}
+.casemate{fill:#46606a;stroke:#c9dfd6;stroke-width:.7}
+.ram{stroke:var(--blue);stroke-width:2}
+.turret.big{fill:#46606a}
+.hint.alarm{color:var(--red)}
+dialog.launcher{max-width:1240px;width:calc(100% - 32px)}
+.launcher h1{font:34px/1.1 var(--serif);margin-bottom:10px}
+.era-line{list-style:none;display:flex;padding:0;margin:22px 0 24px;border-top:3px double var(--ink)}
+.era-line li{flex:1;padding:10px 10px 0;border-left:1px solid var(--line);font-size:9px;color:var(--muted)}
+.era-line li:first-child{border-left:0;padding-left:0}
+.era-line li b{display:block;font:15px var(--serif);color:var(--ink);margin-bottom:3px}
+.era-line li.built b::before{content:'● ';color:var(--blue);font-size:10px}
+.era-line li.planned{opacity:.55}
+.era-line li.planned b{font-style:italic}
+.mission-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px}
+.mission-card{border:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:8px;background:#f6f2e6}
+.mission-card:hover{border-color:var(--blue)}
+.card-top{display:flex;align-items:center;gap:8px;font-size:9px;letter-spacing:1px}
+.card-top .year{font:20px var(--serif);letter-spacing:0}
+.card-top .era-tag{color:var(--muted)}
+.card-top .difficulty{margin-left:auto;color:var(--red);letter-spacing:2px}
+.mini-chart{width:100%;height:auto;background:#e2e8df;border:1px solid var(--line)}
+.mini.sea{fill:#d6e0d6}.mini.land{fill:#a9ab8f}.mini.shoal{fill:#d9d0ac}.mini.mines{fill:#d9b7ac}.mini.own{fill:var(--blue)}
+.mission-card h2{font:22px/1.15 var(--serif)}
+.card-sub{font-size:10px;color:var(--muted);line-height:1.5}
+.mission-card dl{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;margin:4px 0;font-size:10px;line-height:1.45}
+.mission-card dt{color:var(--muted);font-size:8px;letter-spacing:1px;text-transform:uppercase;padding-top:2px}
+.mission-card dd{margin:0}
+.card-foot{margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:8px;border-top:1px solid var(--line);padding-top:10px}
+.record{font-size:9px;color:var(--muted)}
+.record.victory b{color:var(--blue)}.record.defeat b{color:var(--red)}
+.card-foot button{min-height:40px}
+@media(max-width:650px){.era-line{flex-wrap:wrap;gap:8px 0}.era-line li{flex-basis:50%;border-left:0;padding-left:0}.launcher h1{font-size:27px}}
+.mission-card dd{font:12px/1.45 var(--serif)!important}
+.record b{text-transform:capitalize}

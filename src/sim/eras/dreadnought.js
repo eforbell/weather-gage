@@ -5,7 +5,10 @@
 import {
   DIRECTIONS, distance, isActive, addLog, addFx, applyDamage, resolveStatus, roll, nextRandom, terrainAt,
   directionToward, turnDistance, inBounds, key, clamp, CONF_RANK, assertCoord,
-} from './engine.js';
+} from '../core.js';
+import { steamMove, headingTo, beamCourse, nearest } from './steam.js';
+
+export { movesThisTick } from './steam.js';
 
 export const SHIP_TYPES = new Set(['battleship', 'battlecruiser', 'destroyer']);
 const CALIBRES = {
@@ -30,48 +33,9 @@ export function validateShip(ship) {
 
 // ---------- Movement ----------
 
-// Speed is in half-hexes per tick, so a 3 steams 1, 2, 1, 2… hexes.
-export function movesThisTick(state, ship) {
-  let speed = ship.speed;
-  if (ship.propulsion < 50) speed -= 1;
-  if (ship.propulsion <= 15) speed = Math.min(speed, 1);
-  speed = Math.max(1, speed);
-  return Math.floor((state.tick * speed) / 2) - Math.floor(((state.tick - 1) * speed) / 2);
-}
-
 export function moveShip(state, ship, occupied, destination) {
   const startFacing = ship.facing;
-  const turnRate = ship.type === 'destroyer' ? 2 : 1;
-  const moves = movesThisTick(state, ship);
-  for (let i = 0; i < moves; i += 1) {
-    const desired = desiredFacing(state, ship, destination);
-    if (desired === null) break;
-    const options = [0, 1, 5, 2, 4, 3]
-      .map((offset) => (desired + offset) % 6)
-      .filter((f) => turnDistance(ship.facing, f) <= turnRate)
-      .sort((a, b) => turnDistance(a, desired) - turnDistance(b, desired) || turnDistance(ship.facing, a) - turnDistance(ship.facing, b));
-    // Captains keep clear of declared minefields unless the admiral explicitly routes them through.
-    const clear = (f) => passable(state, ahead(ship, f), occupied) && (ship.order.type === 'proceed' || terrainAt(state, ship.q + DIRECTIONS[f][0], ship.r + DIRECTIONS[f][1]) !== 'mines');
-    const choice = options.find(clear);
-    if (choice === undefined) {
-      // Boxed in (map edge, land, traffic): turn toward the closest open heading instead.
-      const open = [0, 1, 5, 2, 4, 3].map((o) => (desired + o) % 6).find(clear);
-      if (open !== undefined) ship.facing = (ship.facing + (((open - ship.facing + 6) % 6) <= 3 ? 1 : 5)) % 6;
-      break;
-    }
-    const next = ahead(ship, choice);
-    occupied.delete(key(ship.q, ship.r));
-    ship.facing = choice;
-    ship.q = next.q; ship.r = next.r;
-    occupied.add(key(ship.q, ship.r));
-    if (terrainAt(state, ship.q, ship.r) === 'mines' && roll(state, 0.3)) {
-      applyDamage(ship, { hull: 26, propulsion: 30, weapons: 8, crew: 12 });
-      state = addLog(state, `${ship.name} strikes a mine.`, 'damage');
-      state = addFx(state, { type: 'mine', targetId: ship.id, hits: 1, damage: 26, heavy: true });
-      state = resolveStatus(state, ship);
-      if (!isActive(ship)) { occupied.delete(key(ship.q, ship.r)); break; }
-    }
-  }
+  state = steamMove(state, ship, occupied, () => desiredFacing(state, ship, destination), ship.type === 'destroyer' ? 2 : 1);
   // Fire control depends on a steady platform: a hard turn throws the range off.
   if (turnDistance(startFacing, ship.facing) >= 2) ship.fc.level = Math.max(0, ship.fc.level - 2);
   return state;
@@ -105,38 +69,27 @@ function desiredFacing(state, ship, destination) {
       return d > 2 ? dir : nearest(ship.facing, [(dir + 1) % 6, (dir + 5) % 6]);
     }
   }
-  if (!destination || distance(ship, destination) === 0) return null;
-  let best = null;
-  for (let f = 0; f < 6; f += 1) {
-    const c = ahead(ship, f);
-    if (!inBounds(c)) continue;
-    const score = distance(c, destination) * 10 + turnDistance(ship.facing, f) + (terrainAt(state, c.q, c.r) === 'mines' ? 25 : 0);
-    if (!best || score < best.score) best = { f, score };
-  }
-  return best ? best.f : null;
+  return headingTo(state, ship, destination);
 }
 
-// Keep the enemy abeam so every turret bears: close obliquely when too far, open when too close.
-function beamCourse(ship, target, preferred) {
-  const dir = directionToward(ship, target);
-  const d = distance(ship, target);
-  if (d > preferred + 2) return dir;
-  if (d > preferred) return nearest(ship.facing, [(dir + 1) % 6, (dir + 5) % 6]);
-  if (d >= preferred - 1) return nearest(ship.facing, [(dir + 1) % 6, (dir + 5) % 6, (dir + 2) % 6, (dir + 4) % 6]);
-  return nearest(ship.facing, [(dir + 2) % 6, (dir + 4) % 6]);
+// ---------- Signals ----------
+
+// Wireless: near-instant, but the transmission can be intercepted and occasionally garbled.
+export function onOrder(state, ships) {
+  const flag = state.ships.find((s) => s.side === ships[0].side && isActive(s));
+  if (flag) flag.emitUntil = state.tick + 1;
+  return roll(state, 0.08) ? 1 : 0;
 }
 
-function nearest(current, facings) {
-  return [...facings].sort((a, b) => turnDistance(current, a) - turnDistance(current, b))[0];
-}
+export function orderDelay() { return 1; }
 
-function ahead(ship, facing) {
-  const [dq, dr] = DIRECTIONS[facing];
-  return { q: ship.q + dq, r: ship.r + dr };
-}
-
-function passable(state, c, occupied) {
-  return inBounds(c) && terrainAt(state, c.q, c.r) !== 'land' && !occupied.has(key(c.q, c.r));
+// Torpedoes resolve after ships have moved, so hits land where the target now is.
+export function afterMove(state) {
+  const due = state.pending.filter((p) => p.kind === 'torpedo' && p.deliverAt <= state.tick);
+  if (!due.length) return state;
+  state.pending = state.pending.filter((p) => !due.includes(p));
+  for (const item of due) state = torpedoRun(state, item);
+  return state;
 }
 
 // ---------- Detection ----------
@@ -173,7 +126,7 @@ function pickTarget(state, ship, maxRange, prefer) {
     }
     return score;
   };
-  const best = candidates.sort((a, b) => rank(a) - rank(b) || a.s.id.localeCompare(b.s.id))[0];
+  const best = candidates.sort((a, b) => rank(a) - rank(b) || (a.s.id < b.s.id ? -1 : 1))[0];
   if (prefer === 'light' && !(known(best) && !isCapital(best.s))) return null;
   if (prefer === 'capital' && ship.type === 'destroyer' && ship.torpedoes > 0 && known(best) && !isCapital(best.s)) {
     return candidates.find((x) => known(x) && isCapital(x.s))?.s || null;

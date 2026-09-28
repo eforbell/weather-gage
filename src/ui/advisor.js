@@ -11,6 +11,13 @@ const PRIMERS = {
     ['Concentrate', 'Two frigates on one enemy end the fight before his consort can help. Form line keeps your ships together.'],
     ['Know when to go', 'A frigate that strikes her colours is a prize for the enemy. Withdraw a mauled ship early; she still counts at the end.'],
   ],
+  ironclad: [
+    ['Iron against wood', 'Virginia’s armour turns their broadsides aside, and her shells set wooden ships afire. Close in without fear of their guns, but not of their numbers.'],
+    ['The ram', 'On Engage her captain will ram a wooden ship alongside. Beam-on, bow into her side, is a killing blow; bow or stern only glances. The ram can be torn off in the wreck.'],
+    ['Mind the draught', 'Virginia draws 22 feet. The sand-coloured shoals are walls to her, while gunboats and shallow-draught ironclads cross them freely.'],
+    ['Rake the anchored ships', 'Ships at anchor cannot turn. Approach from ahead or astern, where their broadsides cannot bear, and your fire rakes them end to end.'],
+    ['Flags in the smoke', 'Signals are flag hoists: two or three turns to arrive, longer while the flagship is firing. Give orders early.'],
+  ],
   dreadnought: [
     ['Cross the T', 'Steam across the head of the enemy line. Every one of your turrets bears; only his forward turrets can reply.'],
     ['Steady course, steady guns', 'Fire control improves with each salvo on the same target (the pips in the signal office) and is lost in hard turns.'],
@@ -49,6 +56,21 @@ export function advise(view, sc) {
     return 'Neither side holds the weather gage yet. The first to get upwind of the other chooses the terms of the fight.';
   }
 
+  if (sc.era === 'ironclad') {
+    const iron = own.find(s => s.type === 'ironclad');
+    const unknown = fresh.find(c => /turret/i.test(c.className || ''));
+    if (iron && (iron.crew < 45 || iron.weapons < 40) && iron.order.type !== 'withdraw') return `${iron.name}'s gun crews are shot to pieces even if her iron holds. Withdraw her before she is taken.`;
+    const gunboat = own.find(s => s.type === 'wooden' && s.hull < 50 && s.order.type !== 'withdraw');
+    if (gunboat) return `${gunboat.name} is a wooden gunboat; she cannot trade broadsides. Pull her back or send her to Screen.`;
+    if (unknown) return 'An unknown low-lying contact: a turret ironclad. Your shells will break on her armour, and hers on yours. Finish the wooden ships before she can shield them.';
+    const wooden = fresh.find(c => /sloop|frigate/i.test(c.className || ''));
+    const idleBoat = own.find(s => s.type === 'wooden' && s.order.type === 'screen' && s.hull > 70);
+    if (iron && iron.ram && wooden && iron.order.type !== 'engage') return `A wooden ship is within reach. Order ${iron.name} to Engage and her captain will ram.`;
+    if (idleBoat && wooden && iron && distance(iron, wooden) <= 3) return `Virginia is engaged. The gunboats can add their fire now, but keep ${idleBoat.name} away from the heavy broadsides of Minnesota.`;
+    if (iron && wooden && distance(iron, wooden) > 3) return 'Close the range. Wooden broadsides cannot hurt your armour much, and your shells burn best at two cables.';
+    return 'Anchored ships cannot turn. Come at them from ahead or astern and your fire rakes them end to end.';
+  }
+
   if (sc.era === 'dreadnought') {
     const smoke = (view.wind + 3) % 6;
     const capitals = own.filter(s => s.type !== 'destroyer');
@@ -73,6 +95,11 @@ export function advise(view, sc) {
 
 export function lesson(view, sc, stats) {
   const result = view.outcome?.result;
+  if (sc.era === 'ironclad') {
+    if (result === 'victory') return 'The blockade is broken. Armour, the ram and patience against anchored ships carried the day, as they did in 1862.';
+    if (stats.hits < 4) return 'Virginia barely got into action. Shoals channel a deep-draught ship; plot a route through deep water, then Engage.';
+    return 'The wooden ships survived too long. Concentrate on one at a time, ram when she is alongside, and let fire do the rest before the unknown ironclad arrives.';
+  }
   if (sc.era === 'dreadnought') {
     if (stats.tees === 0) return 'Your ships never crossed the enemy’s T. Next time, approach on a course that puts the enemy line across your bow, not head-on. A longer preferred range makes captains turn broadside sooner.';
     if (stats.hits < stats.taken) return 'The enemy outshot you. Check the wind: firing downwind into your own smoke costs a third of your hits, and hard turns reset fire control.';

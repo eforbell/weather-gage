@@ -26,3 +26,12 @@
 
 ## Definition of progress
 The project advances when each new era or weapon family is added mostly through data and registry entries, with targeted engine extensions and tests. If modern radar/missile work requires rewriting sail movement or contacts, the architecture has failed its main goal.
+
+## Mission browser (first version shipped 2026-09-27)
+The chart room lists missions by era with a mini chart, your force, what each teaches, length and your best result, which is stored in this browser. Ideas for the next pass:
+1. **Campaign threads.** Group missions into per-era chains (the design calls for about 8 per era) with a persistent squadron and Admiralty Favour, and unlock the next mission from the chart room.
+2. **Fitting out before launch.** Between sealed orders and the chart, add a short screen for loadout, formation, doctrine presets and a signal plan (design §10).
+3. **Side choice for dual-perspective missions.** Hampton Roads is designed to be playable from either side; the engine currently assumes the player is `blue`.
+4. **Mission filters and tags:** tutorial / duel / fleet action / stealth, historical / fictional, estimated length.
+5. **Procedural missions** (patrol, escort, raid) generated per era from the same data schema.
+6. **Replays:** store seed and orders with tick stamps, and replay a finished sortie from the chart room.

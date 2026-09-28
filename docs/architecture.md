@@ -44,6 +44,9 @@ Missiles in flight are simulation-owned pending events, distinct from visible pe
 
 The deterministic RNG state is saved with the game. No action depends on wall-clock time. A future replay format should store initial scenario/version/seed plus commands with tick timestamps; replays are not implemented yet.
 
+## Era rule registry (2026-09-27)
+`src/sim/core.js` holds DOM-free shared primitives: hex geometry, seeded RNG, damage, status, dispatch redaction and per-side fx. `ERA_RULES` in `engine.js` maps era names to modules in `src/sim/eras/` that supply optional hooks: `validateShip`, `onOrder`, `orderDelay`, `beforeTick`, `moveShip`, `afterMove`, `combat` and `detection`. The engine keeps the tick order, contacts, signals, reserves, outcomes and saves. `eras/steam.js` holds movement shared by the ironclad and dreadnought eras. Sail and modern rules still live inside `engine.js`.
+
 ## Extension sequence
 1. Extract current movement, sensing, weapons, signals, and scenario outcome functions behind an era registry. Keep the tick scheduler and contact model common.
 2. Replace ship-specific weapon fields with validated sensor/weapon loadout definitions, leaving instance ammo/cooldown in state.

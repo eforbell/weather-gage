@@ -1,4 +1,4 @@
-# Era extension report: adding WWI (dreadnought) — 2026-09-27
+# Era extension report: adding WWI (dreadnought) and the ironclads — 2026-09-27
 
 The **Smoke over the Dogger Bank** scenario was built as a probe: how much of the platform survives contact with a new era, and what had to change?
 
@@ -34,7 +34,24 @@ The engine gained four dispatch points (`moveShips`, `resolveCombat`, contact `d
 5. **Captains are local heuristics.** Formation orders needed a patch so ships still fight in line. A doctrine-driven behaviour tree will be needed for bigger fleets.
 6. **Pending events are ad hoc** (`missile`, `torpedo`). WWII (aircraft strikes, shell flight, submarines) needs a general "entity in flight" type with a position, not just a delivery tick.
 
-## Balance snapshot (200 seeds each, blue as admiral)
+## Second probe: the ironclads (Iron at Hampton Roads, 1862)
+Adding the ironclad era after WWI tested whether frictions 1 and 2 were real. They were, so both are now fixed:
+- **Era registry.** `ERA_RULES` in `engine.js` maps an era to a module that can provide `validateShip`, `onOrder`, `orderDelay`, `beforeTick`, `moveShip`, `afterMove`, `combat` and `detection`. Ironclad and dreadnought use it; sail and modern still use the engine's built-in rules and are the next to move out.
+- **No import cycle.** Shared primitives now live in `src/sim/core.js`, and steam movement (speed classes, turn rate, draught, minefields) lives in `src/sim/eras/steam.js`, shared by both steam eras.
+- **Platform features added generically:** reserve ships that arrive at a set tick (the Monitor), per-scenario victory lists (`meta.victory = { enemy, own }`) scored only on decisive ships at the time limit, deep draught vs shoals, and ships at anchor (`speed: 0`).
+- **Era-specific rules (≈200 lines):** armour against shell vs solid shot, the ram (beam-on vs glancing, may be lost, cooldown), fire aboard wooden ships, raking fire against bow and stern, flag signals slowed by gun smoke, and simultaneous (WEGO) resolution, where every ship fires on the same picture and damage lands together.
+
+The ironclad module needed no engine changes beyond the hooks, which suggests the registry shape is right. WWII will test it against aircraft, which need entities in flight and a larger map (frictions 3 and 6).
+
+### Hampton Roads balance (200 seeds)
+| Plan | Win | Draw | Loss |
+|---|---|---|---|
+| Let the captains fight (gunboats start on Screen) | 77% | 22% | 1% |
+| Send the gunboats straight in | 30% | 3% | 67% |
+
+Virginia is almost never lost, which is true to history. Defeat comes from failing to finish the wooden ships before the Monitor and time run out.
+
+## Dreadnought balance snapshot (200 seeds each, blue as admiral)
 | Plan | Win | Loss |
 |---|---|---|
 | No orders | 65% | 35% |

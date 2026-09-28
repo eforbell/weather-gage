@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, deserialize, getView, issueOrder, serialize, step } from '../src/sim/engine.js';
-import { movesThisTick } from '../src/sim/dreadnought.js';
+import { movesThisTick } from '../src/sim/eras/dreadnought.js';
 
 const ship = (state, id) => state.ships.find((s) => s.id === id);
 const runTo = (state, tick) => { while (state.tick < tick && !state.outcome) state = step(state); return state; };
@@ -125,4 +125,21 @@ test('corrupt fx in a save is rejected', () => {
     s.fx = fx;
     assert.throws(() => deserialize(JSON.stringify(s)), /fx|coordinate/);
   }
+});
+
+test('the target of a torpedo attack never learns the aim point', () => {
+  let state = createGame('dogger', 3);
+  let checked = 0;
+  while (!state.outcome) {
+    state = step(state);
+    for (const side of ['blue', 'red']) {
+      for (const f of getView(state, side).fx) {
+        if (f.type !== 'torpedo') continue;
+        checked += 1;
+        if (f.from?.own) assert.ok(f.at, 'the launching side sees its own aim');
+        else assert.equal(f.at, undefined, 'the target side only knows torpedoes are running');
+      }
+    }
+  }
+  assert.ok(checked > 0);
 });
