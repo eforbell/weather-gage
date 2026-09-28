@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, deserialize, getView, serialize, step } from '../src/sim/engine.js';
+import { contactId } from '../src/sim/core.js';
 
 const ship = (state, id) => state.ships.find((s) => s.id === id);
 
@@ -22,7 +23,8 @@ test('the reserve ironclad stays off the board, and out of contact reports, unti
   while (state.tick < 6) {
     state = step(state);
     assert.equal(ship(state, 'r_monitor').status, 'reserve');
-    assert.ok(!getView(state, 'blue').contacts.some((c) => c.id === 'c_blue_r_monitor'));
+    assert.ok(!getView(state, 'blue').contacts.some((c) => c.id === contactId(state, 'blue', 'r_monitor')));
+    assert.ok(!state.contacts.blue.some((c) => c.targetId === 'r_monitor'));
   }
   state = step(state);
   assert.equal(ship(state, 'r_monitor').status, 'active');

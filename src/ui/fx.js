@@ -224,6 +224,11 @@ export function createFx({ layer, tracks, wrap, banner, pt }) {
           break;
         case 'torpedo': {
           // Own spreads: exact aim point. Hostile: only the launch point (if seen) and whom it threatens.
+          if (!f.eta) { // submarines: the weapon itself is drawn from view.entities
+            later(t0, () => { if (from) { splash(from); sound('whoosh', 0); } });
+            if (f.to?.own) showBanner('TORPEDO IN THE WATER', 'alert');
+            break;
+          }
           const aim = at || to;
           if (!aim) break;
           const a = from || aim;
@@ -247,6 +252,24 @@ export function createFx({ layer, tracks, wrap, banner, pt }) {
           if (to) later(start + flight + i * gap, () => { smokePuff(jitter(to, 6), 14); floatText(to, 'FIRE!', f.to.own ? 'own' : 'enemy'); });
           if (f.to && !f.to.own) observed.set(f.to.id, Math.max(6, observed.get(f.to.id) || 0));
           if (f.to) showBanner(`${label(f.to)} IS ON FIRE`, f.to.own ? 'alert' : 'good');
+          break;
+        case 'ping':
+          if (from) later(start * 0.3, () => {
+            for (let k = 0; k < 3; k++) later(k * 260, () => { const c = el('circle', { cx: from.x, cy: from.y, r: 12, class: 'fx-ping-wave' }); temp(c, 2200); });
+            if (f.from?.own) sfx.play('sonar', 0);
+          });
+          break;
+        case 'ivan':
+          if (from) later(start * 0.4, () => floatText(from, 'CRAZY IVAN', 'muted'));
+          break;
+        case 'decoy':
+          if (from) later(start * 0.4, () => { for (let k = 0; k < 4; k++) later(k * 90, () => splash(jitter(from, 9))); floatText(from, 'NOISEMAKER', 'muted'); });
+          break;
+        case 'dud':
+          if (to) later(start * 0.5, () => { splash(to, true); floatText(to, 'DUD — DID NOT ARM', f.to.own ? 'own' : 'enemy'); sound('hit', 0); showBanner('THE TORPEDO DID NOT ARM', f.to.own ? 'good' : 'alert'); });
+          break;
+        case 'event':
+          if (f.label) showBanner(f.label, 'alert');
           break;
         case 'explosion': {
           // Something big happened aboard an unidentified contact; what, exactly, is unknown.
@@ -353,6 +376,7 @@ function createSound() {
     splash: (d) => burst({ dur: 0.45, freq: 2200, vol: 0.14, delay: d, type: 'bandpass' }),
     explode: (d) => { burst({ dur: 2.2, freq: 180, vol: 1, delay: d }); burst({ dur: 0.4, freq: 1600, vol: 0.4, delay: d }); },
     pop: (d) => burst({ dur: 0.2, freq: 1800, vol: 0.3, delay: d }),
+    sonar: (d) => { const c = ctx; if (!c || c.state !== 'running') return; const t = c.currentTime + d / 1000; const o = c.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(1180, t); const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.35, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + 2.4); o.connect(g); g.connect(out); o.start(t); o.stop(t + 2.5); },
     whoosh: (d) => { tone({ dur: 0.9, from: 180, to: 520, vol: 0.12, delay: d }); burst({ dur: 0.8, freq: 1200, vol: 0.2, delay: d, type: 'bandpass' }); },
   };
   return {

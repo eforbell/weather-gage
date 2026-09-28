@@ -4,17 +4,17 @@
 import { DIRECTIONS, distance, isActive, addLog, addFx, applyDamage, resolveStatus, roll, terrainAt, directionToward, turnDistance, inBounds, key } from '../core.js';
 
 // Speed is in half-hexes per tick, so a 3 steams 1, 2, 1, 2… hexes.
-export function movesThisTick(state, ship) {
-  if (ship.speed === 0) return 0; // at anchor
-  let speed = ship.speed;
+export function movesThisTick(state, ship, ordered = ship.speed) {
+  if (ordered === 0) return 0; // at anchor
+  let speed = ordered;
   if (ship.propulsion < 50) speed -= 1;
   if (ship.propulsion <= 15) speed = Math.min(speed, 1);
   speed = Math.max(1, speed);
   return Math.floor((state.tick * speed) / 2) - Math.floor(((state.tick - 1) * speed) / 2);
 }
 
-export function steamMove(state, ship, occupied, desiredFacing, turnRate = 1) {
-  const moves = movesThisTick(state, ship);
+export function steamMove(state, ship, occupied, desiredFacing, turnRate = 1, speed = ship.speed) {
+  const moves = movesThisTick(state, ship, speed);
   for (let i = 0; i < moves; i += 1) {
     const desired = desiredFacing();
     if (desired === null) break;
@@ -73,18 +73,49 @@ export function passable(state, c, occupied, ship = null) {
   return t !== 'land' && !(t === 'shoal' && ship?.draft === 'deep');
 }
 
-// Best heading toward a destination, steering around minefields and water too shallow for this hull.
+// Best heading toward a destination along the shortest navigable route (breadth-first
+// over hexes this hull can use), so captains go around ridges, shoals and minefields
+// instead of stalling against them. Other ships' hexes are treated as blocked so a boat
+// sitting in a gap sends traffic the long way round rather than jamming it.
 export function headingTo(state, ship, destination) {
   if (!destination || distance(ship, destination) === 0) return null;
+  const field = routeField(state, ship, destination);
   let best = null;
   for (let f = 0; f < 6; f += 1) {
     const c = ahead(ship, f);
-    if (!inBounds(c)) continue;
-    const t = terrainAt(state, c.q, c.r);
-    if (t === 'land' || (t === 'shoal' && ship.draft === 'deep')) continue;
-    const score = distance(c, destination) * 10 + turnDistance(ship.facing, f) + (t === 'mines' ? 25 : 0);
+    if (!inBounds(c) || !navigable(state, ship, c)) continue;
+    const steps = field.get(key(c.q, c.r)) ?? 1000 + distance(c, destination);
+    const score = steps * 10 + turnDistance(ship.facing, f);
     if (!best || score < best.score) best = { f, score };
   }
   return best ? best.f : null;
+}
+
+function navigable(state, ship, c) {
+  const t = terrainAt(state, c.q, c.r);
+  if (t === 'land' || (t === 'shoal' && ship.draft === 'deep')) return false;
+  return t !== 'mines' || ship.order.type === 'proceed';
+}
+
+function routeField(state, ship, destination) {
+  // Avoid your own ships and where your side has reported others; captains cannot route around boats they don't know about.
+  const blocked = new Set([
+    ...state.ships.filter((s) => s !== ship && s.side === ship.side && isActive(s)).map((s) => key(s.q, s.r)),
+    ...(state.contacts?.[ship.side] || []).filter((c) => !c.stale).map((c) => key(c.q, c.r)),
+  ]);
+  const field = new Map([[key(destination.q, destination.r), 0]]);
+  const queue = [destination];
+  for (let i = 0; i < queue.length; i += 1) {
+    const cur = queue[i];
+    const d = field.get(key(cur.q, cur.r));
+    for (const [dq, dr] of DIRECTIONS) {
+      const n = { q: cur.q + dq, r: cur.r + dr };
+      const k = key(n.q, n.r);
+      if (!inBounds(n) || field.has(k) || blocked.has(k) || !navigable(state, ship, n)) continue;
+      field.set(k, d + 1);
+      queue.push(n);
+    }
+  }
+  return field;
 }
 

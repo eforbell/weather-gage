@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, deserialize, getView, issueOrder, serialize, step } from '../src/sim/engine.js';
 import { movesThisTick } from '../src/sim/eras/dreadnought.js';
+import { contactId } from '../src/sim/core.js';
 
 const ship = (state, id) => state.ships.find((s) => s.id === id);
 const runTo = (state, tick) => { while (state.tick < tick && !state.outcome) state = step(state); return state; };
@@ -53,7 +54,7 @@ test('wireless orders reveal the flagship bearing to a distant enemy', () => {
   state = issueOrder(state, ['b_meteor'], { type: 'hold' });
   assert.equal(ship(state, 'b_lion').emitUntil, 1);
   state = step(state);
-  const bearing = getView(state, 'red').contacts.find((c) => c.id === 'c_red_b_lion');
+  const bearing = getView(state, 'red').contacts.find((c) => c.id === contactId(state, 'red', 'b_lion'));
   assert.ok(bearing, 'flagship transmission is detected');
   assert.equal(bearing.emitter, true);
 });

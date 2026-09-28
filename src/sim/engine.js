@@ -1,22 +1,27 @@
 import { SCENARIO_SETUPS, SCENARIOS } from './scenarios.js';
 import {
-  WIDTH, HEIGHT, DIRECTIONS, SIDES, CONF_RANK, MAX_LOG, MAX_FX,
+  WIDTH, HEIGHT, DIRECTIONS, ALL_SIDES, CONF_RANK, MAX_LOG, MAX_FX, sidesOf, hostile, chance, contactId, believedHostile, worthClosing,
   distance, isActive, assertCoord, nonEmptyString, addLog, reportText, addFx, publicFx, applyDamage, resolveStatus, roll, nextRandom, terrainAt, terrainAtMap, directionToward, hexDistanceRaw, turnDistance, inBounds, key, clamp, deepClone, bestContactFor,
 } from './core.js';
 
 export { WIDTH, HEIGHT, DIRECTIONS, distance, isActive };
 import * as dreadnought from './eras/dreadnought.js';
 import * as ironclad from './eras/ironclad.js';
+import * as coldwar from './eras/coldwar.js';
 
 // Era rule modules. Each may provide: validateShip, onOrder, orderDelay, beforeTick,
-// moveShip, afterMove, combat, detection. Sail and modern still use the engine's
+// moveShip, afterMove, combat, detection, validateEntities, publicEntities. Sail and modern still use the engine's
 // built-in rules below and are the next candidates to move out.
-const ERA_RULES = { dreadnought, ironclad };
+const ERA_RULES = { dreadnought, ironclad, coldwar };
 const rulesFor = (state) => ERA_RULES[scenarioFor(state.scenarioId).era] || {};
 
 export const VERSION = 1;
 const TERRAIN_TYPES = new Set(['land', 'shoal', 'mines']);
-const VALID_ORDERS = new Set(['engage', 'hold', 'proceed', 'withdraw', 'line', 'screen']);
+const VALID_ORDERS = new Set(['engage', 'hold', 'proceed', 'withdraw', 'line', 'screen', 'shadow']);
+const SPEED_SETTINGS = new Set(['silent', 'standard', 'flank']);
+const DEPTHS = new Set(['shallow', 'deep', 'surface']);
+// Fields a scripted scenario event may change on a ship.
+const EVENT_FIELDS = new Set(['quiet', 'speed', 'passiveClass', 'depth']);
 
 export function createGame(scenarioId = 'nevis', seed = 1799) {
   const meta = scenarioFor(scenarioId);
@@ -30,12 +35,18 @@ export function createGame(scenarioId = 'nevis', seed = 1799) {
     wind: setup.wind,
     map: { width: WIDTH, height: HEIGHT, terrain: uniqueTerrain(setup.terrain) },
     ships: deepClone(setup.ships),
-    contacts: { blue: [], red: [] },
+    contacts: Object.fromEntries((setup.sides || ['blue', 'red']).map((side) => [side, []])),
     pending: [],
     fx: [],
     log: [{ tick: 0, text: `${meta.title}: ${meta.objective}`, kind: 'scenario' }],
     outcome: null,
   };
+  if (setup.sides) state.sides = [...setup.sides];
+  if (setup.hostile) state.hostile = deepClone(setup.hostile);
+  if (setup.entities) state.entities = [];
+  // Scripted events: each seed picks a tick inside the event's window, so the same
+  // mission plays out differently without anything being random at run time.
+  if (setup.events) state.events = setup.events.map((e) => ({ ...deepClone(e), at: pickTick(state, e), done: false }));
   return updateContacts(state);
 }
 
@@ -48,6 +59,7 @@ export function step(input) {
   state.fx = [];
   const rules = rulesFor(state);
   state = arriveReserves(state);
+  state = runEvents(state);
   state = shiftWind(state, meta.era);
   if (rules.beforeTick) state = rules.beforeTick(state);
   state = deliverPending(state);
@@ -88,7 +100,12 @@ export function setDoctrine(input, shipIds, patch) {
   state = cloneState(state);
   const ids = new Set(Array.isArray(shipIds) ? shipIds : [shipIds]);
   const clean = cleanDoctrinePatch(patch);
-  for (const ship of state.ships) if (ids.has(ship.id)) ship.doctrine = { ...ship.doctrine, ...clean };
+  for (const ship of state.ships) {
+    if (!ids.has(ship.id)) continue;
+    const patch = { ...clean };
+    for (const k of ['speed', 'depth']) if (ship.doctrine[k] === undefined) delete patch[k];
+    ship.doctrine = { ...ship.doctrine, ...patch };
+  }
   return trimLog(addLog(state, `Doctrine updated for ${ids.size} ship(s).`, 'order', state.ships.filter(s => ids.has(s.id)).map(s => s.side)));
 }
 
@@ -100,22 +117,37 @@ export function setRadar(input, shipIds, enabled) {
   return updateContacts(trimLog(addLog(state, `Radar ${enabled ? 'enabled' : 'secured'} for ${ids.size} ship(s).`, 'order', state.ships.filter(s => ids.has(s.id)).map(s => s.side))));
 }
 
+// Active sonar: one ping next tick gives an exact fix on everything nearby,
+// and tells everyone within earshot exactly where the pinging ship is.
+export function activePing(input, shipIds) {
+  let state = cloneState(validateState(input));
+  const ids = new Set(Array.isArray(shipIds) ? shipIds : [shipIds]);
+  const ships = state.ships.filter((s) => ids.has(s.id) && isActive(s) && Number.isInteger(s.pingAt));
+  if (!ships.length) return addLog(state, 'No ship with active sonar can ping.', 'warn');
+  for (const ship of ships) ship.pingAt = state.tick + 1;
+  return trimLog(addLog(state, `${ships.map((s) => s.name).join(', ')} ordered to ping.`, 'order', [ships[0].side]));
+}
+
 export function getView(input, side = 'blue') {
   const state = validateState(input);
-  const safeSide = side === 'red' ? 'red' : 'blue';
+  const safeSide = sidesOf(state).includes(side) ? side : 'blue';
+  const mine = commanded(state, safeSide);
   return {
     version: state.version,
     scenarioId: state.scenarioId,
     tick: state.tick,
     wind: state.wind,
     map: deepClone(state.map),
-    ships: state.ships.filter((s) => s.side === safeSide).map(publicOwnShip),
-    contacts: (state.contacts[safeSide] || []).map(publicContact),
+    ships: state.ships.filter((s) => mine.includes(s.side)).map((s) => publicOwnShip(s, state, safeSide)),
+    contacts: mergedContacts(state, mine).map((c) => publicContact({ ...c, id: contactId(state, safeSide, c.targetId) })),
     pending: state.pending
-      .filter((p) => !p.kind && p.order && state.ships.some((s) => s.id === p.shipId && s.side === safeSide))
+      .filter((p) => !p.kind && p.order && state.ships.some((s) => s.id === p.shipId && mine.includes(s.side)))
       .map((p) => ({ shipId: p.shipId, order: deepClone(p.order), deliverAt: p.deliverAt })),
-    log: state.log.slice(-MAX_LOG).map((e) => publicLogEntry(e, state, safeSide)).filter(Boolean),
-    fx: (state.fx || []).map((e) => e?.[safeSide]).filter(Boolean).map(deepClone),
+    log: state.log.slice(-MAX_LOG).map((e) => mine.map((sd) => publicLogEntry(e, state, sd)).find(Boolean)).filter(Boolean),
+    fx: (state.fx || []).map((e) => mine.map((sd) => e?.[sd]).find(Boolean)).filter(Boolean).map(deepClone),
+    entities: uniqueEntities(mine.flatMap((sd) => rulesFor(state).publicEntities?.(state, sd) || [])),
+    hostileFrom: sidesOf(state).filter((s) => hostile(state, s, safeSide)),
+    hostileTo: state.hostile ? [...(state.hostile[safeSide] || [])] : sidesOf(state).filter((s) => s !== safeSide),
     outcome: state.outcome ? { ...state.outcome } : null,
   };
 }
@@ -167,7 +199,31 @@ function validateState(value) {
     if (ship.side === 'red') red += 1;
   }
   if (!blue || !red) throw new Error('State requires blue and red ships');
-  validateContacts(value.contacts, ids);
+  if (value.sides !== undefined && (!Array.isArray(value.sides) || !value.sides.every((s) => ALL_SIDES.includes(s)) || !value.sides.includes('blue'))) throw new Error('Invalid sides');
+  for (const ship of value.ships) if (!sidesOf(value).includes(ship.side)) throw new Error('Ship side not in scenario');
+  if (value.hostile !== undefined) {
+    if (!value.hostile || typeof value.hostile !== 'object' || Array.isArray(value.hostile)) throw new Error('Invalid hostility');
+    for (const [side, list] of Object.entries(value.hostile)) if (!sidesOf(value).includes(side) || !Array.isArray(list) || !list.every((s) => sidesOf(value).includes(s))) throw new Error('Invalid hostility');
+  }
+  if (value.events !== undefined) {
+    if (!Array.isArray(value.events)) throw new Error('Invalid events');
+    for (const e of value.events) {
+      if (!e || !nonEmptyString(e.id) || !ids.has(e.shipId) || !Number.isInteger(e.at) || typeof e.done !== 'boolean' || !nonEmptyString(e.text)) throw new Error('Invalid event');
+      if (!e.set || typeof e.set !== 'object' || !Object.keys(e.set).every((k) => EVENT_FIELDS.has(k))) throw new Error('Invalid event effect');
+      if (e.set.depth !== undefined && !DEPTHS.has(e.set.depth)) throw new Error('Invalid event effect');
+      for (const k of ['quiet', 'speed']) if (e.set[k] !== undefined && (!Number.isInteger(e.set[k]) || e.set[k] < 0)) throw new Error('Invalid event effect');
+      if (e.set.passiveClass !== undefined && e.set.passiveClass !== null && !nonEmptyString(e.set.passiveClass)) throw new Error('Invalid event effect');
+      if (e.audience !== undefined && (!Array.isArray(e.audience) || !e.audience.every((s) => sidesOf(value).includes(s)))) throw new Error('Invalid event audience');
+      if (e.banner !== undefined && !nonEmptyString(e.banner)) throw new Error('Invalid event banner');
+      if (e.at < 0) throw new Error('Invalid event');
+    }
+  }
+  if (value.command !== undefined) {
+    if (!value.command || typeof value.command !== 'object' || Array.isArray(value.command)) throw new Error('Invalid command');
+    for (const [side, list] of Object.entries(value.command)) if (!sidesOf(value).includes(side) || !Array.isArray(list) || !list.every((s) => sidesOf(value).includes(s) && s !== side)) throw new Error('Invalid command');
+  }
+  if (value.entities !== undefined) (ERA_RULES[meta.era]?.validateEntities || (() => { throw new Error('Entities are not part of this era'); }))(value.entities, ids, value);
+  validateContacts(value.contacts, ids, sidesOf(value));
   validatePending(value.pending, ids, value.tick, value.map, value.ships);
   validateLog(value.log);
   validateOutcome(value.outcome);
@@ -197,7 +253,7 @@ function validateShip(ship, ids, era, map) {
   if (!nonEmptyString(ship.name) || !nonEmptyString(ship.className)) throw new Error('Invalid ship identity');
   if (ship.era !== era) throw new Error('Ship era does not match scenario');
   assertCoord(ship);
-  if (!SIDES.includes(ship.side)) throw new Error('Invalid ship side');
+  if (!ALL_SIDES.includes(ship.side)) throw new Error('Invalid ship side');
   if (!Number.isInteger(ship.facing) || ship.facing < 0 || ship.facing > 5) throw new Error('Invalid ship facing');
   for (const k of ['hull', 'propulsion', 'weapons', 'crew']) if (!Number.isInteger(ship[k]) || ship[k] < 0 || ship[k] > 100) throw new Error(`Invalid ${k}`);
   if (!['active', 'sunk', 'struck', 'escaped', 'reserve'].includes(ship.status)) throw new Error('Invalid ship status');
@@ -234,11 +290,13 @@ function validateDoctrine(doctrine) {
   if (doctrine.roe !== 'free' && doctrine.roe !== 'hold') throw new Error('Invalid doctrine ROE');
   if (!Number.isInteger(doctrine.range) || doctrine.range < 1 || doctrine.range > 12) throw new Error('Invalid doctrine range');
   if (!Number.isInteger(doctrine.withdraw) || doctrine.withdraw < 0 || doctrine.withdraw > 90) throw new Error('Invalid doctrine withdraw');
+  if (doctrine.speed !== undefined && !SPEED_SETTINGS.has(doctrine.speed)) throw new Error('Invalid doctrine speed');
+  if (doctrine.depth !== undefined && !DEPTHS.has(doctrine.depth)) throw new Error('Invalid doctrine depth');
 }
 
-function validateContacts(contacts, shipIds) {
-  if (!contacts || typeof contacts !== 'object' || !Array.isArray(contacts.blue) || !Array.isArray(contacts.red)) throw new Error('Invalid contacts');
-  for (const side of SIDES) {
+function validateContacts(contacts, shipIds, sides) {
+  if (!contacts || typeof contacts !== 'object' || !sides.every((side) => Array.isArray(contacts[side]))) throw new Error('Invalid contacts');
+  for (const side of sides) {
     const ids = new Set();
     for (const contact of contacts[side]) {
       if (!contact || typeof contact !== 'object' || Array.isArray(contact)) throw new Error('Invalid contact');
@@ -253,6 +311,8 @@ function validateContacts(contacts, shipIds) {
       if (contact.className !== undefined && !nonEmptyString(contact.className)) throw new Error('Invalid contact class');
       if (contact.range !== undefined && (!Number.isInteger(contact.range) || contact.range < 0)) throw new Error('Invalid contact range');
       if (contact.emitter !== undefined && typeof contact.emitter !== 'boolean') throw new Error('Invalid contact emitter');
+      for (const k of ['uncertainty', 'holdSince']) if (contact[k] !== undefined && (!Number.isInteger(contact[k]) || contact[k] < 0)) throw new Error(`Invalid contact ${k}`);
+      if (contact.side !== undefined && !sides.includes(contact.side)) throw new Error('Invalid contact side');
     }
   }
 }
@@ -265,14 +325,14 @@ function validatePending(pending, shipIds, tick, map, ships) {
     if (item.kind === 'missile') {
       if (!nonEmptyString(item.shipId) || !shipIds.has(item.shipId)) throw new Error('Invalid missile shooter');
       if (!nonEmptyString(item.targetId) || !shipIds.has(item.targetId)) throw new Error('Invalid missile target');
-      if (!SIDES.includes(item.side)) throw new Error('Invalid missile side');
+      if (!ALL_SIDES.includes(item.side)) throw new Error('Invalid missile side');
       if (!Number.isInteger(item.salvo) || item.salvo < 1) throw new Error('Invalid missile salvo');
       if (Object.hasOwn(item, 'order')) throw new Error('Missile pending cannot include order');
     } else if (item.kind === 'torpedo') {
       if (!ships.some((s) => s.era === 'dreadnought')) throw new Error('Torpedoes are not part of this era');
       if (!nonEmptyString(item.shipId) || !shipIds.has(item.shipId)) throw new Error('Invalid torpedo shooter');
       if (!nonEmptyString(item.targetId) || !shipIds.has(item.targetId)) throw new Error('Invalid torpedo target');
-      if (!SIDES.includes(item.side)) throw new Error('Invalid torpedo side');
+      if (!ALL_SIDES.includes(item.side)) throw new Error('Invalid torpedo side');
       const sideOf = (id) => ships.find((x) => x.id === id)?.side;
       if (sideOf(item.shipId) !== item.side || sideOf(item.targetId) === item.side) throw new Error('Invalid torpedo sides');
       assertCoord(item);
@@ -295,7 +355,8 @@ function validateFx(fx) {
   };
   for (const entry of fx) {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new Error('Invalid fx entry');
-    for (const side of SIDES) {
+    for (const side of Object.keys(entry)) {
+      if (!ALL_SIDES.includes(side)) throw new Error('Invalid fx entry');
       const e = entry[side];
       if (e === null) continue;
       if (!e || typeof e !== 'object' || !nonEmptyString(e.type)) throw new Error('Invalid fx entry');
@@ -310,7 +371,7 @@ function validateLog(log) {
   for (const entry of log) {
     if (!entry || typeof entry !== 'object' || Array.isArray(entry)) throw new Error('Invalid log entry');
     if (!Number.isInteger(entry.tick) || entry.tick < 0 || !nonEmptyString(entry.text) || !nonEmptyString(entry.kind)) throw new Error('Invalid log entry');
-    if (entry.reports !== undefined && (!entry.reports || SIDES.some(side => entry.reports[side] !== null && !nonEmptyString(entry.reports[side])))) throw new Error('Invalid public reports');
+    if (entry.reports !== undefined && (!entry.reports || typeof entry.reports !== 'object' || Object.values(entry.reports).some((r) => r !== null && !nonEmptyString(r)))) throw new Error('Invalid public reports');
   }
 }
 
@@ -343,6 +404,8 @@ function cleanDoctrinePatch(patch) {
   if (patch.roe === 'free' || patch.roe === 'hold') clean.roe = patch.roe;
   if (Number.isFinite(patch.range)) clean.range = clamp(Math.trunc(patch.range), 1, 12);
   if (Number.isFinite(patch.withdraw)) clean.withdraw = clamp(Math.trunc(patch.withdraw), 0, 90);
+  if (SPEED_SETTINGS.has(patch.speed)) clean.speed = patch.speed;
+  if (DEPTHS.has(patch.depth)) clean.depth = patch.depth;
   return clean;
 }
 
@@ -384,6 +447,30 @@ function deliverPending(state) {
   return state;
 }
 
+function pickTick(state, event) {
+  const [lo, hi] = event.window;
+  for (let t = lo; t < hi; t += 1) if (chance(state, `event|${event.id}|${t}`, 1 / (hi - t + 1))) return t;
+  return hi;
+}
+
+function runEvents(state) {
+  for (const event of state.events || []) {
+    if (event.done || event.at > state.tick) continue;
+    const ship = state.ships.find((s) => s.id === event.shipId);
+    if (ship?.status === 'reserve') continue; // happens once she arrives
+    event.done = true;
+    if (!ship || !isActive(ship)) continue;
+    for (const [k, v] of Object.entries(event.set)) {
+      if (k === 'depth') ship.doctrine.depth = v;
+      else if (v === null) delete ship[k];
+      else ship[k] = v;
+    }
+    state = addLog(state, event.text, 'event', event.audience || [ship.side]);
+    state = addFx(state, { type: 'event', targetId: ship.id, label: event.banner, audience: event.audience || [ship.side] });
+  }
+  return state;
+}
+
 // Reinforcements: ships held in reserve join the action at their scheduled tick.
 function arriveReserves(state) {
   for (const ship of state.ships) {
@@ -420,13 +507,20 @@ function moveShips(state, era) {
       occupied.delete(key(ship.q, ship.r));
       continue;
     }
-    if (ship.order.type === 'hold' || ship.propulsion <= 0) continue;
     const rules = ERA_RULES[era];
+    if (ship.order.type === 'hold' || ship.propulsion <= 0) {
+      if (rules?.react) state = rules.react(state, ship); // stopped boats still evade and launch decoys
+      continue;
+    }
     if (rules?.moveShip) {
       state = rules.moveShip(state, ship, occupied, movementTarget(state, ship));
       if (isActive(ship) && ship.order.type === 'withdraw' && escapeEdge(ship)) {
         ship.status = 'escaped';
         state = addLog(state, `${ship.name} withdraws beyond the action.`, 'escape');
+        occupied.delete(key(ship.q, ship.r));
+      } else if (isActive(ship) && ship.goal?.some(([q, r]) => q === ship.q && r === ship.r)) {
+        ship.status = 'escaped';
+        state = addLog(state, `${ship.name} reaches the rendezvous.`, 'escape');
         occupied.delete(key(ship.q, ship.r));
       }
       continue;
@@ -462,9 +556,20 @@ function movementTarget(state, ship) {
   if (ship.order.type === 'proceed') return { q: ship.order.q, r: ship.order.r };
   if (ship.order.type === 'line' || ship.order.type === 'screen') return formationTarget(state, ship, ship.order.type);
   if (ship.order.type === 'withdraw') return withdrawTarget(ship);
-  const contact = bestContactFor(state, ship.side, ship.doctrine.range + 6, true, ship);
+  if (ship.order.type === 'shadow') {
+    const quarry = bestContactFor(state, ship.side, 99, true, ship);
+    return quarry ? { q: quarry.q, r: quarry.r } : searchTarget(state, ship);
+  }
+  const contact = hostileContact(state, ship, ship.doctrine.range + 6);
   if (contact) return { q: contact.q, r: contact.r };
   return searchTarget(state, ship);
+}
+
+// Captains close on contacts their side is hostile to, not on every sound in the water.
+function hostileContact(state, ship, maxRange, fresh = false) {
+  return (state.contacts[ship.side] || [])
+    .filter((c) => distance(ship, c) <= maxRange && (fresh ? !c.stale && believedHostile(state, ship, c) : worthClosing(state, ship, c)))
+    .sort((a, b) => (a.stale - b.stale) || distance(ship, a) - distance(ship, b) || (a.id < b.id ? -1 : 1))[0] || null;
 }
 
 function combatManeuver(state, ship, era) {
@@ -504,12 +609,15 @@ function scaleDir(facing, n) {
 }
 
 function searchTarget(state, ship) {
+  // Scenario intelligence can point a captain at a search area; otherwise sweep toward the enemy's side.
+  if (ship.searchAt) return { q: ship.searchAt[0], r: ship.searchAt[1] };
   if (ship.side === 'blue') return { q: Math.min(WIDTH - 2, 12 + (state.tick % 4)), r: clamp(ship.r, 4, HEIGHT - 5) };
   return { q: Math.max(1, 7 - (state.tick % 4)), r: clamp(ship.r, 4, HEIGHT - 5) };
 }
 
 
 function withdrawTarget(ship) {
+  if (ship.goal) return { q: ship.goal[0][0], r: ship.goal[0][1] }; // a ship with a destination limps on toward it
   return ship.side === 'blue' ? { q: 0, r: ship.r } : { q: WIDTH - 1, r: ship.r };
 }
 
@@ -601,8 +709,8 @@ function missileImpact(state, item) {
 }
 
 function targetFromContacts(state, ship, maxRange) {
-  const contact = bestContactFor(state, ship.side, maxRange, false, ship);
-  if (!contact || contact.stale || CONF_RANK[contact.confidence] < 1 || !contact.targetId) return null;
+  const contact = hostileContact(state, ship, maxRange, true);
+  if (!contact || CONF_RANK[contact.confidence] < 1) return null;
   const target = state.ships.find((s) => s.id === contact.targetId);
   return target && isActive(target) ? target : null;
 }
@@ -617,7 +725,7 @@ function broadsideArc(ship, target) {
 
 function updateContacts(state) {
   state = cloneState(state);
-  for (const side of SIDES) state.contacts[side] = updateSideContacts(state, side);
+  for (const side of sidesOf(state)) state.contacts[side] = updateSideContacts(state, side);
   return state;
 }
 
@@ -637,19 +745,21 @@ function updateSideContacts(state, side) {
       }
     }
     if (best) {
-      contacts.push({
-        id: `c_${side}_${enemy.id}`,
+      const contact = {
+        id: contactId(state, side, enemy.id),
         targetId: enemy.id,
         q: enemy.q,
         r: enemy.r,
         confidence: best.confidence,
-        name: CONF_RANK[best.confidence] >= 3 ? enemy.name : undefined,
-        className: CONF_RANK[best.confidence] >= 2 ? enemy.className : undefined,
         lastSeen: state.tick,
         stale: false,
         range: best.range,
-        emitter: Boolean(enemy.radar) || (enemy.emitUntil ?? -1) >= state.tick,
-      });
+        emitter: Boolean(enemy.radar) || (enemy.emitUntil ?? -1) >= state.tick || (enemy.pingAt ?? -1) === state.tick,
+      };
+      if (best.uncertainty !== undefined) trackMotion(state, side, enemy, contact, best, prior.get(enemy.id));
+      if (CONF_RANK[contact.confidence] >= 3) { contact.name = enemy.name; if (sidesOf(state).length > 2) contact.side = enemy.side; }
+      if (CONF_RANK[contact.confidence] >= 2) contact.className = contact.uncertainty && enemy.passiveClass ? enemy.passiveClass : enemy.className;
+      contacts.push(contact);
     } else {
       const old = prior.get(enemy.id);
       if (old) contacts.push({ ...old, stale: true, range: undefined, name: old.name, className: old.className });
@@ -683,11 +793,20 @@ function checkOutcome(state, meta) {
     const ids = meta.victory?.[side === 'blue' ? 'own' : 'enemy'];
     return state.ships.filter((s) => s.side === side && (!ids || ids.includes(s.id)));
   };
+  // Escort objectives: a named ship must reach her goal alive.
+  const protect = meta.victory?.protect;
+  if (protect) {
+    const charges = state.ships.filter((s) => protect.includes(s.id));
+    if (!charges.length) throw new Error('Scenario protects unknown ships');
+    if (charges.some((s) => !isActive(s) && s.status !== 'escaped' && s.status !== 'reserve')) return { ...state, outcome: { result: 'defeat', title: 'The Defector Is Lost', summary: `${charges.map((s) => s.name).join(', ')} did not survive.` } };
+    if (charges.every((s) => s.status === 'escaped')) return { ...state, outcome: { result: 'victory', title: 'Rendezvous Made', summary: `${charges.map((s) => s.name).join(', ')} reached the rendezvous.` } };
+  }
   const blueActive = decisive('blue').some(alive);
-  const redActive = decisive('red').some(alive);
+  const redActive = protect ? true : decisive('red').some(alive); // with an escort goal, sinking the hunter is not the win
   if (!blueActive && !redActive) return { ...state, outcome: { result: 'draw', title: 'Mutual Destruction', summary: 'Neither squadron has ships remaining in action.' } };
   if (!redActive) return { ...state, outcome: { result: 'victory', title: 'Enemy Squadron Defeated', summary: 'Blue retains fighting power and the opposing force is out of action.' } };
   if (!blueActive) return { ...state, outcome: { result: 'defeat', title: 'Squadron Lost', summary: meta.victory ? 'The ships your orders depended on are out of action.' : 'Blue has no ships remaining in action.' } };
+  if (state.tick >= meta.maxTicks && protect) return { ...state, outcome: { result: 'draw', title: 'Still at Sea', summary: 'Time ran out before the rendezvous. The defector is still out there.' } };
   if (state.tick >= meta.maxTicks) {
     // With named decisive ships, compare each side's surviving share of its own starting strength.
     const pct = (side, ids) => { const max = state.ships.filter((s) => s.side === side && ids.includes(s.id)).reduce((n, s) => n + 100 * (s.value || 1), 0); return Math.round((100 * forceScore(state, side, ids)) / max); };
@@ -708,18 +827,73 @@ function forceScore(state, side, decisive) {
 
 
 
-function publicOwnShip(s) {
-  return deepClone(s);
+function publicOwnShip(s, state, side) {
+  const out = deepClone(s);
+  if (out.fc?.targetId) out.fc.targetId = contactId(state, side, out.fc.targetId); // the target as your contact, not its true id
+  return out;
 }
 
+
+// A side can take other sides' ships under command (the defector answering a ping):
+// their ships, sonar picture, dispatches and weapons join its view.
+function commanded(state, side) {
+  return [side, ...(state.command?.[side] || [])];
+}
+
+function mergedContacts(state, sides) {
+  const ownIds = new Set(state.ships.filter((s) => sides.includes(s.side)).map((s) => s.id));
+  const best = new Map();
+  for (const c of sides.flatMap((sd) => state.contacts[sd] || [])) {
+    if (ownIds.has(c.targetId)) continue;
+    const prev = best.get(c.targetId);
+    const better = !prev || (prev.stale && !c.stale) || (prev.stale === c.stale && (CONF_RANK[c.confidence] > CONF_RANK[prev.confidence] || (CONF_RANK[c.confidence] === CONF_RANK[prev.confidence] && (c.uncertainty ?? 0) < (prev.uncertainty ?? 0))));
+    if (better) best.set(c.targetId, c);
+  }
+  return [...best.values()].sort((a, b) => (a.id < b.id ? -1 : 1));
+}
+
+// The same weapon can reach a merged view twice (heard by one side, owned by another): keep the owner's.
+function uniqueEntities(items) {
+  const owned = items.filter((x) => x.own);
+  const ownedAt = new Set(owned.map((x) => `${x.kind}|${x.q}|${x.r}`));
+  return [...owned, ...items.filter((x) => !x.own && !ownedAt.has(`${x.kind}|${x.q}|${x.r}`))];
+}
 
 function publicLogEntry(entry, state, side) {
   const text = entry.reports ? entry.reports[side] : reportText(entry, state, side);
   return text === null ? null : { tick: entry.tick, text, kind: entry.kind };
 }
 
+// Bearing-only tracking: a passive contact is reported somewhere inside an uncertainty
+// ring that shrinks while it is held (target motion analysis); held long enough it
+// is classified. The scatter is a stable hash of tick and contact, not the game RNG,
+// so the three contact updates in a tick agree and no randomness is consumed.
+function trackMotion(state, side, enemy, contact, best, prior) {
+  const holdSince = prior && !prior.stale && prior.holdSince !== undefined ? prior.holdSince : state.tick;
+  const held = state.tick - holdSince;
+  const unc = Math.max(0, best.uncertainty - held);
+  contact.holdSince = holdSince;
+  contact.uncertainty = unc;
+  if (held >= 3 && contact.confidence === 'sighted') contact.confidence = 'classified';
+  if (unc > 0) {
+    const h = hashString(`${state.seed}|${state.tick}|${side}|${enemy.id}`);
+    const [dq, dr] = DIRECTIONS[h % 6];
+    const dist = (h >>> 3) % (unc + 1);
+    contact.q = clamp(enemy.q + dq * dist, 0, WIDTH - 1);
+    contact.r = clamp(enemy.r + dr * dist, 0, HEIGHT - 1);
+  }
+}
+
+function hashString(text) {
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i += 1) { h ^= text.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return h;
+}
+
 function publicContact(c) {
   const out = { id: c.id, q: c.q, r: c.r, confidence: c.confidence, lastSeen: c.lastSeen, stale: c.stale };
+  if (c.uncertainty !== undefined) out.uncertainty = c.uncertainty;
+  if (c.side) out.side = c.side;
   if (c.name) out.name = c.name;
   if (c.className) out.className = c.className;
   if (typeof c.emitter === 'boolean') out.emitter = c.emitter;

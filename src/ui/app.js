@@ -1,4 +1,4 @@
-import { createGame, step, issueOrder, setDoctrine, setRadar, getView, serialize, deserialize, isActive, distance, DIRECTIONS } from '../sim/engine.js';
+import { createGame, step, issueOrder, setDoctrine, setRadar, activePing, getView, serialize, deserialize, isActive, distance, DIRECTIONS } from '../sim/engine.js';
 import { SCENARIOS, SCENARIO_SETUPS } from '../sim/scenarios.js';
 import { createFx } from './fx.js';
 import { advise, primer, lesson } from './advisor.js';
@@ -12,6 +12,7 @@ const ERA = {
   sail: { label: 'AGE OF SAIL / TRAINING ACTION', region: ' / LEEWARD ISLANDS', propulsion: 'Rigging', stamp: '1799', sensor: () => 7 },
   ironclad: { label: 'IRONCLAD ERA / FLAG SIGNALS', region: ' / HAMPTON ROADS', propulsion: 'Engines', stamp: '1862', sensor: () => 9 },
   dreadnought: { label: 'DREADNOUGHT ERA / WIRELESS COMMAND', region: ' / NORTH SEA', propulsion: 'Engines', stamp: '1915', sensor: () => 10 },
+  coldwar: { label: 'COLD WAR / SUBMARINES', region: ' / NORTH ATLANTIC', propulsion: 'Propulsion', stamp: '1984', sensor: (s) => (s ? s.sonar + 4 : 8) },
   modern: { label: 'MISSILE AGE / FICTIONAL EXERCISE', region: ' / NORTHERN APPROACH', propulsion: 'Propulsion', stamp: 'MODERN', sensor: (s) => (s?.radar ? 11 : 5) },
 };
 const pref = (k, fallback) => { try { return localStorage.getItem(`weather-gage.${k}`) ?? fallback; } catch { return fallback; } };
@@ -37,13 +38,13 @@ const recipients = () => group ? state.ships.filter(s => s.side === 'blue' && is
 const pt = ({ q, r }) => ({ x: 35 + Math.sqrt(3) * 19 * (q + r / 2), y: 34 + 28.5 * r });
 const hex = (q, r) => { const p = pt({ q, r }); return Array.from({ length: 6 }, (_, i) => `${(p.x + 19 * Math.cos((60 * i - 30) * Math.PI / 180)).toFixed(1)},${(p.y + 19 * Math.sin((60 * i - 30) * Math.PI / 180)).toFixed(1)}`).join(' '); };
 const statusName = s => isActive(s) ? 'Operational' : s.status === 'reserve' ? `In reserve · due T${s.arriveAt}` : s.status;
-const orderName = o => ({ engage: 'Engage contacts', hold: 'Hold station', proceed: `Proceed ${o.q}, ${o.r}`, withdraw: 'Withdraw', line: 'Form line', screen: 'Screen flagship' }[o.type] || o.type);
+const orderName = o => ({ engage: 'Engage contacts', hold: 'Hold station', proceed: `Proceed ${o.q}, ${o.r}`, withdraw: 'Withdraw', line: 'Form line', screen: 'Screen flagship', shadow: 'Shadow contact' }[o.type] || o.type);
 const downwind = () => { const [dq, dr] = DIRECTIONS[(state.wind + 3) % 6]; const a = pt({ q: 0, r: 0 }), b = pt({ q: dq, r: dr }); return { x: b.x - a.x, y: b.y - a.y }; };
 
 $('#app').innerHTML = `
 <header class="masthead">
   <a class="brand" href="./" aria-label="Weather Gage home"><span class="brand-mark">⚓</span><span>WEATHER GAGE<small>A NAVAL COMMAND GAME</small></span></a>
-  <div class="edition">COMMAND EXPERIMENT / 003<br><span>SAIL · IRONCLAD · DREADNOUGHT · MISSILE AGE</span></div>
+  <div class="edition">COMMAND EXPERIMENT / 004<br><span>SAIL · IRONCLAD · DREADNOUGHT · COLD WAR · MISSILE AGE</span></div>
   <div class="header-actions"><button id="missions">Missions</button><button id="briefing">Sealed orders</button><button id="help" aria-label="Open field manual">Field manual <span>↗</span></button></div>
 </header>
 <main>
@@ -60,7 +61,7 @@ $('#app').innerHTML = `
     <section class="chart-panel" aria-label="Tactical chart"><div class="chart-toolbar"><div><span class="live-dot"></span><strong>TACTICAL CHART</strong><span id="chart-region"></span></div><div class="toolbar-buttons"><button id="sound" aria-pressed="false">Sound</button><button id="layers" aria-pressed="true">Sensor overlay</button></div></div>
       <div class="chart-wrap" id="chart-wrap"><svg id="chart" viewBox="0 0 925 445" role="img" aria-labelledby="chart-title chart-desc"><title id="chart-title">Naval tactical chart</title><desc id="chart-desc">Friendly vessels, reported contacts and terrain on an axial hex grid. Gunfire, hits and sinkings are animated. Use the coordinate order controls as a keyboard alternative to clicking the map.</desc>
         <defs><radialGradient id="g-flash"><stop offset="0" stop-color="#fffbe0"/><stop offset=".35" stop-color="#f7c35a"/><stop offset=".7" stop-color="#d9622b" stop-opacity=".8"/><stop offset="1" stop-color="#9d463c" stop-opacity="0"/></radialGradient><radialGradient id="g-smoke"><stop offset="0" stop-color="#4c524f" stop-opacity=".55"/><stop offset="1" stop-color="#4c524f" stop-opacity="0"/></radialGradient><pattern id="p-mines" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#e6d8cf"/><path d="M0 0V6" stroke="#b77b6c" stroke-width="1.2"/></pattern></defs>
-        <g id="l-sea"></g><g id="l-overlay"></g><g id="l-tracks"></g><g id="l-contacts"></g><g id="l-ships"></g><g id="l-fx"></g><g id="l-hud"></g></svg>
+        <g id="l-sea"></g><g id="l-overlay"></g><g id="l-tracks"></g><g id="l-contacts"></g><g id="l-entities"></g><g id="l-ships"></g><g id="l-fx"></g><g id="l-hud"></g></svg>
         <div id="banner" class="banner" aria-hidden="true"></div>
         <div class="chart-caption"><span id="chart-scale"></span><span>AXIAL GRID / Q, R</span></div></div>
       <div class="chart-legend"><span><i class="key friendly"></i> Your squadron</span><span><i class="key hostile"></i> Contact</span><span><i class="key stale"></i> Last known</span><span><i class="key land"></i> Land / shoal</span><span id="legend-mines"><i class="key mines"></i> Declared minefield</span><span><i class="key range"></i> Selected ship's gun range</span></div>
@@ -69,7 +70,7 @@ $('#app').innerHTML = `
     <aside class="command-panel"><div class="section-heading"><h2>Signal office</h2><span class="tiny">COMMAND</span></div><div id="inspector"></div></aside>
   </div>
   <section class="dispatch-panel"><div class="dispatch-title"><span class="eyebrow">FROM THE BRIDGE</span><h2>Action dispatch</h2><span id="notice" role="status" aria-live="polite"></span></div><ol id="log"></ol></section>
-  <footer><span>WEATHER GAGE <b>0.3</b> · PLAYABLE RESEARCH BUILD</span><div><button id="save">Save locally</button><button id="load">Load save</button><button id="export">Export</button><button id="import">Import</button><button id="restart">New sortie</button></div><span>NO ACCOUNT. NO TELEMETRY.</span></footer>
+  <footer><span>WEATHER GAGE <b>0.4</b> · PLAYABLE RESEARCH BUILD</span><div><button id="save">Save locally</button><button id="load">Load save</button><button id="export">Export</button><button id="import">Import</button><button id="restart">New sortie</button></div><span>NO ACCOUNT. NO TELEMETRY.</span></footer>
 </main>
 <input id="file" type="file" accept="application/json,.json" hidden>
 <dialog id="launcher" class="launcher" aria-labelledby="launcher-title"></dialog>
@@ -81,6 +82,10 @@ fx.setSound(pref('sound', 'on') === 'on');
 // ---------- Chart ----------
 
 function silhouette(vessel) {
+  if (vessel.era === 'coldwar') {
+    const beam = vessel.type === 'ssbn' ? 6 : 4.2;
+    return `<path class="hull sub" d="M19 0 C15 -${beam} -12 -${beam} -17 0 C-12 ${beam} 15 ${beam} 19 0 Z"/><rect class="funnel" x="3" y="-1.6" width="6" height="3.2"/><path class="deck" d="M-17 0 L-21 -3 M-17 0 L-21 3"/>`;
+  }
   if (vessel.era === 'dreadnought') {
     if (vessel.type === 'destroyer') return '<path class="hull" d="M16 0 L9 -3.2 L-12 -3.2 L-14 0 L-12 3.2 L9 3.2 Z"/><path class="deck" d="M-6 0 H6"/><rect class="funnel" x="-2" y="-1.4" width="3" height="2.8"/>';
     return '<path class="hull" d="M21 0 L14 -5.8 L-16 -5.8 L-20 0 L-16 5.8 L14 5.8 Z"/><circle class="turret" cx="11" r="2.6"/><circle class="turret" cx="4" r="2.6"/><rect class="funnel" x="-4" y="-2" width="4" height="4"/><circle class="turret" cx="-9" r="2.6"/><circle class="turret" cx="-15" r="2.2"/>';
@@ -112,6 +117,11 @@ function drawSea(ship) {
     const within = overlays && ship && isActive(ship) && distance(ship, { q, r }) <= range;
     svg += `<polygon points="${hex(q, r)}" class="hex ${type} ${within && type === 'sea' ? 'sensor' : ''}" data-q="${q}" data-r="${r}"><title>${q}, ${r} · ${type === 'mines' ? 'declared minefield' : type}</title></polygon>`;
     if (type === 'mines') { const p = pt({ q, r }); svg += `<text class="mine-glyph" x="${p.x}" y="${p.y + 3}">✱</text>`; }
+  }
+  for (const mark of scenario().marks || []) {
+    for (const [q, r] of mark.cells) svg += `<polygon points="${hex(q, r)}" class="mark-cell"/>`;
+    const [q, r] = mark.cells[0]; const p = pt({ q, r });
+    svg += `<text class="mark-label" x="${p.x}" y="${p.y - 24}">${escape(mark.label)}</text>`;
   }
   for (let q = 0; q < state.map.width; q += 2) { const p = pt({ q, r: 0 }); svg += `<text class="grid-label" x="${p.x}" y="9">${q.toString().padStart(2, '0')}</text>`; }
   for (let r = 0; r < state.map.height; r += 2) { const p = pt({ q: 0, r }); svg += `<text class="grid-label" x="${p.x - 30}" y="${p.y + 3}">${r.toString().padStart(2, '0')}</text>`; }
@@ -164,7 +174,7 @@ function syncShips(view) {
       return g;
     });
     const active = isActive(vessel);
-    node.setAttribute('class', `vessel ${selected === vessel.id ? 'selected' : ''} ${active ? '' : `inactive ${vessel.status}`}`);
+    node.setAttribute('class', `vessel ${selected === vessel.id ? 'selected' : ''} ${vessel.side !== 'blue' ? 'ally' : ''} ${vessel.doctrine?.depth === 'deep' ? 'deep' : ''} ${active ? '' : `inactive ${vessel.status}`}`);
     node.querySelector('title').textContent = `${vessel.name} · ${statusName(vessel)} · ${vessel.q}, ${vessel.r}`;
     node.querySelector('.ship-label').textContent = vessel.name.replace(/^(USS|HMS|BNS) /, '') + (vessel.status === 'struck' ? ' ⚑' : '');
     place(node, pt(vessel));
@@ -200,7 +210,7 @@ function syncContacts(view) {
     node.setAttribute('class', `contact ${contact.stale ? 'old' : ''}`);
     place(node, pt(contact));
     const label = contact.confidence === 'identified' ? contact.name : contact.className ? contact.className.toUpperCase() : contact.confidence.toUpperCase();
-    const ring = contact.stale ? Math.min(45, 18 + (state.tick - contact.lastSeen) * 3) : 20;
+    const ring = contact.stale ? Math.min(45, 18 + (state.tick - contact.lastSeen) * 3) : Math.max(20, (contact.uncertainty || 0) * 32.9 + 10);
     const observed = fx.observedDamage(contact.id);
     node.innerHTML = `<circle r="${ring}" class="contact-ring"/>${contactGlyph(contact)}<text class="contact-symbol" y="4">${contact.stale ? '?' : ''}</text>${!contact.stale ? damageMarks(observed >= 6 ? 30 : observed >= 3 ? 60 : 100, wind) : ''}${contact.emitter && !contact.stale ? '<path class="emitter" d="M-15 -15 q5 -6 10 0 M-18 -19 q8 -9 16 0"/>' : ''}<text class="ship-label" y="-28">${escape(label)}</text>`;
   }
@@ -210,28 +220,59 @@ function drawHud() {
   const sc = scenario();
   const windy = sc.era === 'sail' || sc.era === 'dreadnought';
   const arrow = windy ? `<g transform="rotate(${((state.wind + 3) % 6) * 60})"><path class="wind-arrow" d="M-22 0 H18 M10 -6 L19 0 L10 6"/></g>` : '';
-  const caption = sc.era === 'ironclad' ? 'SLACK WATER · SHOALS BAR DEEP DRAUGHT' : sc.era === 'sail' ? `WIND FROM ${dirs[state.wind]}` : sc.era === 'dreadnought' ? `WIND FROM ${dirs[state.wind]} · SMOKE DRIFTS ${dirs[(state.wind + 3) % 6]}` : 'SURFACE PICTURE';
+  const caption = sc.era === 'coldwar' ? 'SOUND CHANNEL · THERMAL LAYER' : sc.era === 'ironclad' ? 'SLACK WATER · SHOALS BAR DEEP DRAUGHT' : sc.era === 'sail' ? `WIND FROM ${dirs[state.wind]}` : sc.era === 'dreadnought' ? `WIND FROM ${dirs[state.wind]} · SMOKE DRIFTS ${dirs[(state.wind + 3) % 6]}` : 'SURFACE PICTURE';
   $('#l-hud').innerHTML = `<g transform="translate(847 67)" class="compass"><circle r="29"/><path d="M0 -36 V36 M-36 0 H36"/>${arrow}<path d="M0 -24 L5 10 L0 5 L-5 10 Z" class="needle"/><text y="-42">N</text><text y="55">${caption}</text></g>`;
 }
 
 function drawChart(view) {
   const ship = flagship();
+  $('#chart').classList.toggle('undersea', scenario().era === 'coldwar');
   drawSea(ship);
   drawOverlay(ship);
   syncContacts(view);
   syncShips(view);
+  syncEntities(view);
   drawHud();
+}
+
+// Weapons in the water: own torpedoes and noisemakers exactly; others only as
+// rough "heard" positions.
+function syncEntities(view) {
+  const layer = $('#l-entities');
+  const ids = new Set(view.entities.map(e => e.id));
+  for (const n of [...layer.children]) if (!ids.has(n.getAttribute('data-entity'))) n.remove();
+  for (const e of view.entities) {
+    const node = keyed(layer, 'data-entity', e.id, () => {
+      const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      place(g, pt(e));
+      return g;
+    });
+    node.setAttribute('class', `entity ${e.kind} ${e.own ? 'own' : 'heard'}`);
+    place(node, pt(e));
+    node.innerHTML = e.kind === 'decoy' ? '<circle class="bubbles" r="6"/><circle class="bubbles" r="3" cx="4" cy="-3"/>'
+      : e.own ? `<g style="transform:rotate(${e.facing * 60}deg)"><path class="fish" d="M6 0 L-5 -1.6 L-5 1.6 Z"/><path class="fish-wake" d="M-6 0 H-22"/></g>${e.armed ? '' : '<text class="fish-label" y="-7">SAFE</text>'}`
+      : '<circle class="heard-ring" r="11"/><text class="fish-label hostile" y="-14">TORPEDO?</text>';
+  }
 }
 
 // ---------- Panels ----------
 
 function contactLabel(view, targetId) {
-  const c = view.contacts.find(x => x.id === `c_blue_${targetId}`);
+  const c = view.contacts.find(x => x.id === targetId); // fc.targetId arrives as your contact id
   return c ? (c.name || c.className || 'unidentified contact') : 'a contact';
 }
 
 function eraPanel(ship, view) {
   const e = scenario().era;
+  if (e === 'coldwar') {
+    const names = { red: 'Soviet Navy', green: 'the defector', blue: 'US Navy' };
+    const war = view.hostileFrom.length ? view.hostileFrom.map(s => names[s] || s).join(', ') : 'nobody';
+    return `<div class="emcon"><div class="magazine"><span>TORPEDOES <b>${ship.torpedoes}</b></span><span>DECOYS <b>${ship.decoys}</b></span><span>NOISE <b>${ship.noise}</b></span></div>
+      <div class="doctrine-row"><label for="sub-speed">Speed<select id="sub-speed">${['silent', 'standard', 'flank'].map(v => `<option ${ship.doctrine.speed === v ? 'selected' : ''}>${v}</option>`).join('')}</select></label>
+      <label for="sub-depth">Depth<select id="sub-depth" ${ship.doctrine.depth === 'surface' ? 'disabled' : ''}>${['shallow', 'deep', ...(ship.doctrine.depth === 'surface' ? ['surface'] : [])].map(v => `<option value="${v}" ${ship.doctrine.depth === v ? 'selected' : ''}>${v === 'deep' ? 'below layer' : v === 'shallow' ? 'above layer' : 'surfaced'}</option>`).join('')}</select></label></div>
+      <button id="ping" class="wide">One ping only</button>
+      <p class="hint">${escape(ship.captain.name)} · ${escape(ship.captain.trait)}. At war with you: ${escape(war)}. Silent running is hard to hear but slow; flank speed is loud and half-deaf. A ping gives an exact fix and your position.</p></div>`;
+  }
   if (e === 'modern') return `<div class="emcon"><label class="check"><input id="radar" type="checkbox" ${ship.radar ? 'checked' : ''}> Active radar</label><p class="hint">Longer detection; emissions expose you.</p><div class="magazine"><span>MISSILES <b>${ship.ammo}</b></span><span>DEFENSE <b>${ship.defense}</b></span></div></div>`;
   if (e === 'ironclad') {
     return `<div class="emcon"><div class="magazine"><span>${ship.turret ? 'TURRET' : 'BROADSIDE'} <b>${ship.battery}</b></span><span>RAM <b>${ship.ram ? (ship.ramReadyAt > state.tick ? 'BACKING' : 'READY') : '—'}</b></span><span>DRAUGHT <b>${ship.draft === 'deep' ? 'DEEP' : 'SHALLOW'}</b></span></div>
@@ -241,7 +282,7 @@ function eraPanel(ship, view) {
   if (e === 'dreadnought') {
     const pips = [0, 1, 2].map(i => `<i class="${ship.fc.targetId && ship.fc.level > i ? 'on' : ''}"></i>`).join('');
     return `<div class="emcon"><div class="magazine"><span>${ship.type === 'destroyer' ? 'GUNS' : 'HEAVY GUNS'} <b>${ship.guns}</b></span>${ship.type === 'destroyer' ? `<span>TORPEDOES <b>${ship.torpedoes}</b></span>` : `<span>SECONDARIES <b>${ship.secondary}</b></span>`}<span>KNOTS <b>${ship.speed * 7 + 7}</b></span></div>
-      <div class="fire-control"><span class="eyebrow">FIRE CONTROL</span><span class="pips" aria-label="Ranging level ${ship.fc.level} of 3">${pips}</span><small>${ship.fc.targetId ? `Ranging on ${escape(contactLabel(view, ship.fc.targetId))}` : 'No target'}</small></div>
+      <div class="fire-control"><span class="eyebrow">FIRE CONTROL</span><span class="pips" aria-label="Ranging level ${ship.fc.level} of 3">${pips}</span><small>${ship.fc.targetId ? `Ranging on ${escape(contactLabel(view, view.ships.find(s => s.id === ship.id)?.fc.targetId))}` : 'No target'}</small></div>
       <p class="hint">${ship.type === 'destroyer' ? 'Torpedo attack inside 3 hexes (inner ring). Engage sends her in; Screen keeps her with the line.' : 'All turrets bear abeam; only half fore or aft. Accuracy builds on a steady course.'}</p></div>`;
   }
   return '<p class="hint era-hint">Broadsides fire off the beam, not the bow. Wind limits movement; rigging damage slows a ship.</p>';
@@ -257,7 +298,7 @@ function renderInspector(view) {
     <div class="health-tracks">${[['hull', 'Hull'], ['propulsion', era().propulsion], ['weapons', 'Weapons'], ['crew', 'Crew / morale']].map(([key, label]) => `<div class="track"><label>${label}<b>${Math.round(ship[key])}%</b></label><meter min="0" max="100" low="35" high="65" optimum="100" value="${ship[key]}">${ship[key]}%</meter></div>`).join('')}</div>
     <div class="standing-order"><span class="eyebrow">STANDING ORDER</span><strong>${escape(orderName(ship.order))}</strong>${pending.map(p => `<small>↳ ${escape(orderName(p.order))} · arrives tick ${p.deliverAt}</small>`).join('')}</div>
     <fieldset ${active ? '' : 'disabled'}><legend>Issue a signal</legend><label class="check"><input id="group" type="checkbox" ${group ? 'checked' : ''}> Entire squadron</label>
-    <div class="order-grid">${[['engage', 'Engage'], ['line', 'Form line'], ['screen', 'Screen'], ['hold', 'Hold'], ['proceed', 'Proceed ↗'], ['withdraw', 'Withdraw']].map(([type, label]) => `<button data-order="${type}" class="${plotting && type === 'proceed' ? 'chosen' : ''}">${label}</button>`).join('')}</div>
+    <div class="order-grid">${[['engage', 'Engage'], scenario().era === 'coldwar' ? ['shadow', 'Shadow'] : ['line', 'Form line'], ['screen', 'Screen'], ['hold', 'Hold'], ['proceed', 'Proceed ↗'], ['withdraw', 'Withdraw']].map(([type, label]) => `<button data-order="${type}" class="${plotting && type === 'proceed' ? 'chosen' : ''}">${label}</button>`).join('')}</div>
     <form id="plot-form"><label for="q">Q</label><input id="q" type="number" min="0" max="19" value="${ship.q}" required aria-label="Destination Q coordinate"><label for="r">R</label><input id="r" type="number" min="0" max="13" value="${ship.r}" required aria-label="Destination R coordinate"><button type="submit">Plot</button></form>
     <p class="hint">${plotting ? 'Click a sea hex to send a proceed order.' : scenario().era === 'dreadnought' ? 'Wireless orders arrive next tick, but each transmission reveals your flagship’s bearing.' : 'Orders travel by signal. Captains execute them automatically.'}</p>
     <label class="control-label" for="roe">Rules of engagement</label><select id="roe"><option value="free" ${ship.doctrine.roe === 'free' ? 'selected' : ''}>Weapons free</option><option value="hold" ${ship.doctrine.roe === 'hold' ? 'selected' : ''}>Hold fire</option></select>
@@ -333,11 +374,11 @@ function sendOrder(order) {
 function openDialog(html) { pause(); render(); $('#dialog-content').innerHTML = html; if (!$('#dialog').open) $('#dialog').showModal(); }
 function showBriefing() {
   const sc = scenario();
-  const notes = { ironclad: 'Inspired by the Battle of Hampton Roads, 8–9 March 1862, with both days compressed into one sortie. Not a reconstruction: the map, speeds and damage are game abstractions.', sail: 'Signals take time. Seek a broadside position and mind the wind. This is an inspired-by-history squadron exercise, not a historical reconstruction.', dreadnought: 'Inspired by the Dogger Bank action of January 1915, not a reconstruction of it. Ranges, speeds and damage are game abstractions tuned for a 20-minute sortie.', modern: 'Radar improves detection but exposes emissions. Missiles and defensive interceptors are finite. This is a fictional, deliberately abstract surface-warfare exercise.' };
+  const notes = { coldwar: 'A fan scenario inspired by The Hunt for Red October. Names are homage; sonar ranges, speeds and weapons are game abstractions, not real capabilities.', ironclad: 'Inspired by the Battle of Hampton Roads, 8–9 March 1862, with both days compressed into one sortie. Not a reconstruction: the map, speeds and damage are game abstractions.', sail: 'Signals take time. Seek a broadside position and mind the wind. This is an inspired-by-history squadron exercise, not a historical reconstruction.', dreadnought: 'Inspired by the Dogger Bank action of January 1915, not a reconstruction of it. Ranges, speeds and damage are game abstractions tuned for a 20-minute sortie.', modern: 'Radar improves detection but exposes emissions. Missiles and defensive interceptors are finite. This is a fictional, deliberately abstract surface-warfare exercise.' };
   openDialog(`<span class="dispatch-stamp">SEALED ORDERS / ${era().stamp}</span><h1 id="dialog-title">${escape(sc.title)}</h1><p class="dialog-lead">${escape(sc.briefing)}</p><h3>Your objective</h3><p>${escape(sc.objective)}</p><h3>The admiral's primer</h3><ul class="primer">${primer(sc.era).map(([title, text]) => `<li><b>${escape(title)}.</b> ${escape(text)}</li>`).join('')}</ul><h3>First three decisions</h3><ol><li>Select a vessel or check <b>Entire squadron</b>.</li><li>Choose <b>Engage</b>, or use <b>Proceed</b> to plot a position.</li><li><b>Run</b> the clock and watch the chart. The flag lieutenant (left panel) comments as the action develops.</li></ol><p class="dialog-note">${notes[sc.era]}</p>`);
 }
 function showHelp() {
-  openDialog(`<h1 id="dialog-title">A commodore, not a captain.</h1><p class="dialog-lead">You set intentions. Your captains find a course, hold formation, and fight according to doctrine.</p><dl class="manual"><dt>Orders & signals</dt><dd>Engage closes to preferred range. Hold stops movement, not defensive or automatic fire. Form line follows the flagship; Screen takes a flank station. Proceed uses axial Q/R coordinates. Withdraw heads toward your friendly edge. New signals replace that ship's queued signal.</dd><dt>Doctrine</dt><dd>Weapons free permits automatic attacks on current contacts in range and arc. Hold fire forbids attacks. The hull threshold triggers autonomous withdrawal. Doctrine changes apply immediately as a prototype simplification.</dd><dt>Contacts</dt><dd>Reports develop from sighted through classified to identified. Stale markers remain at the last observed position, not the hidden ship's current position. Opponent health is never shown; smoke and fire on a contact reflect only the hits you saw land.</dd><dt>Sail</dt><dd>Wind affects movement. Guns fire to port and starboard; captains maneuver for those arcs. Damage can reduce propulsion, weapons, and morale, not just hull.</dd><dt>Ironclad</dt><dd>Steam ships ignore the wind. Iron armour shrugs off most of a wooden broadside, though gun crews, machinery and funnels still suffer. Shell sets wooden ships afire; a fire burns each turn until it is brought under control. A ship with a ram, ordered to Engage, rams wooden ships alongside: beam-on is devastating, glancing blows are not, and the ram can be lost. Deep-draught ships cannot cross shoals. Ships at anchor cannot turn, and fire from ahead or astern rakes them. Flag signals take two to three turns, longer while the flagship's guns are firing. All ships fire simultaneously each turn. Reinforcements may arrive during the action.</dd><dt>Dreadnought</dt><dd>Ships keep steaming unless ordered to Hold: battleships 1 hex a tick, battlecruisers 1½, destroyers 2. Turrets bear fully abeam and half fore/aft, so the ship that crosses the enemy's T fires everything while he replies with his forward turrets. Fire control builds over successive salvos on one target (the pips) and drops in hard turns. Funnel smoke drifts downwind; firing straight downwind cuts accuracy. Destroyers carry two torpedo spreads, aimed where the target will be if she holds course. Battlecruisers are fast but thinly protected. Wireless orders arrive next tick but reveal your flagship's bearing, and are sometimes garbled. Captains avoid declared minefields.</dd><dt>Modern</dt><dd>Active radar sees farther but is detectable. Passive sensing can find emitting vessels. Finite missile magazines and defensive interceptors reward timing. Ranges and damage are game abstractions, not real weapon specifications.</dd><dt>Map & clock</dt><dd>The shaded overlay is a nominal sensor envelope; the dashed ring is the selected ship's gun range. Pace sets how long each tick plays out. Run pauses on new contacts. Space toggles the clock; N advances one tick outside form fields.</dd><dt>Persistence</dt><dd>Save locally uses this browser and origin. Export a JSON save for a portable backup. Import validates before replacing a game. Every new sortie uses a fresh random seed.</dd></dl>`);
+  openDialog(`<h1 id="dialog-title">A commodore, not a captain.</h1><p class="dialog-lead">You set intentions. Your captains find a course, hold formation, and fight according to doctrine.</p><dl class="manual"><dt>Orders & signals</dt><dd>Engage closes to preferred range. Hold stops movement, not defensive or automatic fire. Form line follows the flagship; Screen takes a flank station. Proceed uses axial Q/R coordinates. Withdraw heads toward your friendly edge. New signals replace that ship's queued signal.</dd><dt>Doctrine</dt><dd>Weapons free permits automatic attacks on current contacts in range and arc. Hold fire forbids attacks. The hull threshold triggers autonomous withdrawal. Doctrine changes apply immediately as a prototype simplification.</dd><dt>Contacts</dt><dd>Reports develop from sighted through classified to identified. Stale markers remain at the last observed position, not the hidden ship's current position. Opponent health is never shown; smoke and fire on a contact reflect only the hits you saw land.</dd><dt>Sail</dt><dd>Wind affects movement. Guns fire to port and starboard; captains maneuver for those arcs. Damage can reduce propulsion, weapons, and morale, not just hull.</dd><dt>Ironclad</dt><dd>Steam ships ignore the wind. Iron armour shrugs off most of a wooden broadside, though gun crews, machinery and funnels still suffer. Shell sets wooden ships afire; a fire burns each turn until it is brought under control. A ship with a ram, ordered to Engage, rams wooden ships alongside: beam-on is devastating, glancing blows are not, and the ram can be lost. Deep-draught ships cannot cross shoals. Ships at anchor cannot turn, and fire from ahead or astern rakes them. Flag signals take two to three turns, longer while the flagship's guns are firing. All ships fire simultaneously each turn. Reinforcements may arrive during the action.</dd><dt>Cold War submarines</dt><dd>Nobody sees anything: you hear. A boat's noise rises with speed; a silent boat is hard to hear, a boat at flank speed is loud and half-deaf. Passive contacts give a bearing: the reported position sits inside an uncertainty ring that shrinks while you hold contact, and after three ticks the contact is classified (sometimes wrongly). Nothing is heard dead astern (the baffles) except during a Crazy Ivan. The thermal layer muffles sound between boats at different depths. One ping gives an exact fix of everything within 10 hexes and tells everyone within 20 where you are. Torpedoes run 3 hexes a tick, are wire-guided to the aim point, then home on the loudest boat in their forward cone (friend or foe), and only explode after running their arming distance. Noisemakers can seduce them. Sides have rules of engagement: firing on a side, or on a boat under its protection, makes you enemies. Scenario events can change a boat mid-mission.</dd><dt>Dreadnought</dt><dd>Ships keep steaming unless ordered to Hold: battleships 1 hex a tick, battlecruisers 1½, destroyers 2. Turrets bear fully abeam and half fore/aft, so the ship that crosses the enemy's T fires everything while he replies with his forward turrets. Fire control builds over successive salvos on one target (the pips) and drops in hard turns. Funnel smoke drifts downwind; firing straight downwind cuts accuracy. Destroyers carry two torpedo spreads, aimed where the target will be if she holds course. Battlecruisers are fast but thinly protected. Wireless orders arrive next tick but reveal your flagship's bearing, and are sometimes garbled. Captains avoid declared minefields.</dd><dt>Modern</dt><dd>Active radar sees farther but is detectable. Passive sensing can find emitting vessels. Finite missile magazines and defensive interceptors reward timing. Ranges and damage are game abstractions, not real weapon specifications.</dd><dt>Map & clock</dt><dd>The shaded overlay is a nominal sensor envelope; the dashed ring is the selected ship's gun range. Pace sets how long each tick plays out. Run pauses on new contacts. Space toggles the clock; N advances one tick outside form fields.</dd><dt>Persistence</dt><dd>Save locally uses this browser and origin. Export a JSON save for a portable backup. Import validates before replacing a game. Every new sortie uses a fresh random seed.</dd></dl>`);
 }
 function showDebrief() {
   const out = state.outcome;
@@ -354,6 +395,7 @@ const ERA_ORDER = [
   { era: 'ironclad', year: '1850–1890', name: 'Ironclads & Steam' },
   { era: 'dreadnought', year: '1905–1918', name: 'Dreadnoughts' },
   { era: 'ww2', year: '1939–1945', name: 'Carriers & Radar', planned: true },
+  { era: 'coldwar', year: '1947–1991', name: 'Cold War Submarines' },
   { era: 'modern', year: 'Near future', name: 'Missile Age' },
 ];
 const RANK = { victory: 3, draw: 2, defeat: 1 };
@@ -448,6 +490,7 @@ $('#chart').onclick = e => {
 $('#inspector').onclick = e => {
   const order = e.target.closest('[data-order]');
   if (order) { if (order.dataset.order === 'proceed') { pause(); plotting = true; notice = 'Choose a sea hex on the chart, or enter Q/R coordinates.'; render(); } else sendOrder({ type: order.dataset.order }); }
+  if (e.target.id === 'ping') { pause(); state = activePing(state, recipients()); const last = getView(state).log.at(-1)?.text || ''; notice = /ordered to ping/.test(last) ? 'Ping ordered for next tick. Everyone within earshot will know where you are.' : last; render(); return; }
   if (e.target.id === 'doctrine') {
     const range = Number($('#range').value), withdraw = Number($('#withdraw').value);
     if (!Number.isInteger(range) || range < 1 || range > 12 || !Number.isFinite(withdraw) || withdraw < 0 || withdraw > 90) { notice = 'Use a range of 1–12 and a withdrawal threshold of 0–90.'; $('#notice').textContent = notice; return; }
@@ -456,6 +499,7 @@ $('#inspector').onclick = e => {
 };
 $('#inspector').onchange = e => {
   if (e.target.id === 'group') group = e.target.checked;
+  if (e.target.id === 'sub-speed' || e.target.id === 'sub-depth') { state = setDoctrine(state, recipients(), e.target.id === 'sub-speed' ? { speed: e.target.value } : { depth: e.target.value }); notice = e.target.id === 'sub-speed' ? `Speed: ${e.target.value}.` : `Depth: ${e.target.value === 'deep' ? 'below the layer' : 'above the layer'}.`; render(); }
   if (e.target.id === 'radar') { state = setRadar(state, recipients(), e.target.checked); notice = e.target.checked ? 'Active radar enabled. Your emissions can be detected.' : 'Emissions control: radar silent.'; render(); }
 };
 $('#inspector').onsubmit = e => { if (e.target.id === 'plot-form') { e.preventDefault(); sendOrder({ type: 'proceed', q: Number($('#q').value), r: Number($('#r').value) }); } };

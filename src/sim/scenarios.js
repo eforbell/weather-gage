@@ -1,3 +1,5 @@
+const RENDEZVOUS = [[18, 8], [19, 8], [18, 9], [19, 7], [17, 9]];
+
 export const SCENARIOS = [
   {
     id: 'nevis',
@@ -47,6 +49,23 @@ export const SCENARIOS = [
     tickLabel: '3-minute',
   },
   {
+    id: 'defector',
+    title: 'The Defector',
+    subtitle: 'Three submarines, two navies, one quiet drive, 1984',
+    era: 'coldwar',
+    briefing:
+      'A new Typhoon-class boat with a near-silent drive is running for the American coast, and her captain may be defecting. Moscow has sent an Alfa after her with orders to sink her. You command USS Dallas: find a submarine nobody can hear, keep her alive to the rendezvous, and do not start a war.',
+    objective: 'Get Red October to the rendezvous (the marked water in the east) alive. Losing her or Dallas is a defeat. Peacetime rules: Dallas holds fire unless you change it, and firing first makes Konovalov hostile to you.',
+    maxTicks: 45,
+    year: 1984,
+    difficulty: 2,
+    teaches: 'Passive sonar, bearings without range, the baffles, one ping only, torpedo seekers',
+    victory: { own: ['b_dallas'], protect: ['g_red_october'] },
+    marks: [{ label: 'RENDEZVOUS', cells: RENDEZVOUS }],
+    hexScale: '1 hex ≈ 1 nautical mile',
+    tickLabel: '4-minute',
+  },
+  {
     id: 'strait',
     title: 'The Strait of Qamar',
     subtitle: 'Fictional EMCON missile action, near future',
@@ -91,12 +110,12 @@ export const SCENARIO_SETUPS = {
       ...row(11, 5, 7, 'shoal'), ...row(11, 11, 13, 'shoal'), ...row(10, 3, 5, 'shoal'), ...row(10, 13, 15, 'shoal'), // southern flats
     ],
     ships: [
-      ironShip('b_virginia', 'blue', 'CSS Virginia', 'Casemate ironclad', 'ironclad', 9, 12, 4, { battery: 10, speed: 1, ram: true, draft: 'deep', ammunition: 'shell', value: 3 }),
+      ironShip('b_virginia', 'blue', 'CSS Virginia', 'Casemate ironclad', 'ironclad', 9, 12, 4, { battery: 12, speed: 1, ram: true, draft: 'deep', ammunition: 'shell', value: 3 }),
       ironShip('b_patrick_henry', 'blue', 'CSS Patrick Henry', 'Side-wheel gunboat', 'wooden', 0, 7, 0, { battery: 5, speed: 3, order: 'screen' }),
       ironShip('b_jamestown', 'blue', 'CSS Jamestown', 'Side-wheel gunboat', 'wooden', 0, 9, 0, { battery: 3, speed: 3, order: 'screen' }),
       ironShip('r_cumberland', 'red', 'USS Cumberland', 'Sloop of war', 'wooden', 4, 4, 0, { battery: 12, speed: 0, signature: 'sail', ammunition: 'shot' }),
       ironShip('r_congress', 'red', 'USS Congress', 'Sail frigate', 'wooden', 7, 4, 0, { battery: 13, speed: 0, signature: 'sail', ammunition: 'shot' }),
-      ironShip('r_minnesota', 'red', 'USS Minnesota', 'Steam frigate', 'wooden', 16, 4, 3, { battery: 18, speed: 2, draft: 'deep', ammunition: 'shot', value: 2 }),
+      ironShip('r_minnesota', 'red', 'USS Minnesota', 'Steam frigate', 'wooden', 16, 4, 3, { battery: 16, speed: 2, draft: 'deep', ammunition: 'shot', value: 2 }),
       { ...ironShip('r_monitor', 'red', 'USS Monitor', 'Turret ironclad', 'ironclad', 18, 3, 3, { battery: 14, speed: 2, turret: true, signature: 'low', ammunition: 'shot', value: 2 }), status: 'reserve', arriveAt: 7 },
     ],
   },
@@ -117,6 +136,26 @@ export const SCENARIO_SETUPS = {
       dreadShip('r_posen', 'red', 'SMS Posen', 'Dreadnought battleship', 'battleship', 17, 6, { guns: 8, speed: 2, secondary: 3, facing: 3 }),
       dreadShip('r_v186', 'red', 'SMS V186', 'Torpedo boat', 'destroyer', 15, 3, { facing: 3 }),
       dreadShip('r_s33', 'red', 'SMS S33', 'Torpedo boat', 'destroyer', 15, 8, { facing: 3 }),
+    ],
+  },
+  defector: {
+    wind: 0,
+    sides: ['blue', 'red', 'green'],
+    hostile: { blue: ['red'], red: ['green'], green: [] },
+    entities: true,
+    events: [
+      { id: 'sabotage', window: [8, 14], shipId: 'g_red_october', set: { quiet: 3, passiveClass: null }, banner: 'CATERPILLAR DRIVE SABOTAGED', text: 'Red October: the caterpillar drive has failed, sabotage. Running on the reactor pumps; she can be heard now.', audience: ['green', 'blue'] },
+      { id: 'surface', window: [24, 32], shipId: 'g_red_october', set: { depth: 'surface', speed: 2 }, banner: 'RED OCTOBER FORCED TO SURFACE', text: 'Red October is forced to the surface. Anyone within ten miles can see her.', audience: ['green', 'blue'] },
+    ],
+    terrain: [
+      // Red Route One: a canyon between seabed ridges, then open water to the east.
+      ...row(3, 2, 11, 'land'), ...row(7, 1, 10, 'land'), ...row(2, 12, 13, 'land'), ...row(8, 11, 12, 'land'),
+      ...row(11, 4, 7, 'land'), ...row(12, 3, 6, 'land'), { q: 15, r: 11, type: 'land' }, { q: 16, r: 1, type: 'land' },
+    ],
+    ships: [
+      subShip('b_dallas', 'blue', 'USS Dallas', 'Los Angeles-class attack submarine', 'ssn', 15, 4, 3, { speed: 4, quiet: 2, sonar: 5, torpedoes: 4, decoys: 2, captain: { name: 'Cdr. Mancuso', trait: 'steady' }, order: { type: 'shadow' }, roe: 'hold' }),
+      { ...subShip('r_konovalov', 'red', 'V. K. Konovalov', 'Alfa-class attack submarine', 'ssn', 0, 9, 0, { speed: 5, quiet: 4, sonar: 2, torpedoes: 4, decoys: 1, captain: { name: 'Capt. Tupolev', trait: 'reckless' }, order: { type: 'engage' }, speedSetting: 'flank' }), searchAt: [12, 5] },
+      { ...subShip('g_red_october', 'green', 'Red October', 'Typhoon-class missile submarine', 'ssbn', 0, 5, 0, { speed: 3, quiet: 0, sonar: 3, torpedoes: 2, decoys: 2, captain: { name: 'Capt. Ramius', trait: 'cunning' }, order: { type: 'proceed', q: 18, r: 8 }, speedSetting: 'standard', depth: 'deep' }), passiveClass: 'Seismic noise (magma displacement?)', goal: RENDEZVOUS },
     ],
   },
   strait: {
@@ -202,6 +241,30 @@ function ironShip(id, side, name, className, type, q, r, facing, opts = {}) {
     ramReadyAt: 0,
     order: opts.speed === 0 ? { type: 'hold' } : { type: opts.order ?? 'engage' },
     doctrine: { roe: 'free', range: 2, withdraw: type === 'ironclad' ? 20 : 30 },
+  };
+}
+
+function subShip(id, side, name, className, type, q, r, facing, opts) {
+  return {
+    ...baseShip(id, side, name, className, q, r, facing),
+    era: 'coldwar',
+    type,
+    speed: opts.speed,
+    quiet: opts.quiet,
+    noise: opts.quiet,
+    sonar: opts.sonar,
+    torpedoes: opts.torpedoes,
+    decoys: opts.decoys,
+    captain: opts.captain,
+    value: type === 'ssbn' ? 3 : 2,
+    pingAt: -1,
+    firedAt: -1,
+    ivanAt: -1,
+    decoyAt: -9,
+    evadingAt: -1,
+    driftAt: -1,
+    order: opts.order,
+    doctrine: { roe: opts.roe ?? 'free', range: 6, withdraw: 25, speed: opts.speedSetting ?? 'standard', depth: opts.depth ?? 'shallow' },
   };
 }
 

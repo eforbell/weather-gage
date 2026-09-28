@@ -13,9 +13,10 @@ import {
   step,
 } from '../src/sim/engine.js';
 import { SCENARIOS } from '../src/sim/scenarios.js';
+import { contactId } from '../src/sim/core.js';
 
 test('scenario metadata exposes two playable eras', () => {
-  assert.deepEqual(SCENARIOS.map((s) => s.id), ['nevis', 'hampton', 'dogger', 'strait']);
+  assert.deepEqual(SCENARIOS.map((s) => s.id), ['nevis', 'hampton', 'dogger', 'defector', 'strait']);
   assert.equal(SCENARIOS.find((s) => s.id === 'dogger').era, 'dreadnought');
   assert.equal(SCENARIOS.find((s) => s.id === 'nevis').era, 'sail');
   assert.equal(SCENARIOS.find((s) => s.id === 'strait').era, 'modern');
@@ -217,7 +218,7 @@ test('last-known contacts persist after authoritative enemy loss', () => {
   const target = state.ships.find((s) => s.id === 'r_shahin');
   Object.assign(target, { hull: 0, status: 'sunk' });
   state = step(state);
-  const contact = getView(state, 'blue').contacts.find((c) => c.id.includes('r_shahin'));
+  const contact = getView(state, 'blue').contacts.find((c) => c.id === contactId(state, 'blue', 'r_shahin'));
   assert.ok(contact);
   assert.equal(contact.stale, true);
   assert.equal('hull' in contact, false);

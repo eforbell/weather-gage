@@ -25,6 +25,13 @@ const PRIMERS = {
     ['Destroyers are torpedoes', 'Sent in early on Engage, they force the enemy line to dodge and scatter. Held on Screen, they guard your capitals against his torpedo boats. One torpedo hit cripples a dreadnought.'],
     ['Mind the battlecruiser', 'Lion is fast but thinly armoured and her magazines are vulnerable. Speed is her protection, not armour.'],
   ],
+  coldwar: [
+    ['Hear, don’t be heard', 'Speed is noise. Silent running is slow but nearly inaudible; at flank speed you are loud and deaf. Hunters sprint, then drift to listen.'],
+    ['A bearing is not a position', 'Passive contacts sit somewhere inside their ring. Hold contact and the ring shrinks; hold it three ticks and sonar will classify it, not always correctly.'],
+    ['One ping only', 'Active sonar gives an exact fix and tells everyone where you are. It is also how one captain says hello to another.'],
+    ['Torpedoes have no loyalty', 'A seeker homes on the loudest boat ahead of it, including the one that fired it. Inside its arming distance a torpedo is just a heavy object.'],
+    ['Don’t start a war', 'Peacetime rules: Dallas holds fire. Shoot first and Konovalov is your enemy too. But an attack on a boat under your protection is an attack on you.'],
+  ],
   modern: [
     ['Find without being found', 'Active radar sees far but announces you. Passive ships can still see emitters.'],
     ['Salvo against defence', 'Interceptors are finite. Several missiles arriving together swamp a defence that could stop them one at a time.'],
@@ -54,6 +61,20 @@ export function advise(view, sc) {
     if (turn(bearing, view.wind) <= 1) return 'The enemy lies upwind and holds the weather gage. Let him come down to you in line, broadsides ready, rather than beating up against the wind.';
     if (turn(bearing, (view.wind + 3) % 6) <= 1) return 'You hold the weather gage: you decide when to close. Bear down together and open fire at close range.';
     return 'Neither side holds the weather gage yet. The first to get upwind of the other chooses the terms of the fight.';
+  }
+
+  if (sc.era === 'coldwar') {
+    const dallas = own.find(s => s.side === 'blue');
+    const defector = own.find(s => s.side !== 'blue');
+    const quiet = fresh.find(c => /seismic|magma/i.test(c.className || ''));
+    const heard = view.entities.find(e => !e.own && e.kind === 'torpedo');
+    if (heard) return 'Torpedo in the water! Captains will evade on their own; a noisemaker or a turn into an unarmed fish may save them.';
+    if (defector && defector.doctrine.depth === 'surface') return `${defector.name} is on the surface and visible for miles. Keep Dallas between her and the hunter, and be ready to defend her.`;
+    if (defector) return `${defector.name} is under your command. Her route, speed and depth are yours to set; an attack on her is now an attack on you.`;
+    if (quiet && dallas && distance(dallas, quiet) <= 8) return 'That “seismic noise” is moving at a steady course and speed. Nature doesn’t do that. One ping might get an answer.';
+    if (quiet) return 'Sonar reports faint seismic noise that keeps a steady bearing drift. Close the range quietly and listen.';
+    if (dallas && dallas.doctrine.speed === 'flank') return 'Dallas is at flank speed: loud and half-deaf. Slow down to hear anything.';
+    return 'Nothing on sonar you can trust yet. Slow, quiet and patient finds more than fast and loud.';
   }
 
   if (sc.era === 'ironclad') {
@@ -95,6 +116,13 @@ export function advise(view, sc) {
 
 export function lesson(view, sc, stats) {
   const result = view.outcome?.result;
+  if (sc.era === 'coldwar') {
+    if (result === 'victory') return 'Red October made the rendezvous. Whether by quiet patience, one ping or a torpedo that turned on its owner, the defector is home.';
+    const commanded = view.ships.some(s => s.side !== 'blue');
+    if (commanded) return 'She was under your protection and still did not make it. Keep Dallas close, slow her down before the hunter hears her, and be ready to defend her once she is attacked.';
+    if (view.hostileFrom?.includes('red')) return 'You were at war with the Soviet Navy before Red October ever asked for help. Peacetime rules exist for a reason.';
+    return 'Red October never came under your protection. Close on the strange “seismic noise” and try one ping.';
+  }
   if (sc.era === 'ironclad') {
     if (result === 'victory') return 'The blockade is broken. Armour, the ram and patience against anchored ships carried the day, as they did in 1862.';
     if (stats.hits < 4) return 'Virginia barely got into action. Shoals channel a deep-draught ship; plot a route through deep water, then Engage.';

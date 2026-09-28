@@ -6,6 +6,43 @@ export const WIDTH = 20;
 export const HEIGHT = 14;
 export const DIRECTIONS = Object.freeze([[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]]);
 export const SIDES = ['blue', 'red'];
+export const ALL_SIDES = ['blue', 'red', 'green'];
+// Scenarios with a third party list their sides; two-sided games keep the default.
+export const sidesOf = (state) => state.sides || SIDES;
+
+// Who may attack whom. Without a hostility table every side is hostile to every other.
+export function hostile(state, from, to) {
+  if (from === to) return false;
+  return !state.hostile || (state.hostile[from] || []).includes(to);
+}
+
+// What a captain believes about a contact. In two-sided games every contact is the enemy.
+// With third parties a contact's side is only known once identified; until then only a
+// reckless captain treats an unknown as a target.
+export function believedHostile(state, ship, contact) {
+  const target = state.ships.find((s) => s.id === contact.targetId);
+  if (!target) return false;
+  if (sidesOf(state).length <= 2 || contact.confidence === 'identified') return hostile(state, ship.side, target.side);
+  return ship.captain?.trait === 'reckless';
+}
+
+// Unknown contacts are worth closing on to find out what they are.
+export function worthClosing(state, ship, contact) {
+  return believedHostile(state, ship, contact) || (sidesOf(state).length > 2 && contact.confidence !== 'identified');
+}
+
+// Opening fire on a side makes the two sides hostile to each other from then on. A side
+// that has taken the victim under its command is attacked too: protection is a promise.
+export function markAttack(state, attacker, victim) {
+  if (!state.hostile || attacker === victim) return state;
+  const protectors = Object.entries(state.command || {}).filter(([, list]) => list.includes(victim)).map(([side]) => side);
+  if (state.command?.[attacker]?.includes(victim)) state.command[attacker] = state.command[attacker].filter((s) => s !== victim); // you cannot protect the boat you fire on
+  for (const [a, b] of [[attacker, victim], [victim, attacker], ...protectors.flatMap((p) => (p === attacker ? [] : [[attacker, p], [p, attacker]]))]) {
+    const list = state.hostile[a] || [];
+    if (!list.includes(b)) state.hostile[a] = [...list, b].sort();
+  }
+  return state;
+}
 export const CONF_RANK = { unknown: 0, sighted: 1, classified: 2, identified: 3 };
 export const MAX_LOG = 80;
 export const MAX_FX = 60;
@@ -31,9 +68,9 @@ export function nonEmptyString(value) {
   return typeof value === 'string' && value.length > 0;
 }
 
-export function addLog(state, text, kind = 'info', audience = SIDES) {
+export function addLog(state, text, kind = 'info', audience = sidesOf(state)) {
   const entry = { tick: state.tick, text, kind };
-  entry.reports = Object.fromEntries(SIDES.map(side => [side, audience.includes(side) ? reportText(entry, state, side) : null]));
+  entry.reports = Object.fromEntries(sidesOf(state).map(side => [side, audience.includes(side) ? reportText(entry, state, side) : null]));
   state.log = [...state.log, entry].slice(-MAX_LOG);
   return state;
 }
@@ -42,6 +79,7 @@ export function addLog(state, text, kind = 'info', audience = SIDES) {
 // reveal hidden actions or damage in an earlier dispatch.
 export function reportText(entry, state, side) {
   let text = entry.text;
+  if (entry.kind === 'event') return text; // scripted narrative: the scenario chose who hears it
   const mentioned = state.ships.filter(ship => text.includes(ship.name));
   const hasOwnShip = mentioned.some(ship => ship.side === side);
   if (entry.kind === 'order' && mentioned.length && !hasOwnShip) return null;
@@ -63,19 +101,29 @@ export function reportText(entry, state, side) {
 export function addFx(state, fx) {
   const shooter = state.ships.find((s) => s.id === fx.shooterId);
   const target = state.ships.find((s) => s.id === fx.targetId);
-  const entry = Object.fromEntries(SIDES.map((side) => [side, publicFx(state, side, fx, shooter, target)]));
+  const entry = Object.fromEntries(sidesOf(state).map((side) => [side, publicFx(state, side, fx, shooter, target)]));
   state.fx = [...(state.fx || []), entry].slice(-MAX_FX);
   return state;
 }
 
 export function publicFx(state, side, fx, shooter, target) {
   const seen = (ship) => ship && (ship.side === side || state.contacts[side].some((c) => c.targetId === ship.id && !c.stale));
-  const involved = [shooter, target].filter(Boolean);
-  if (!involved.some((s) => s.side === side) && !involved.every(seen)) return null;
+  // Other ships are placed where this side's contact report puts them, never at the true
+  // position, so effects cannot sharpen an uncertain sonar or sighting report.
   const ref = (ship) => {
     if (!ship || !seen(ship)) return null;
-    return ship.side === side ? { id: ship.id, q: ship.q, r: ship.r, own: true } : { id: `c_${side}_${ship.id}`, q: ship.q, r: ship.r, own: false };
+    if (ship.side === side) return { id: ship.id, q: ship.q, r: ship.r, own: true };
+    const c = state.contacts[side].find((x) => x.targetId === ship.id && !x.stale);
+    return { id: contactId(state, side, ship.id), q: c.q, r: c.r, own: false };
   };
+  // Scenario events announce themselves to the sides the scenario names, seen or not.
+  if (fx.type === 'event') {
+    const told = fx.audience ? fx.audience.includes(side) : target?.side === side;
+    return told ? { type: 'event', label: fx.label, from: null, to: ref(target) } : null;
+  }
+  if (fx.audience && !fx.audience.includes(side)) return null;
+  const involved = [shooter, target].filter(Boolean);
+  if (!involved.some((s) => s.side === side) && !involved.every(seen)) return null;
   let type = fx.type;
   if (target && target.side !== side && FX_NEEDS_ID.has(type)) {
     // Same rule as dispatches: losses and damage on an enemy need an identified contact.
@@ -145,6 +193,24 @@ export function hexDistanceRaw(a, b) { const as = -a.q - a.r; const bs = -b.q - 
 export function turnDistance(a, b) { const d = Math.abs(a - b) % 6; return Math.min(d, 6 - d); }
 
 export function inBounds(c) { return c.q >= 0 && c.r >= 0 && c.q < WIDTH && c.r < HEIGHT; }
+
+// Stable per-game noise: the same inputs give the same answer within a game, and a
+// different seed gives a different game. Used where the game RNG would be consumed
+// several times per tick (contact updates) or would couple unrelated rules.
+export function seededHash(state, label) {
+  let h = (2166136261 ^ state.seed) >>> 0;
+  for (let i = 0; i < label.length; i += 1) { h ^= label.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return h;
+}
+
+export function chance(state, label, p) {
+  return (seededHash(state, label) % 10000) / 10000 < p;
+}
+
+// Public contact ids are opaque per game and side: they must not name the ship or its side.
+export function contactId(state, side, targetId) {
+  return `c_${side}_${seededHash(state, `contact|${side}|${targetId}`).toString(36)}`;
+}
 
 export function key(q, r) { return `${q},${r}`; }
 

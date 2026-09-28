@@ -135,3 +135,22 @@ dialog.launcher{max-width:1240px;width:calc(100% - 32px)}
 @media(max-width:650px){.era-line{flex-wrap:wrap;gap:8px 0}.era-line li{flex-basis:50%;border-left:0;padding-left:0}.launcher h1{font-size:27px}}
 .mission-card dd{font:12px/1.45 var(--serif)!important}
 .record b{text-transform:capitalize}
+#chart.undersea .hex{fill:#cfdcdc;stroke:#a9bfc2}
+#chart.undersea .hex.sensor{fill:#bfd2d4}
+#chart.undersea .hex.land{fill:#8e9d95;stroke:#7a8b83}
+.hull.sub{fill:#23434d}
+.vessel.deep .hull{opacity:.75}
+.vessel.ally .hull{fill:#5b6e3a}
+.vessel.ally .ship-label{fill:#4d6130}
+.entity{transition:transform var(--move,500ms) linear;pointer-events:none}
+.entity .fish{fill:var(--ink)}
+.entity .fish-wake{stroke:#f7fbf6;stroke-width:2.2;stroke-linecap:round;opacity:.9}
+.entity .fish-label{font:7px var(--mono);letter-spacing:1px;fill:var(--muted);text-anchor:middle}
+.entity .fish-label.hostile{fill:var(--red)}
+.entity .heard-ring{fill:#9d463c14;stroke:var(--red);stroke-dasharray:2 3;animation:blink 1.1s steps(2) infinite}
+.entity .bubbles{fill:none;stroke:#f7fbf6;stroke-width:1.2}
+.fx-ping-wave{fill:none;stroke:#285867;stroke-width:1.4;transform-box:fill-box;transform-origin:center;animation:pingwave 2.1s ease-out forwards;pointer-events:none}
+@keyframes pingwave{0%{transform:scale(.3);opacity:.9}100%{transform:scale(18);opacity:0}}
+@media(prefers-reduced-motion:reduce){.fx-ping-wave,.entity .heard-ring{animation:none!important}}
+.mark-cell{fill:#5b6e3a22;stroke:#5b6e3a;stroke-width:1.2;stroke-dasharray:3 2;pointer-events:none}
+.mark-label{font:8px var(--mono);letter-spacing:1.5px;fill:#4d6130;text-anchor:middle;pointer-events:none}

@@ -2,7 +2,7 @@
 
 A browser-first naval command game: issue squadron orders, work from imperfect contact reports, and let captains fight the engagement. Inspired by the supplied **Naval strategy game concept**, with modern surface warfare brought into the first playable build.
 
-**Status:** playable scaffold, not a finished naval simulator. Single player, four scenarios, one per era: sail (1799), ironclad (1862), WWI dreadnought (1915) and near-future missile. That covers all three eras in the original design plus the modern extension, animated combat, abstract balance values. No accounts, telemetry, external fonts, runtime dependencies, or remote services.
+**Status:** playable scaffold, not a finished naval simulator. Single player, five scenarios: sail (1799), ironclad (1862), WWI dreadnought (1915), Cold War submarines (1984) and near-future missile. That covers all three eras in the original design plus two later ones, animated combat, abstract balance values. No accounts, telemetry, external fonts, runtime dependencies, or remote services.
 
 ## Play locally
 
@@ -30,6 +30,7 @@ Keyboard: **Space** run/pause, **N** advance, outside form controls. Native cont
 - **Weather Gage off Nevis:** sail movement affected by wind, facing and broadside arcs, signal delay, four damage tracks, autonomous captains. Inspired by history, not a reconstruction of the 1799 duel.
 - **Iron at Hampton Roads (1862):** CSS Virginia and two gunboats against the wooden blockade: Cumberland and Congress at anchor, Minnesota under steam. An unknown contact arrives mid-action. Armour against shell, the ram (beam-on or glancing), fires aboard wooden ships, deep draught barred by shoals, raking anchored ships, flag signals slowed by gun smoke, simultaneous fire. Inspired by the 1862 battle, with both days compressed into one sortie.
 - **Smoke over the Dogger Bank (1915):** a battlecruiser, a battleship and two destroyers against a German raiding force. Speed classes, turret arcs (cross the T), fire-control ranging, armour, torpedo attacks, wireless that gives away your flagship, smoke that blinds gunlayers firing downwind, declared minefields. Inspired by Dogger Bank, not a reconstruction. See [the era extension report](docs/era-extension.md).
+- **The Defector (1984):** a fan scenario inspired by *The Hunt for Red October*. You command USS Dallas; Red October (a third party, neither friend nor foe) runs a seabed canyon toward a rendezvous while the Alfa-class Konovalov hunts her. Passive sonar with uncertainty rings, the baffles and Crazy Ivans, the thermal layer, one ping only (which can put the defector under your command), torpedoes that seek the loudest boat, friend or foe, and can fail to arm, noisemakers, peacetime rules of engagement, and scripted sabotage and surfacing.
 - **The Strait of Qamar:** fictional near-future surface action, active radar and passive detection, emission tradeoffs, finite missile magazines, delayed missile impacts and defensive interceptors.
 
 All scenarios have fog-of-war reports, last-known contacts, doctrine, terrain, deterministic seeded randomness and a mission debrief. Turn-stepping and real-time presentation call the same fixed-tick engine.
@@ -52,7 +53,7 @@ No compiler/linter package is installed. `check` is a syntax check, not a claim 
 ```text
 src/sim/engine.js       Pure simulation, player views, commands, saves, fx events
 src/sim/core.js         Shared rule primitives: hex math, seeded RNG, damage, dispatches, fx
-src/sim/eras/           Era rule modules (registry): ironclad, dreadnought, shared steam movement
+src/sim/eras/           Era rule modules (registry): ironclad, dreadnought, coldwar, shared steam movement and route finding
 src/sim/scenarios.js    Scenario metadata, ship configurations, maps
 src/ui/app.js           Browser controls, SVG chart and dialogs
 src/ui/fx.js            Combat animation and synthesized sound (presentation only)

@@ -61,3 +61,51 @@ Virginia is almost never lost, which is true to history. Defeat comes from faili
 | Capitals detour north, then engage | 47% | 53% |
 
 The default is forgiving, which suits a casual first WWI mission. Good gunnery doctrine helps a little, and holding back destroyers or wasting time maneuvering hurts. The gap between a good and a bad admiral is still too narrow. Widening it is the next balance task: stronger T-crossing and smoke effects, and a smarter red commander. The numbers are game abstractions, not historical claims.
+
+## Third probe: Cold War submarines (The Defector, 1984)
+Design sketch: `docs/design/cold-war-submarines.md`. The approach was to lay down the obvious rules, run 200 seeds per plan, and let the harness say what was missing. It found gaps in order:
+
+| # | What the harness showed | Rule or platform change it forced |
+|---|---|---|
+| 1 | Nobody ever fired: the hunter circled the American boat it wasn't at war with | Captains close only on contacts their side is **hostile** to (engine, all eras) |
+| 2 | An Alfa at flank speed never heard the Typhoon | **Sprint and drift**: hunters with no contact slow every third tick to listen |
+| 3 | Each Crazy Ivan left Red October pointing backwards and she never arrived | A Crazy Ivan listens down the baffles and costs one tick; heading is kept |
+| 4 | Hunters searched the wrong half of the ocean | Scenario **search areas** (`searchAt`) as captains' intelligence |
+| 5 | Konovalov stuck behind a ridge, then behind Dallas parked in the gap | Breadth-first **route finding** shared by all steam-and-later eras, treating other boats as obstacles |
+| 6 | A damaged Red October "withdrew" to a map corner | Ships with a **goal** limp toward it instead of the red or blue map edge |
+| 7 | Every seed played out identically | The sub rules used almost no randomness. **Seeded variation** now comes from a hash that includes the seed (fading contacts at the limit of hearing, Crazy Ivan and drift timing) |
+| 8 | Red October escaped 98% of the time | **Scripted scenario events**: sabotage of the caterpillar drive, then forced surfacing. Each seed picks a tick in the event's window |
+| 9 | Nothing Dallas did changed the outcome | **Command transfer**: one ping near Ramius gets an answer, and his boat and sonar picture join the player's command |
+| 10 | Dallas still couldn't legitimately defend her | **Protection**: attacking a boat under a side's command makes that side hostile too |
+
+Platform capabilities added in the process, usable by every era:
+- More than two sides, a changing hostility table, and command of another side's ships.
+- Contacts with **position uncertainty** that shrinks while held (target motion analysis) and can be misclassified.
+- **Entities**: weapons and decoys that move, seek, arm and run out.
+- Scripted events with seeded timing, goal hexes, escort victory conditions, and map marks.
+- One-shot sensor actions (`activePing`), and doctrine speed and depth.
+
+### The Defector balance (200 seeds, win / draw / loss)
+| Plan | Result |
+|---|---|
+| Let the captains fight | 49 / 5 / 46 |
+| Fire on Konovalov first | 52 / 2 / 46 |
+| Escort loud (shadow the unknown at flank speed) | 82 / 5 / 14 |
+| Close on the "seismic noise" and ping for contact | 83 / 8 / 9 |
+
+Before the fog-of-war review, firing first was clearly punished (28% wins). Once captains could no longer read a contact's true side, a reckless Tupolev started shooting at unidentified contacts, sometimes Dallas. The war tends to come whether or not you start it. That emerged from making the information model honest, and it fits the character.
+
+### What the review taught (information-model rules, now enforced by tests)
+- Public contact ids are opaque per game and side; they don't name the ship or its side.
+- Effects place other ships at the side's *reported* position, never the true one.
+- Position scatter and wobble include the game seed, so they can't be reversed from the view.
+- Captains believe what their side knows: with third parties, a contact's side is only known once identified, and route finding avoids only own ships and reported contacts.
+- Scripted events reach the audience the scenario names, even unobserved.
+
+Route finding also changed the older steam scenarios: the Union ships at Hampton Roads now find their way around shoals. Hampton was re-tuned (Virginia's battery 12, Minnesota's 16): captains alone win 63%, and sending the gunboats in wins 14%.
+
+### Still missing (next discoveries)
+- Each side still shares one sonar picture. A boat-by-boat picture with sharing by communication would make "one ping" even more meaningful.
+- The seeker is a cone and a noise contest. Wire cuts, re-attack patterns and torpedo speed versus a boat's evasion speed are not modelled.
+- Red October's captain uses the platform's generic goal-seeking. A real Ramius would read the threat picture and take a different route.
+- Towed arrays, convergence zones, surface ships and aircraft (the WWII groundwork).
