@@ -25,6 +25,10 @@ let running = false;
 let timer;
 let notice = 'Chart ready. Review your sealed orders, then issue a signal.';
 let overlays = true;
+let battleOpen = false;
+let battleFxTick = -1;
+let battleRenderer = null;
+let battleModulePromise = null;
 let group = false;
 let plotting = false;
 let speed = SPEEDS[pref('speed', 'normal')] ? pref('speed', 'normal') : 'normal';
@@ -66,10 +70,11 @@ $('#app').innerHTML = `
       <div class="section-heading contacts-heading"><h2>Contact reports</h2><span id="contacts-source" class="tiny">INTELLIGENCE</span></div><div id="contacts"></div>
       <div class="admiralty-note"><span class="eyebrow">FLAG LIEUTENANT ADVISES</span><p id="era-note" aria-live="polite"></p></div>
     </aside>
-    <section class="chart-panel" aria-label="Tactical chart"><div class="chart-toolbar"><div><span class="live-dot"></span><strong>TACTICAL CHART</strong><span id="chart-region"></span></div><div class="toolbar-buttons"><button id="sound" aria-pressed="false" title="Synthesized sea, machinery and combat sounds">Sound</button><button id="layers" aria-pressed="true">Sensor overlay</button></div></div>
+    <section class="chart-panel" aria-label="Tactical chart and battle view"><div class="chart-toolbar"><div><span class="live-dot"></span><strong id="view-title">TACTICAL CHART</strong><span id="chart-region"></span></div><div class="toolbar-buttons"><button id="battle-toggle" class="battle-toggle" aria-pressed="false" aria-controls="battle-view">Go to the battle · 3D ↗</button><button id="sound" aria-pressed="false" title="Synthesized sea, machinery and combat sounds">Sound</button><button id="layers" aria-pressed="true">Sensor overlay</button></div></div>
       <div class="chart-wrap" id="chart-wrap"><svg id="chart" viewBox="0 0 925 445" role="img" aria-labelledby="chart-title chart-desc"><title id="chart-title">Naval tactical chart</title><desc id="chart-desc">Friendly vessels, reported contacts and terrain on an axial hex grid. Gunfire, hits and sinkings are animated. Use the coordinate order controls as a keyboard alternative to clicking the map.</desc>
         <defs><radialGradient id="g-flash"><stop offset="0" stop-color="#fffbe0"/><stop offset=".35" stop-color="#f7c35a"/><stop offset=".7" stop-color="#d9622b" stop-opacity=".8"/><stop offset="1" stop-color="#9d463c" stop-opacity="0"/></radialGradient><radialGradient id="g-smoke"><stop offset="0" stop-color="#4c524f" stop-opacity=".55"/><stop offset="1" stop-color="#4c524f" stop-opacity="0"/></radialGradient><pattern id="p-mines" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="#e6d8cf"/><path d="M0 0V6" stroke="#b77b6c" stroke-width="1.2"/></pattern></defs>
         <g id="l-sea"></g><g id="l-overlay"></g><g id="l-tracks"></g><g id="l-contacts"></g><g id="l-entities"></g><g id="l-ships"></g><g id="l-fx"></g><g id="l-hud"></g></svg>
+        <div id="battle-view" class="battle-view" hidden><div id="battle-art"></div><div class="battle-head"><span class="battle-kicker">ON THE WATER / 3D CAMERA</span><strong id="battle-name"></strong><span id="battle-position"></span><button id="battle-reset" type="button" aria-label="Reset 3D camera">Reset camera</button></div><div class="battle-foot"><span id="battle-situation"></span><span>Drag to orbit · scroll or pinch to zoom · select a ship to follow</span></div></div>
         <div id="banner" class="banner" aria-hidden="true"></div>
         <div class="chart-caption"><span id="chart-scale"></span><span>AXIAL GRID / Q, R</span></div></div>
       <div class="chart-legend"><span><i class="key friendly"></i> Your squadron</span><span><i class="key hostile"></i> Contact</span><span><i class="key stale"></i> Last known</span><span><i class="key land"></i> Land / shoal</span><span id="legend-mines"><i class="key mines"></i> Declared minefield</span><span><i class="key range"></i> Selected ship's gun range</span></div>
@@ -247,6 +252,29 @@ function drawChart(view) {
   drawHud();
 }
 
+function drawBattle(view, effects = []) {
+  const focus = view.ships.find(s => s.id === selected);
+  const panel = $('#battle-view');
+  panel.hidden = !battleOpen;
+  $('.chart-panel').classList.toggle('battle-active', battleOpen);
+  $('#chart-wrap').classList.toggle('battle-on', battleOpen);
+  $('#chart').setAttribute('aria-hidden', battleOpen);
+  $('#battle-toggle').setAttribute('aria-pressed', battleOpen);
+  $('#battle-toggle').textContent = battleOpen ? 'Return to chart ↙' : 'Go to the battle · 3D ↗';
+  $('#view-title').textContent = battleOpen ? '3D BATTLE CAMERA' : 'TACTICAL CHART';
+  $('#layers').hidden = battleOpen;
+  if (!battleOpen) { battleRenderer?.stop(); return; }
+  if (!focus) return;
+  $('.battle-kicker').textContent = scenario().era === 'coldwar' && focus.doctrine?.depth !== 'surface' ? 'UNDER THE SURFACE / 3D CAMERA' : 'ON THE WATER / 3D CAMERA';
+  $('#battle-name').textContent = focus.name;
+  $('#battle-position').textContent = `T${String(state.tick).padStart(2, '0')} · GRID ${focus.q}, ${focus.r}`;
+  if (!battleRenderer) { $('#battle-situation').textContent = 'Preparing 3D camera…'; return; }
+  const { reports } = battleRenderer.sync(view, selected, scenario().era, effects);
+  $('#battle-situation').textContent = reports
+    ? scenario().era === 'coldwar' ? `${reports} sensor report${reports === 1 ? '' : 's'} · use chart for bearings` : `${reports} reported contact${reports === 1 ? '' : 's'} · rotate to search`
+    : 'No enemy in sight · keep watch';
+}
+
 // Weapons in the water: own torpedoes and noisemakers exactly; others only as
 // rough "heard" positions.
 function syncEntities(view) {
@@ -379,6 +407,7 @@ function render() {
   $('#contacts').innerHTML = view.contacts.length ? view.contacts.map(c => `<div class="contact-row"><span class="contact-glyph">${c.stale ? '?' : '◇'}</span><div><strong>${escape(c.confidence === 'identified' ? c.name : c.className || 'Unresolved contact')}</strong><span>${escape(c.confidence)} · ${c.q}, ${c.r}${c.emitter && !c.stale ? ' · TRANSMITTING' : ''}</span><small>${c.stale ? `LAST KNOWN · ${state.tick - c.lastSeen} TICKS AGO` : 'FRESH REPORT'}</small></div></div>`).join('') : '<p class="empty">No contacts reported.<br><span>Absence of evidence is not clear seas.</span></p>';
   renderInspector(view);
   drawChart(view);
+  drawBattle(view);
   $('#notice').textContent = notice;
   $('#log').innerHTML = view.log.slice(-24).reverse().map(e => `<li class="${escape(e.kind || '')}"><time>T${String(e.tick).padStart(2, '0')}</time><span>${escape(e.text)}</span></li>`).join('');
   return view;
@@ -400,6 +429,7 @@ function advance() {
   if (state.outcome) { pause(); notice = state.outcome.title; recordResult(state.scenarioId, state.outcome.result); }
   document.documentElement.style.setProperty('--move', `${Math.round(SPEEDS[speed] * 0.45)}ms`);
   const view = render();
+  if (battleOpen) { drawBattle(view, view.fx); battleFxTick = state.tick; }
   fx.play(view, SPEEDS[speed], { contactName: id => { const c = view.contacts.find(x => x.id === id); return c ? (c.name || c.className || 'ENEMY') : 'ENEMY'; }, shipName: id => view.ships.find(s => s.id === id)?.name || '' });
   if (state.outcome) { const outcome = state.outcome.result; outcomeTimers.push(setTimeout(() => { fx.banner(outcome === 'victory' ? 'VICTORY' : outcome === 'defeat' ? 'DEFEAT' : 'INDECISIVE', outcome === 'defeat' ? 'alert' : 'good'); }, SPEEDS[speed] * 0.8), setTimeout(showDebrief, SPEEDS[speed] + 1400)); }
 }
@@ -426,10 +456,10 @@ function showBriefing() {
   const sc = scenario();
   const notes = { coldwar: 'A fan scenario inspired by The Hunt for Red October. Names are homage; sonar ranges, speeds and weapons are game abstractions, not real capabilities.', ironclad: 'Inspired by the Battle of Hampton Roads, 8–9 March 1862, with both days compressed into one sortie. Not a reconstruction: the map, speeds and damage are game abstractions.', sail: 'Signals take time. Seek a broadside position and mind the wind. This is an inspired-by-history squadron exercise, not a historical reconstruction.', dreadnought: 'Inspired by the Dogger Bank action of January 1915, not a reconstruction of it. Ranges, speeds and damage are game abstractions tuned for a 20-minute sortie.', modern: 'Radar improves detection but exposes emissions. Missiles and defensive interceptors are finite. This is a fictional, deliberately abstract surface-warfare exercise.' };
   const note = sc.id === 'northern_screen' ? 'A fictional escort exercise. Patrol range, sonar, weapons and travel time are deliberately abstract game values.' : notes[sc.era];
-  openDialog(`<span class="dispatch-stamp">SEALED ORDERS / ${sc.era === 'modern' ? era().stamp : sc.year}</span><h1 id="dialog-title">${escape(sc.title)}</h1><p class="dialog-lead">${escape(sc.briefing)}</p><h3>Your objective</h3><p>${escape(sc.objective)}</p><h3>The admiral's primer</h3><ul class="primer">${primer(sc.era, sc.id).map(([title, text]) => `<li><b>${escape(title)}.</b> ${escape(text)}</li>`).join('')}</ul><h3>First three decisions</h3><ol><li>Select a vessel or check <b>Entire squadron</b>.</li><li>Choose <b>Engage</b>, or use <b>Proceed</b> to plot a position.</li><li><b>Run</b> the clock and watch the chart. The flag lieutenant (left panel) comments as the action develops.</li></ol><p class="dialog-note">${note}</p>`);
+  openDialog(`<span class="dispatch-stamp">SEALED ORDERS / ${sc.era === 'modern' ? era().stamp : sc.year}</span><h1 id="dialog-title">${escape(sc.title)}</h1><p class="dialog-lead">${escape(sc.briefing)}</p><h3>Your objective</h3><p>${escape(sc.objective)}</p><h3>The admiral's primer</h3><ul class="primer">${primer(sc.era, sc.id).map(([title, text]) => `<li><b>${escape(title)}.</b> ${escape(text)}</li>`).join('')}</ul><h3>First three decisions</h3><ol><li>Select a vessel or check <b>Entire squadron</b>.</li><li>Choose <b>Engage</b>, or use <b>Proceed</b> to plot a position.</li><li><b>Run</b> the clock and watch the chart, or choose <b>Go to the battle</b> for an orbitable 3D ship view. The flag lieutenant comments as the action develops.</li></ol><p class="dialog-note">${note}</p>`);
 }
 function showHelp() {
-  openDialog(`<h1 id="dialog-title">A commodore, not a captain.</h1><p class="dialog-lead">You set intentions. Your captains find a course, hold formation, and fight according to doctrine.</p><dl class="manual"><dt>Orders & signals</dt><dd>Engage closes to preferred range. Hold stops movement, not defensive or automatic fire. Form line follows the flagship; Screen takes a flank station. Proceed uses axial Q/R coordinates. Withdraw heads toward your friendly edge. New signals replace that ship's queued signal.</dd><dt>Doctrine</dt><dd>Weapons free permits automatic attacks on current contacts in range and arc. Hold fire forbids attacks. The hull threshold triggers autonomous withdrawal. Doctrine changes apply immediately as a prototype simplification.</dd><dt>Contacts</dt><dd>Reports develop from sighted through classified to identified. Stale markers remain at the last observed position, not the hidden ship's current position. Opponent health is never shown; smoke and fire on a contact reflect only the hits you saw land.</dd><dt>Sail</dt><dd>Wind affects movement. Guns fire to port and starboard; captains maneuver for those arcs. Damage can reduce propulsion, weapons, and morale, not just hull.</dd><dt>Ironclad</dt><dd>Steam ships ignore the wind. Iron armour shrugs off most of a wooden broadside, though gun crews, machinery and funnels still suffer. Shell sets wooden ships afire; a fire burns each turn until it is brought under control. A ship with a ram, ordered to Engage, rams wooden ships alongside: beam-on is devastating, glancing blows are not, and the ram can be lost. Deep-draught ships cannot cross shoals. Ships at anchor cannot turn, and fire from ahead or astern rakes them. Flag signals take two to three turns, longer while the flagship's guns are firing. All ships fire simultaneously each turn. Reinforcements may arrive during the action.</dd><dt>Cold War undersea</dt><dd>Nobody sees anything: you hear. A boat's noise rises with speed; a silent boat is hard to hear, a boat at flank speed is loud and half-deaf. Passive contacts give a bearing: the reported position sits inside an uncertainty ring that shrinks while you hold contact, and after three ticks the contact is classified (sometimes wrongly). Nothing is heard dead astern (the baffles) except during a Crazy Ivan. The thermal layer muffles sound between boats at different depths. One ping gives an exact fix of everything within 10 hexes and tells everyone within 20 where you are. Torpedoes run 4 hexes a tick. For their first 12 hexes a wire lets the firing boat steer them toward her latest track of the target and reject locks on friendly boats; evading or losing the boat cuts the wire. Near the target the seeker switches on and homes on the loudest boat ahead of it, friend or foe once the wire is gone. It re-attacks if it loses lock and explodes only after its arming distance. Each noisemaker may or may not fool a given seeker, and crossing the thermal layer makes a boat harder for a seeker set to the other depth. Sides have rules of engagement: firing on a side, or on a boat under its protection, makes you enemies. Scenario events can change a boat mid-mission.</dd><dt>Cold War escorts</dt><dd>In The Northern Screen, select Steadfast to launch one of four patrol flights toward a Q/R sector within 14 hexes. A flight searches within five hexes and returns after two ticks; deep submarines can evade a sweep. Its report appears only in the carrier’s picture, not every vessel’s sensors. ASW destroyers can ping, fire tube torpedoes at close range, and throw ASROC lightweight torpedoes onto a fair fix beyond tube range, out to 8 hexes. Patrols leave sonobuoy fields that keep listening for six ticks, and aircraft drop lightweight torpedoes on a good buoy fix. Firing a torpedo is dangerous: anyone who hears it running gets a rough, fixed position (a datum) for where it was fired, escorts hunt fresh datums, and a boat under attack snap-shoots back down the bearing. Lightweight torpedoes are slower, run shorter and hit softer than a submarine’s heavyweight, and search shallow. Select each ship to see its own picture.</dd><dt>Dreadnought</dt><dd>Ships keep steaming unless ordered to Hold: battleships 1 hex a tick, battlecruisers 1½, destroyers 2. Turrets bear fully abeam and half fore/aft, so the ship that crosses the enemy's T fires everything while he replies with his forward turrets. Fire control builds over successive salvos on one target (the pips) and drops in hard turns. Funnel smoke drifts downwind; firing straight downwind cuts accuracy. Destroyers carry two torpedo spreads, aimed where the target will be if she holds course. Battlecruisers are fast but thinly protected. Wireless orders arrive next tick but reveal your flagship's bearing, and are sometimes garbled. Captains avoid declared minefields.</dd><dt>Modern</dt><dd>Active radar sees farther but is detectable. Passive sensing can find emitting vessels. Finite missile magazines and defensive interceptors reward timing. Ranges and damage are game abstractions, not real weapon specifications.</dd><dt>Map & clock</dt><dd>The shaded overlay is a nominal sensor envelope; the dashed ring is the selected ship's gun range. Pace sets how long each tick plays out. Run pauses on new contacts. Space toggles the clock; N advances one tick outside form fields.</dd><dt>Persistence</dt><dd>Save locally uses this browser and origin. Export a JSON save for a portable backup. Import validates before replacing a game. Every new sortie uses a fresh random seed.</dd></dl>`);
+  openDialog(`<h1 id="dialog-title">A commodore, not a captain.</h1><p class="dialog-lead">You set intentions. Your captains find a course, hold formation, and fight according to doctrine.</p><dl class="manual"><dt>Orders & signals</dt><dd>Engage closes to preferred range. Hold stops movement, not defensive or automatic fire. Form line follows the flagship; Screen takes a flank station. Proceed uses axial Q/R coordinates. Withdraw heads toward your friendly edge. New signals replace that ship's queued signal.</dd><dt>Doctrine</dt><dd>Weapons free permits automatic attacks on current contacts in range and arc. Hold fire forbids attacks. The hull threshold triggers autonomous withdrawal. Doctrine changes apply immediately as a prototype simplification.</dd><dt>Contacts</dt><dd>Reports develop from sighted through classified to identified. Stale markers remain at the last observed position, not the hidden ship's current position. Opponent health is never shown; smoke and fire on a contact reflect only the hits you saw land.</dd><dt>Sail</dt><dd>Wind affects movement. Guns fire to port and starboard; captains maneuver for those arcs. Damage can reduce propulsion, weapons, and morale, not just hull.</dd><dt>Ironclad</dt><dd>Steam ships ignore the wind. Iron armour shrugs off most of a wooden broadside, though gun crews, machinery and funnels still suffer. Shell sets wooden ships afire; a fire burns each turn until it is brought under control. A ship with a ram, ordered to Engage, rams wooden ships alongside: beam-on is devastating, glancing blows are not, and the ram can be lost. Deep-draught ships cannot cross shoals. Ships at anchor cannot turn, and fire from ahead or astern rakes them. Flag signals take two to three turns, longer while the flagship's guns are firing. All ships fire simultaneously each turn. Reinforcements may arrive during the action.</dd><dt>Cold War undersea</dt><dd>Nobody sees anything: you hear. A boat's noise rises with speed; a silent boat is hard to hear, a boat at flank speed is loud and half-deaf. Passive contacts give a bearing: the reported position sits inside an uncertainty ring that shrinks while you hold contact, and after three ticks the contact is classified (sometimes wrongly). Nothing is heard dead astern (the baffles) except during a Crazy Ivan. The thermal layer muffles sound between boats at different depths. One ping gives an exact fix of everything within 10 hexes and tells everyone within 20 where you are. Torpedoes run 4 hexes a tick. For their first 12 hexes a wire lets the firing boat steer them toward her latest track of the target and reject locks on friendly boats; evading or losing the boat cuts the wire. Near the target the seeker switches on and homes on the loudest boat ahead of it, friend or foe once the wire is gone. It re-attacks if it loses lock and explodes only after its arming distance. Each noisemaker may or may not fool a given seeker, and crossing the thermal layer makes a boat harder for a seeker set to the other depth. Sides have rules of engagement: firing on a side, or on a boat under its protection, makes you enemies. Scenario events can change a boat mid-mission.</dd><dt>Cold War escorts</dt><dd>In The Northern Screen, select Steadfast to launch one of four patrol flights toward a Q/R sector within 14 hexes. A flight searches within five hexes and returns after two ticks; deep submarines can evade a sweep. Its report appears only in the carrier’s picture, not every vessel’s sensors. ASW destroyers can ping, fire tube torpedoes at close range, and throw ASROC lightweight torpedoes onto a fair fix beyond tube range, out to 8 hexes. Patrols leave sonobuoy fields that keep listening for six ticks, and aircraft drop lightweight torpedoes on a good buoy fix. Firing a torpedo is dangerous: anyone who hears it running gets a rough, fixed position (a datum) for where it was fired, escorts hunt fresh datums, and a boat under attack snap-shoots back down the bearing. Lightweight torpedoes are slower, run shorter and hit softer than a submarine’s heavyweight, and search shallow. Select each ship to see its own picture.</dd><dt>Dreadnought</dt><dd>Ships keep steaming unless ordered to Hold: battleships 1 hex a tick, battlecruisers 1½, destroyers 2. Turrets bear fully abeam and half fore/aft, so the ship that crosses the enemy's T fires everything while he replies with his forward turrets. Fire control builds over successive salvos on one target (the pips) and drops in hard turns. Funnel smoke drifts downwind; firing straight downwind cuts accuracy. Destroyers carry two torpedo spreads, aimed where the target will be if she holds course. Battlecruisers are fast but thinly protected. Wireless orders arrive next tick but reveal your flagship's bearing, and are sometimes garbled. Captains avoid declared minefields.</dd><dt>Modern</dt><dd>Active radar sees farther but is detectable. Passive sensing can find emitting vessels. Finite missile magazines and defensive interceptors reward timing. Ranges and damage are game abstractions, not real weapon specifications.</dd><dt>Map & clock</dt><dd>The shaded overlay is a nominal sensor envelope; the dashed ring is the selected ship's gun range. Go to the battle opens an orbitable 3D view of the selected ship's reported picture, never hidden enemy positions. Cold War cameras use the selected ship's depth; sonar reports stay on the chart because their depth is unknown. Drag to orbit, scroll or pinch to zoom, select another ship to follow it, and return to chart to click precise hexes. Pace sets how long each tick plays out. Run pauses on new contacts. Space toggles the clock; N advances one tick outside form fields.</dd><dt>Persistence</dt><dd>Save locally uses this browser and origin. Export a JSON save for a portable backup. Import validates before replacing a game. Every new sortie uses a fresh random seed.</dd></dl>`);
 }
 function showDebrief() {
   const out = state.outcome;
@@ -520,7 +550,7 @@ $('#launcher').onclick = e => {
   if (launch) { newSortie(launch.dataset.launch); launchedFromChartRoom = true; $('#launcher').close(); }
 };
 
-function resetVisuals() { outcomeTimers.forEach(clearTimeout); outcomeTimers = []; fx.reset(); rotations = {}; lastHull = {}; $('#l-ships').innerHTML = ''; $('#l-contacts').innerHTML = ''; }
+function resetVisuals() { outcomeTimers.forEach(clearTimeout); outcomeTimers = []; fx.reset(); rotations = {}; lastHull = {}; battleFxTick = -1; $('#l-ships').innerHTML = ''; $('#l-contacts').innerHTML = ''; }
 function newSortie(id) {
   pause(); state = createGame(id, newSeed()); restoredSortie = false; selected = getView(state).ships.find(s => s.status !== 'reserve').id; plotting = false; group = false;
   resetVisuals();
@@ -533,6 +563,39 @@ $('#step').onclick = () => { pause(); fx.unlock(); advance(); };
 $('#play').onclick = () => { if (state.outcome) return; fx.unlock(); if (running) pause(); else { running = true; startClock(); } render(); };
 $('#speed').onchange = e => { speed = SPEEDS[e.target.value] ? e.target.value : 'normal'; setPref('speed', speed); if (running) startClock(); render(); };
 $('#sound').onclick = () => { fx.setSound(!fx.soundOn()); fx.unlock(); setPref('sound', fx.soundOn() ? 'on' : 'off'); render(); };
+$('#battle-toggle').onclick = async () => {
+  if (battleOpen) { battleOpen = false; render(); return; }
+  battleOpen = true;
+  render();
+  try {
+    if (!battleRenderer) {
+      const { createBattle3D } = await (battleModulePromise ??= import('./battle-3d.js'));
+      if (!battleOpen) return;
+      if (!battleRenderer) battleRenderer = createBattle3D($('#battle-art'), message => {
+          battleOpen = false;
+          const broken = battleRenderer;
+          battleRenderer = null;
+          broken?.dispose();
+          notice = message;
+          render();
+        });
+    }
+    if (!battleOpen) return;
+    battleRenderer.start();
+    const view = getView(state, 'blue', selected);
+    drawBattle(view, battleFxTick !== state.tick ? view.fx : []);
+    battleFxTick = state.tick;
+  } catch (error) {
+    battleOpen = false;
+    battleRenderer?.dispose();
+    battleRenderer = null;
+    battleModulePromise = null;
+    notice = '3D graphics could not start on this device. The tactical chart is still available.';
+    console.error('3D battle view failed:', error);
+    render();
+  }
+};
+$('#battle-reset').onclick = () => battleRenderer?.resetCamera();
 $('#briefing').onclick = showBriefing;
 $('#help').onclick = showHelp;
 $('#close-dialog').onclick = $('#acknowledge').onclick = () => $('#dialog').close();
@@ -577,7 +640,9 @@ $('#load').onclick = () => { pause(); try { const saved = localStorage.getItem(s
 $('#export').onclick = () => { pause(); const url = URL.createObjectURL(new Blob([serialize(state)], { type: 'application/json' })); const a = document.createElement('a'); a.href = url; a.download = `weather-gage-${state.scenarioId}-tick-${state.tick}.json`; a.click(); setTimeout(() => URL.revokeObjectURL(url), 1000); notice = 'Save exported. Keep this JSON file to resume on another browser.'; render(); };
 $('#import').onclick = () => { pause(); render(); $('#file').click(); };
 $('#file').onchange = async e => { const file = e.target.files[0]; if (!file) return; try { if (file.size > 2_000_000) throw Error('Save file is too large.'); restore(await file.text()); } catch (error) { notice = `Import rejected: ${error.message}`; render(); } e.target.value = ''; };
-document.addEventListener('visibilitychange', () => { if (document.hidden) { pause(); fx.pauseAudio(); render(); } else fx.unlock(); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { pause(); fx.pauseAudio(); battleRenderer?.stop(); render(); } else { fx.unlock(); if (battleOpen) battleRenderer?.start(); } });
+window.addEventListener('pagehide', () => { battleRenderer?.dispose(); battleRenderer = null; battleOpen = false; });
+window.addEventListener('pageshow', e => { if (e.persisted) render(); });
 document.addEventListener('keydown', e => { if ($('#dialog').open || $('#launcher').open || /INPUT|SELECT|TEXTAREA|BUTTON/.test(e.target.tagName)) return; if (e.code === 'Space') { e.preventDefault(); $('#play').click(); } if (e.key.toLowerCase() === 'n') { e.preventDefault(); $('#step').click(); } });
 document.documentElement.style.setProperty('--move', `${Math.round(SPEEDS[speed] * 0.45)}ms`);
 render();
