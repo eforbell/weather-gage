@@ -1,6 +1,7 @@
 import { createGame, step, issueOrder, setDoctrine, setRadar, activePing, launchPatrol, getView, serialize, deserialize, isActive, distance, DIRECTIONS } from '../sim/engine.js';
 import { SCENARIOS, SCENARIO_SETUPS } from '../sim/scenarios.js';
 import { createFx } from './fx.js';
+import { captureCommandReceipt, commandReceiptStatus } from './command-feedback.js';
 import { advise, primer, lesson } from './advisor.js';
 
 const $ = (selector) => document.querySelector(selector);
@@ -23,6 +24,7 @@ let state = createGame('dogger', newSeed());
 let selected = state.ships.find(s => s.side === 'blue').id;
 let running = false;
 let timer;
+let commandReceipt = null, signalSerial = 0, receiptAnnouncement = '';
 let notice = 'Chart ready. Review your sealed orders, then issue a signal.';
 let overlays = true;
 let battleOpen = false;
@@ -78,11 +80,10 @@ $('#app').innerHTML = `
         <div id="banner" class="banner" aria-hidden="true"></div>
         <div class="chart-caption"><span id="chart-scale"></span><span>AXIAL GRID / Q, R</span></div></div>
       <div class="chart-legend"><span><i class="key friendly"></i> Your squadron</span><span><i class="key hostile"></i> Contact</span><span><i class="key stale"></i> Last known</span><span><i class="key land"></i> Land / shoal</span><span id="legend-mines"><i class="key mines"></i> Declared minefield</span><span><i class="key range"></i> Selected ship's gun range</span></div>
-      <div class="situation"><span class="eyebrow">MISSION OBJECTIVE</span><p id="objective"></p></div>
+      <div class="situation"><span class="eyebrow">MISSION OBJECTIVE</span><p id="objective"></p><section class="dispatch-panel"><div class="dispatch-title"><span class="eyebrow">FROM THE BRIDGE</span><h2>Action dispatch</h2><span id="notice" role="status" aria-live="polite"></span></div><ol id="log" tabindex="0" aria-label="Recent action log"></ol></section></div>
     </section>
     <aside class="command-panel"><div class="section-heading"><h2>Signal office</h2><span class="tiny">COMMAND</span></div><div id="inspector"></div></aside>
   </div>
-  <section class="dispatch-panel"><div class="dispatch-title"><span class="eyebrow">FROM THE BRIDGE</span><h2>Action dispatch</h2><span id="notice" role="status" aria-live="polite"></span></div><ol id="log"></ol></section>
   <footer><span>WEATHER GAGE <b>0.4</b> · PLAYABLE RESEARCH BUILD</span><div><button id="save">Save locally</button><button id="load">Load save</button><button id="export">Export</button><button id="import">Import</button><button id="restart">New sortie</button></div><span>NO ACCOUNT. NO TELEMETRY.</span></footer>
 </main>
 <input id="file" type="file" accept="application/json,.json" hidden>
@@ -343,6 +344,13 @@ function eraPanel(ship, view) {
   return '<p class="hint era-hint">Broadsides fire off the beam, not the bow. Wind limits movement; rigging damage slows a ship.</p>';
 }
 
+function receiptMarkup(view) {
+  const status = commandReceiptStatus(commandReceipt, view);
+  if (!status) return '';
+  const who = commandReceipt.targets.length === 1 ? commandReceipt.targets[0].name : `${commandReceipt.targets.length} vessels`;
+  return `<section class="signal-receipt ${escape(status.phase)}" aria-label="Last command receipt"><span class="eyebrow">SIGNAL #${commandReceipt.sequence} · SUBMITTED T${String(commandReceipt.submittedAt).padStart(2, '0')}</span><strong>${escape(status.title)}</strong><p>${escape(orderName(commandReceipt.order))}${commandReceipt.rejected ? '' : ` → ${escape(who)}`}</p><small>${escape(status.detail)}</small></section>`;
+}
+
 function renderInspector(view) {
   const ship = flagship();
   if (!ship) return;
@@ -354,12 +362,13 @@ function renderInspector(view) {
     <span class="eyebrow">${escape(ship.className)}</span><h3>${escape(ship.name)}</h3><div class="ship-meta">GRID ${ship.q}, ${ship.r} <span>HEADING ${dirs[ship.facing]}</span></div>
     <div class="health-tracks">${[['hull', 'Hull'], ['propulsion', era().propulsion], ['weapons', 'Weapons'], ['crew', 'Crew / morale']].map(([key, label]) => `<div class="track"><label>${label}<b>${Math.round(ship[key])}%</b></label><meter min="0" max="100" low="35" high="65" optimum="100" value="${ship[key]}">${ship[key]}%</meter></div>`).join('')}</div>
     <div class="standing-order"><span class="eyebrow">STANDING ORDER</span><strong>${escape(orderName(ship.order))}</strong>${pending.map(p => `<small>↳ ${escape(orderName(p.order))} · arrives tick ${p.deliverAt}</small>`).join('')}</div>
+    ${receiptMarkup(view)}
     <fieldset ${active ? '' : 'disabled'}><legend>${ship.type === 'carrier' ? 'Carrier operations' : 'Issue a signal'}</legend>
     ${ship.type === 'carrier' ? panel : ''}
     <label class="check"><input id="group" type="checkbox" ${group ? 'checked' : ''}> Entire squadron</label>
     <div class="order-grid">${[['engage', 'Engage'], scenario().era === 'coldwar' ? ['shadow', 'Shadow'] : ['line', 'Form line'], ['screen', 'Screen'], ['hold', 'Hold'], ['proceed', 'Proceed ↗'], ['withdraw', 'Withdraw']].map(([type, label]) => `<button data-order="${type}" class="${plotting && type === 'proceed' ? 'chosen' : ''}">${label}</button>`).join('')}</div>
     <form id="plot-form"><label for="q">Q</label><input id="q" type="number" min="0" max="${width - 1}" value="${ship.q}" required aria-label="Destination Q coordinate"><label for="r">R</label><input id="r" type="number" min="0" max="${height - 1}" value="${ship.r}" required aria-label="Destination R coordinate"><button type="submit">Plot</button></form>
-    <p class="hint">${plotting ? 'Click a sea hex to send a proceed order.' : scenario().era === 'dreadnought' ? 'Wireless orders arrive next tick, but each transmission reveals your flagship’s bearing.' : 'Orders travel by signal. Captains execute them automatically.'}</p>
+    <p class="hint">Click an order to queue its signal. ${plotting ? 'Click a sea hex to send a proceed order.' : scenario().era === 'dreadnought' ? 'Wireless orders arrive next tick, but each transmission reveals your flagship’s bearing.' : 'Orders travel by signal. Captains execute them automatically.'}</p>
     <label class="control-label" for="roe">Rules of engagement</label><select id="roe"><option value="free" ${ship.doctrine.roe === 'free' ? 'selected' : ''}>Weapons free</option><option value="hold" ${ship.doctrine.roe === 'hold' ? 'selected' : ''}>Hold fire</option></select>
     <div class="doctrine-row"><label for="range">Preferred range<input id="range" type="number" min="1" max="12" value="${ship.doctrine.range}"></label><label for="withdraw">Withdraw at hull %<input id="withdraw" type="number" min="0" max="90" step="5" value="${ship.doctrine.withdraw}"></label></div>
     <button id="doctrine" class="wide">Apply doctrine</button>
@@ -377,7 +386,7 @@ function contactSourceLabel(view, sc) {
 }
 
 let lastHull = {};
-function render() {
+function render({ preserveNotice = false } = {}) {
   const sc = scenario();
   fx.setScene(sc.era);
   const view = getView(state, 'blue', selected);
@@ -408,6 +417,12 @@ function render() {
   renderInspector(view);
   drawChart(view);
   drawBattle(view);
+  const receiptStatus = commandReceiptStatus(commandReceipt, view);
+  if (receiptStatus) {
+    const who = commandReceipt.targets.length === 1 ? commandReceipt.targets[0].name : `${commandReceipt.targets.length} vessels`;
+    const announcement = `Signal #${commandReceipt.sequence}: ${receiptStatus.title}. ${orderName(commandReceipt.order)}${commandReceipt.rejected ? '' : ` for ${who}`}. ${receiptStatus.detail}`;
+    if (announcement !== receiptAnnouncement) { if (!preserveNotice) notice = announcement; receiptAnnouncement = announcement; }
+  }
   $('#notice').textContent = notice;
   $('#log').innerHTML = view.log.slice(-24).reverse().map(e => `<li class="${escape(e.kind || '')}"><time>T${String(e.tick).padStart(2, '0')}</time><span>${escape(e.text)}</span></li>`).join('');
   return view;
@@ -428,17 +443,23 @@ function advance() {
   if (newContact && running) { pause(); notice = 'New contact report. Clock paused for your assessment.'; }
   if (state.outcome) { pause(); notice = state.outcome.title; recordResult(state.scenarioId, state.outcome.result); }
   document.documentElement.style.setProperty('--move', `${Math.round(SPEEDS[speed] * 0.45)}ms`);
-  const view = render();
+  const view = render({ preserveNotice: newContact || Boolean(state.outcome) });
   if (battleOpen) { drawBattle(view, view.fx); battleFxTick = state.tick; }
   fx.play(view, SPEEDS[speed], { contactName: id => { const c = view.contacts.find(x => x.id === id); return c ? (c.name || c.className || 'ENEMY') : 'ENEMY'; }, shipName: id => view.ships.find(s => s.id === id)?.name || '' });
   if (state.outcome) { const outcome = state.outcome.result; outcomeTimers.push(setTimeout(() => { fx.banner(outcome === 'victory' ? 'VICTORY' : outcome === 'defeat' ? 'DEFEAT' : 'INDECISIVE', outcome === 'defeat' ? 'alert' : 'good'); }, SPEEDS[speed] * 0.8), setTimeout(showDebrief, SPEEDS[speed] + 1400)); }
 }
 function sendOrder(order) {
+  const focusedOrder = document.activeElement?.dataset?.order;
+  const focusedPlot = document.activeElement?.closest?.('#plot-form') ? document.activeElement.id || 'submit' : null;
   pause();
-  state = issueOrder(state, recipients(), order);
+  const ids = recipients();
+  state = issueOrder(state, ids, order);
+  commandReceipt = captureCommandReceipt(getView(state, 'blue', selected), ids, order, ++signalSerial);
   plotting = false;
   notice = getView(state).log.at(-1)?.text || 'Signal submitted.';
   render();
+  if (focusedOrder) document.querySelector(`[data-order="${focusedOrder}"]`)?.focus({ preventScroll: true });
+  else if (focusedPlot) (focusedPlot === 'submit' ? document.querySelector('#plot-form button') : document.getElementById(focusedPlot))?.focus({ preventScroll: true });
 }
 function launchCarrierPatrol(q, r) {
   pause();
@@ -552,7 +573,7 @@ $('#launcher').onclick = e => {
 
 function resetVisuals() { outcomeTimers.forEach(clearTimeout); outcomeTimers = []; fx.reset(); rotations = {}; lastHull = {}; battleFxTick = -1; $('#l-ships').innerHTML = ''; $('#l-contacts').innerHTML = ''; }
 function newSortie(id) {
-  pause(); state = createGame(id, newSeed()); restoredSortie = false; selected = getView(state).ships.find(s => s.status !== 'reserve').id; plotting = false; group = false;
+  pause(); commandReceipt = null; signalSerial = 0; receiptAnnouncement = ''; state = createGame(id, newSeed()); restoredSortie = false; selected = getView(state).ships.find(s => s.status !== 'reserve').id; plotting = false; group = false;
   resetVisuals();
   notice = 'New sortie. Standing by for your orders.'; render(); showBriefing();
 }
@@ -633,7 +654,7 @@ function restore(text) {
   const loadedView = getView(loaded);
   if (!loadedView.ships.length) throw Error('Save contains no player squadron.');
   const loadedSelection = loadedView.ships[0].id;
-  pause(); state = loaded; restoredSortie = true; selected = loadedSelection; plotting = false; resetVisuals(); notice = 'Saved sortie restored. Clock paused.'; render();
+  pause(); commandReceipt = null; signalSerial = 0; receiptAnnouncement = ''; state = loaded; restoredSortie = true; selected = loadedSelection; plotting = false; resetVisuals(); notice = 'Saved sortie restored. Clock paused.'; render();
 }
 $('#save').onclick = () => { pause(); try { localStorage.setItem(storageKey, serialize(state)); notice = 'Sortie saved in this browser. Export for a portable backup.'; } catch { notice = 'Browser storage unavailable or full. Use Export to keep your sortie.'; } render(); };
 $('#load').onclick = () => { pause(); try { const saved = localStorage.getItem(storageKey); if (!saved) throw Error('No local save found.'); restore(saved); } catch (error) { notice = `Could not load: ${error.message}`; render(); } };
@@ -643,7 +664,7 @@ $('#file').onchange = async e => { const file = e.target.files[0]; if (!file) re
 document.addEventListener('visibilitychange', () => { if (document.hidden) { pause(); fx.pauseAudio(); battleRenderer?.stop(); render(); } else { fx.unlock(); if (battleOpen) battleRenderer?.start(); } });
 window.addEventListener('pagehide', () => { battleRenderer?.dispose(); battleRenderer = null; battleOpen = false; });
 window.addEventListener('pageshow', e => { if (e.persisted) render(); });
-document.addEventListener('keydown', e => { if ($('#dialog').open || $('#launcher').open || /INPUT|SELECT|TEXTAREA|BUTTON/.test(e.target.tagName)) return; if (e.code === 'Space') { e.preventDefault(); $('#play').click(); } if (e.key.toLowerCase() === 'n') { e.preventDefault(); $('#step').click(); } });
+document.addEventListener('keydown', e => { if ($('#dialog').open || $('#launcher').open || e.target.closest?.('#log') || /INPUT|SELECT|TEXTAREA|BUTTON/.test(e.target.tagName)) return; if (e.code === 'Space') { e.preventDefault(); $('#play').click(); } if (e.key.toLowerCase() === 'n') { e.preventDefault(); $('#step').click(); } });
 document.documentElement.style.setProperty('--move', `${Math.round(SPEEDS[speed] * 0.45)}ms`);
 render();
 showLauncher();

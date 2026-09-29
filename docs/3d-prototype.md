@@ -20,7 +20,7 @@ Engineering estimate, not a quote: a robust vertical slice with camera, fog-of-w
 
 The current build's lazy 3D JavaScript chunk is about **608 kB / 154 kB gzip**, while the initial app chunk is about **145 kB / 51 kB gzip** (local `npm run build`, 2026-09-29). This excludes any future high-detail meshes and textures, which could dominate download size and GPU memory.
 
-Do **not** merge this branch on the strength of a successful build alone. The go/no-go gate should include: Craig's visual reaction to the live camera; licensed/provenanced models for at least one flagship and one opposing ship; desktop and phone frame-time measurement; no new fog-of-war leaks; WebGL failure recovery; and a full saved-sortie regression pass. If the procedural art is still too toy-like, invest in assets before expanding code.
+Do **not** merge this branch on the strength of a successful build alone. The go/no-go gate should include: licensed/provenanced models for at least one flagship and one opposing ship; desktop and phone frame-time measurement; no new fog-of-war leaks; WebGL failure recovery; and a full saved-sortie regression pass. If the procedural art is still too toy-like, invest in assets before expanding code.
 
 ## Known limits
 
@@ -69,8 +69,7 @@ The registry remains empty. No hero art or borrowed reference images are shipped
 compressed decode needs a small original fixture before it is an acceptance claim.
 See [asset contract](ship-assets.md) and [Blender/reference recommendation](ship-model-research.md).
 The chart, simulation, fog-of-war input boundary and reduced-motion path remain
-unchanged. These procedural improvements do not replace Craig's visual sign-off,
-real-device frame-time measurement or hero-model provenance gates.
+unchanged. These procedural improvements do not replace real-device frame-time measurement or hero-model provenance gates.
 
 Foundation verification (2026-09-29): `npm test` **162 passing**; syntax check,
 `git diff --check`, and production build pass. Production-preview browser smoke
@@ -82,3 +81,5 @@ The new lazy 3D chunk is **820.54 kB / 224.00 kB gzip**; Vite's size warning
 remains. Basis JS/WASM are emitted locally and both return HTTP 200 from preview;
 that is packaging evidence only, not compressed-texture decode validation.
 Phone/mid-laptop frame times and Craig's art acceptance were not measured.
+
+**Current user override:** Craig’s visual feedback is optional, not a merge/release gate. Retain measurable rendering, fog-of-war, licensing and performance checks.
