@@ -55,15 +55,19 @@ test('carrier patrol is finite, delayed, and reports only to its own picture', (
   assert.equal(getView(state, 'blue', 'b_meridian').contacts.length, 0, 'destroyer does not inherit the air report');
   assert.equal(getView(state, 'blue', 'b_sable').contacts.length, 0, 'submarine does not inherit the air report');
   assert.equal(serialize(deserialize(serialize(state))), serialize(state));
+  // The flight leaves a sonobuoy field that keeps listening for a while, then falls silent.
+  assert.ok(state.entities.some((e) => e.kind === 'buoys' && e.carrierId === carrier.id));
+  while (state.entities.some((e) => e.kind === 'buoys')) state = step(state);
   state = step(state);
-  assert.ok(state.contactTracks[carrier.id].find((c) => c.targetId === 'r_razor').stale, 'one flight does not provide continuous tracking');
+  assert.ok(state.contactTracks[carrier.id].find((c) => c.targetId === 'r_razor').stale, 'coverage lasts only as long as the buoys');
 });
 
 test('ASW destroyer can ping and attack a submarine, while the carrier cannot ping', () => {
   let state = createGame('northern_screen', 14);
   const escort = ship(state, 'b_meridian');
   Object.assign(escort, { q: 10, r: 8, facing: 0, order: { type: 'hold' } });
-  Object.assign(ship(state, 'r_razor'), { q: 13, r: 8, order: { type: 'hold' }, noise: 0, quiet: 0, doctrine: { ...ship(state, 'r_razor').doctrine, roe: 'hold' } });
+  // Two hexes: inside the ASROC's minimum range, so the tubes take the shot.
+  Object.assign(ship(state, 'r_razor'), { q: 12, r: 8, order: { type: 'hold' }, noise: 0, quiet: 0, doctrine: { ...ship(state, 'r_razor').doctrine, roe: 'hold' } });
   const ammo = escort.torpedoes;
   state = activePing(state, [escort.id, 'b_steadfast']);
   assert.equal(ship(state, 'b_steadfast').pingAt, -1);
@@ -74,10 +78,13 @@ test('ASW destroyer can ping and attack a submarine, while the carrier cannot pi
 });
 
 test('escort outcome names its carrier objective rather than the Defector', () => {
-  for (const [seed, result, title] of [[1, 'victory', 'Escort Reaches Rendezvous'], [5, 'defeat', 'Carrier Lost']]) {
+  // Find a won and a lost sortie rather than pinning seeds, so balance changes don't break the check.
+  const titles = {};
+  for (let seed = 1; seed <= 40 && !(titles.victory && titles.defeat); seed += 1) {
     let state = createGame('northern_screen', seed);
     while (!state.outcome) state = step(state);
-    assert.equal(state.outcome.result, result);
-    assert.equal(state.outcome.title, title);
+    titles[state.outcome.result] ??= state.outcome.title;
   }
+  assert.equal(titles.victory, 'Escort Reaches Rendezvous');
+  assert.equal(titles.defeat, 'Carrier Lost');
 });

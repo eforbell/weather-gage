@@ -359,6 +359,7 @@ function validateContacts(contacts, shipIds, sides, keys = sides, map = DEFAULT_
       if (contact.range !== undefined && (!Number.isInteger(contact.range) || contact.range < 0)) throw new Error('Invalid contact range');
       if (contact.emitter !== undefined && typeof contact.emitter !== 'boolean') throw new Error('Invalid contact emitter');
       for (const k of ['uncertainty', 'holdSince']) if (contact[k] !== undefined && (!Number.isInteger(contact[k]) || contact[k] < 0)) throw new Error(`Invalid contact ${k}`);
+      if (contact.submerged !== undefined && typeof contact.submerged !== 'boolean') throw new Error('Invalid contact submerged');
       if (contact.side !== undefined && !sides.includes(contact.side)) throw new Error('Invalid contact side');
     }
   }
@@ -819,7 +820,11 @@ function scanContacts(state, side, observers, previous, scope) {
         range: best.range,
         emitter: Boolean(enemy.radar) || (enemy.emitUntil ?? -1) >= state.tick || (enemy.pingAt ?? -1) === state.tick,
       };
-      if (best.uncertainty !== undefined) trackMotion(state, scope, enemy, contact, best, prior.get(enemy.id));
+      if (best.datum) {
+        // A datum is a fixed point with fixed uncertainty: it never sharpens into a track.
+        Object.assign(contact, { q: best.datum.q, r: best.datum.r, uncertainty: best.uncertainty });
+      } else if (best.uncertainty !== undefined) trackMotion(state, scope, enemy, contact, best, prior.get(enemy.id));
+      if (best.submerged !== undefined) contact.submerged = best.submerged; // sonar can tell a hull under water from one on it
       if (CONF_RANK[contact.confidence] >= 3) { contact.name = enemy.name; if (sidesOf(state).length > 2) contact.side = enemy.side; }
       if (CONF_RANK[contact.confidence] >= 2) contact.className = contact.uncertainty && enemy.passiveClass ? enemy.passiveClass : enemy.className;
       contacts.push(contact);

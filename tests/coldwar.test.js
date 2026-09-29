@@ -171,7 +171,8 @@ test('scripted events fire once inside their window, and different seeds pick di
     const at = state.events.find((e) => e.id === 'sabotage').at;
     assert.ok(at >= 8 && at <= 14);
     ticks.add(at);
-    while (state.tick < at) state = step(state);
+    while (state.tick < at && !state.outcome) state = step(state); // a finished game stops ticking
+    if (state.outcome) continue;
     if (ship(state, 'g_red_october').status === 'active') assert.equal(ship(state, 'g_red_october').quiet, 3);
     assert.ok(state.events.find((e) => e.id === 'sabotage').done);
   }

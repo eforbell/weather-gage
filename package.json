@@ -13,7 +13,8 @@
     "build": "vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4173 --strictPort",
     "test": "node --test",
-    "check": "node scripts/check.mjs"
+    "check": "node scripts/check.mjs",
+    "census:torpedoes": "node scripts/census-torpedoes.mjs"
   },
   "dependencies": {
     "three": "0.186.1"

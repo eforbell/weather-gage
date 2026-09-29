@@ -72,7 +72,7 @@ scripts/check.mjs      Dependency-free JavaScript syntax checks
 tests/                 Simulation regression tests
 reference/             Original concept/prototype exports, preserved
 DESIGN.md              Product and interface design contract
-docs/                  Review, architecture, roadmap, validation
+docs/                  Review, architecture, roadmap, backlog, validation
 ```
 
 ## Why a browser?
@@ -85,4 +85,4 @@ The original scaffold was dependency-free. The 3D experiment follows the [offici
 
 Campaigns, fitting-out, direct Take Command controls, shot selection, historical balance, full line-of-sight/weather/signal obstruction, individually flown aircraft or air combat, multiplayer, desktop packaging, and a WWII era. The era models remain deliberately small; a complete plug-in registry is a next step, not a claim of this scaffold.
 
-See [concept review](docs/concept-review.md), [architecture](docs/architecture.md), and [roadmap](docs/roadmap.md).
+See [concept review](docs/concept-review.md), [architecture](docs/architecture.md), [roadmap](docs/roadmap.md), and the [simulation improvement backlog](docs/backlog.md).

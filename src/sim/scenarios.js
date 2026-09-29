@@ -172,7 +172,7 @@ export const SCENARIO_SETUPS = {
     ],
     ships: [
       subShip('b_dallas', 'blue', 'USS Dallas', 'Los Angeles-class attack submarine', 'ssn', 15, 4, 3, { speed: 4, quiet: 2, sonar: 5, torpedoes: 4, decoys: 2, captain: { name: 'Cdr. Mancuso', trait: 'steady' }, order: { type: 'shadow' }, roe: 'hold' }),
-      { ...subShip('r_konovalov', 'red', 'V. K. Konovalov', 'Alfa-class attack submarine', 'ssn', 0, 9, 0, { speed: 5, quiet: 4, sonar: 2, torpedoes: 4, decoys: 1, captain: { name: 'Capt. Tupolev', trait: 'reckless' }, order: { type: 'engage' }, speedSetting: 'flank' }), searchAt: [12, 5] },
+      { ...subShip('r_konovalov', 'red', 'V. K. Konovalov', 'Alfa-class attack submarine', 'ssn', 0, 9, 0, { speed: 5, quiet: 4, sonar: 2, torpedoes: 3, decoys: 1, captain: { name: 'Capt. Tupolev', trait: 'reckless' }, order: { type: 'engage' }, speedSetting: 'flank' }), searchAt: [12, 5] },
       { ...subShip('g_red_october', 'green', 'Red October', 'Typhoon-class missile submarine', 'ssbn', 0, 5, 0, { speed: 3, quiet: 0, sonar: 3, torpedoes: 2, decoys: 2, captain: { name: 'Capt. Ramius', trait: 'cunning' }, order: { type: 'proceed', q: 18, r: 8 }, speedSetting: 'standard', depth: 'deep' }), passiveClass: 'Seismic noise (magma displacement?)', goal: RENDEZVOUS },
     ],
   },
@@ -185,9 +185,9 @@ export const SCENARIO_SETUPS = {
       { q: 15, r: 3, type: 'shoal' }, { q: 19, r: 14, type: 'shoal' },
     ],
     ships: [
-      { ...subShip('b_steadfast', 'blue', 'BNS Steadfast', 'Light carrier', 'carrier', 4, 8, 0, { speed: 4, quiet: 7, sonar: 0, torpedoes: 0, decoys: 0, captain: { name: 'Capt. Vale', trait: 'steady' }, order: { type: 'proceed', q: 27, r: 8 }, depth: 'surface' }), airSorties: 4, patrolReadyAt: 0, value: 4, goal: SCREEN_EXIT },
-      subShip('b_meridian', 'blue', 'BNS Meridian', 'ASW destroyer', 'asw_destroyer', 5, 5, 0, { speed: 6, quiet: 6, sonar: 4, torpedoes: 4, decoys: 0, captain: { name: 'Cdr. Hale', trait: 'steady' }, order: { type: 'screen' }, depth: 'surface', range: 4 }),
-      subShip('b_ward', 'blue', 'BNS Ward', 'ASW destroyer', 'asw_destroyer', 5, 11, 0, { speed: 6, quiet: 6, sonar: 4, torpedoes: 4, decoys: 0, captain: { name: 'Cdr. Sen', trait: 'steady' }, order: { type: 'screen' }, depth: 'surface', range: 4 }),
+      { ...subShip('b_steadfast', 'blue', 'BNS Steadfast', 'Light carrier', 'carrier', 4, 8, 0, { speed: 4, quiet: 7, sonar: 0, torpedoes: 0, decoys: 0, captain: { name: 'Capt. Vale', trait: 'steady' }, order: { type: 'proceed', q: 27, r: 8 }, depth: 'surface' }), airSorties: 4, patrolReadyAt: 0, airTorpedoes: 4, airStrikeReadyAt: 0, value: 4, goal: SCREEN_EXIT },
+      { ...subShip('b_meridian', 'blue', 'BNS Meridian', 'ASW destroyer', 'asw_destroyer', 5, 5, 0, { speed: 6, quiet: 6, sonar: 4, torpedoes: 4, decoys: 0, captain: { name: 'Cdr. Hale', trait: 'steady' }, order: { type: 'screen' }, depth: 'surface', range: 4 }), asroc: 3 },
+      { ...subShip('b_ward', 'blue', 'BNS Ward', 'ASW destroyer', 'asw_destroyer', 5, 11, 0, { speed: 6, quiet: 6, sonar: 4, torpedoes: 4, decoys: 0, captain: { name: 'Cdr. Sen', trait: 'steady' }, order: { type: 'screen' }, depth: 'surface', range: 4 }), asroc: 3 },
       subShip('b_sable', 'blue', 'BNS Sable', 'Attack submarine', 'ssn', 8, 3, 0, { speed: 4, quiet: 2, sonar: 5, torpedoes: 4, decoys: 2, captain: { name: 'Cdr. Imani', trait: 'steady' }, order: { type: 'engage' } }),
       subShip('b_kite', 'blue', 'BNS Kite', 'Attack submarine', 'ssn', 8, 14, 0, { speed: 4, quiet: 2, sonar: 5, torpedoes: 4, decoys: 2, captain: { name: 'Cdr. Orlov', trait: 'steady' }, order: { type: 'engage' }, depth: 'deep' }),
       { ...subShip('r_razor', 'red', 'RNS Razor', 'Attack submarine', 'ssn', 23, 4, 3, { speed: 4, quiet: 3, sonar: 4, torpedoes: 4, decoys: 2, captain: { name: 'Capt. Soren', trait: 'steady' }, order: { type: 'engage' } }), searchAt: [10, 7] },
