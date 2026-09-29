@@ -161,3 +161,60 @@ dialog.launcher{max-width:1240px;width:calc(100% - 32px)}
 .patrol-form input{width:48px;min-width:0;padding:5px;font-size:10px}
 .patrol-form button{grid-column:1/-1;font-size:9px;min-height:32px}
 @media(max-width:1150px){.patrol-form{grid-template-columns:auto 58px auto 58px}.patrol-form input{width:58px}}
+
+/* The battle camera is an optional illustrative layer; the command chart stays intact. */
+.chart-toolbar .toolbar-buttons{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.chart-toolbar .battle-toggle{min-height:32px;padding:6px 10px;background:#254857;color:#fff3d8;border-color:#254857;font-size:10px;letter-spacing:.2px}
+.chart-toolbar .battle-toggle:hover:not(:disabled){background:#376879;border-color:#376879}
+.chart-toolbar .battle-toggle[aria-pressed=true]{background:#6a4938;border-color:#6a4938;color:#fff3d8}
+.chart-wrap.battle-on{min-height:410px;padding:0;overflow:hidden;background:#102b3b}
+.chart-wrap.battle-on #chart{visibility:hidden;pointer-events:none}
+.chart-panel.battle-active .chart-legend{display:none}
+.battle-view{position:absolute;inset:0;z-index:2;overflow:hidden;background:#173b4d;color:#f8ead3}
+.battle-view[hidden]{display:none}
+#battle-art,.battle-scene{width:100%;height:100%;display:block}
+.battle-head,.battle-foot{position:absolute;left:0;right:0;z-index:3;pointer-events:none}
+.battle-head{top:0;padding:18px 20px 28px;background:linear-gradient(#0d293bbd,transparent);display:flex;align-items:baseline;gap:13px;flex-wrap:wrap}
+.battle-kicker{font-size:8px;letter-spacing:1.7px;color:#f0cf9d}
+.battle-head strong{font:24px var(--serif);font-weight:normal;text-shadow:0 1px 6px #122b34}
+.battle-head #battle-position{font-size:9px;letter-spacing:1px;color:#e3d2b4;margin-left:auto}
+.battle-foot{bottom:0;padding:32px 20px 14px;background:linear-gradient(transparent,#0d293bd9);display:flex;justify-content:space-between;gap:15px;font-size:9px;line-height:1.5;letter-spacing:.4px}
+.battle-foot span:first-child{color:#ffe4b3;text-transform:uppercase}
+.battle-foot span:last-child{text-align:right;color:#e3d7c7}
+.battle-scene .bv-sky{fill:url(#bv-sky)}
+.battle-scene .bv-water{fill:url(#bv-water)}
+.battle-scene .bv-sun{fill:url(#bv-sun)}
+.bv-horizon{stroke:#ffe0af;stroke-width:2;opacity:.5}
+.bv-light-road{fill:#f7cf88;opacity:.16}
+.bv-glint{fill:none;stroke:#fff2ca;stroke-width:2;stroke-linecap:round;opacity:.5;animation:bv-shimmer 3.2s ease-in-out infinite}
+.bv-swell{fill:none;stroke:#a6c0bb;stroke-width:2;opacity:.25;animation:bv-swell 8s ease-in-out infinite alternate}
+.bv-vignette{fill:none;stroke:#091e2b;stroke-width:36;opacity:.25;pointer-events:none}
+.battle-ship .bv-wake{fill:none;stroke:#d4e4db;stroke-width:5;opacity:.56;stroke-linecap:round}
+.battle-ship .bv-hull{fill:url(#bv-metal);stroke:#e4bf8a;stroke-width:2}
+.battle-ship .bv-keel{fill:none;stroke:#162c38;stroke-width:3}
+.battle-ship .bv-deck,.battle-ship .bv-bridge,.battle-ship .bv-turret,.battle-ship .bv-funnel,.battle-ship .bv-carrier{fill:#576975;stroke:#d5bc96;stroke-width:2}
+.battle-ship .bv-window,.battle-ship .bv-deckline{fill:none;stroke:#ffdca0;stroke-width:2}
+.battle-ship .bv-gun,.battle-ship .bv-mast,.battle-ship .bv-rig{fill:none;stroke:#d1c5aa;stroke-width:2.5}
+.battle-ship .bv-sail{fill:#ded2af;stroke:#faf0d2;stroke-width:1.5;opacity:.93}
+.battle-ship.reported{filter:brightness(.55) sepia(.24)}
+.battle-ship.submarine .bv-hull{fill:#233e48}
+.bv-smoke circle{fill:#a8aaa1;opacity:.24;animation:bv-smoke 3.5s ease-out infinite}
+.bv-smoke circle:nth-child(2){animation-delay:.35s}.bv-smoke circle:nth-child(3){animation-delay:.7s}
+.bv-unit-label,.bv-report-q{fill:#fff0d6;font:11px var(--mono);text-anchor:middle;paint-order:stroke;stroke:#153345;stroke-width:3px;stroke-linejoin:round}
+.bv-unit.focus .bv-unit-label{font-weight:bold;font-size:13px}
+.bv-uncertainty{fill:#e8c4a41c;stroke:#e5c39a;stroke-width:2;stroke-dasharray:8 6}
+.bv-report-mark{fill:none;stroke:#f3dab8;stroke-width:3}
+.bv-report-q{font-size:8px;letter-spacing:1px;fill:#f4c89e}
+.bv-impact{animation:bv-appear 1.7s ease-out both;pointer-events:none}
+.bv-impact-glow{fill:url(#bv-fire)}.bv-impact-core{fill:#fff3cf}.bv-impact path{stroke:#f9ca81;stroke-width:3;fill:none}
+.bv-shot{animation:bv-appear 1.3s ease-out both;pointer-events:none}
+.bv-shot path{fill:none;stroke:#ffe0a4;stroke-width:3;stroke-dasharray:8 9}.bv-shot circle{fill:url(#bv-fire)}
+.bv-shot .bv-shot-smoke{fill:#30434a;opacity:.72}
+.battle-scene.undersea .bv-sky{fill:#123144}.battle-scene.undersea .bv-water{fill:#0d3044}.battle-scene.undersea .bv-sun{opacity:.12}
+.battle-scene.undersea .bv-light-road{fill:#8bc8cf;opacity:.11}.battle-scene.undersea .bv-horizon{stroke:#67a1ac;opacity:.3}
+@keyframes bv-shimmer{50%{opacity:.95;stroke-width:3}}
+@keyframes bv-swell{to{transform:translateY(9px)}}
+@keyframes bv-smoke{to{transform:translate(28px,-42px) scale(1.4);opacity:0}}
+@keyframes bv-appear{0%{opacity:0}15%{opacity:1}100%{opacity:0}}
+@media(max-width:700px){.chart-toolbar{align-items:flex-start}.chart-toolbar .toolbar-buttons{max-width:66%}.battle-head{padding:12px 14px}.battle-head strong{font-size:18px}.battle-head #battle-position{margin-left:0}.battle-foot{padding:25px 14px 10px;display:block}.battle-foot span{display:block!important;text-align:left!important}.chart-wrap.battle-on{min-height:340px}}
+@media(prefers-reduced-motion:reduce){.bv-glint,.bv-swell,.bv-smoke circle,.bv-impact,.bv-shot{animation:none!important}.bv-impact,.bv-shot{opacity:.55}}

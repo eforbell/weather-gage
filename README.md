@@ -20,9 +20,10 @@ Open **http://127.0.0.1:4173**. Use `PORT=4174 npm run dev` if needed. The devel
 3. Issue **Engage**, **Form line**, **Screen**, **Hold**, **Proceed**, or **Withdraw**.
 4. For **Proceed**, click a sea hex or enter Q/R coordinates and choose **Plot**.
 5. **Advance tick** resolves one step; **Run** starts a pauseable clock at the chosen **Pace**. New contacts pause it automatically. Movement, gunfire, hits, torpedoes and sinkings play out on the chart; **Sound** toggles synthesized ambience and effects.
-6. Adjust engagement range, hold-fire doctrine and withdrawal threshold. In the modern scenario, decide when to use active radar.
-7. In **The Northern Screen**, select the carrier to launch a limited patrol flight toward a Q/R sector. Its report arrives two ticks later on the carrier’s picture, not on every submarine’s sonar.
-8. Review the dispatch at mission end. **New sortie** restarts; the mission selector switches eras. Both start a fresh game, so save/export first if you want to keep the current sortie.
+6. Choose **Go to the battle** above the chart for an illustrated, late-day ship view. Select a ship in the roster to move the camera. Orders and the clock still work; use **Return to chart** for exact hex plotting. Unseen enemies stay unseen, and uncertain reports stay markers rather than becoming visible ships.
+7. Adjust engagement range, hold-fire doctrine and withdrawal threshold. In the modern scenario, decide when to use active radar.
+8. In **The Northern Screen**, select the carrier to launch a limited patrol flight toward a Q/R sector. Its report arrives two ticks later on the carrier’s picture, not on every submarine’s sonar.
+9. Review the dispatch at mission end. **New sortie** restarts; the mission selector switches eras. Both start a fresh game, so save/export first if you want to keep the current sortie.
 
 Keyboard: **Space** run/pause, **N** advance, outside form controls. Native controls work with Tab/Enter. The coordinate inputs are the keyboard alternative to map clicking.
 
@@ -58,6 +59,7 @@ src/sim/core.js         Shared rule primitives: hex math, seeded RNG, damage, di
 src/sim/eras/           Era rule modules (registry): ironclad, dreadnought, coldwar, shared steam movement and route finding
 src/sim/scenarios.js    Scenario metadata, ship configurations, maps
 src/ui/app.js           Browser controls, SVG chart and dialogs
+src/ui/battle-view.js   Optional illustrated battle camera (player-view data only)
 src/ui/fx.js            Combat animation and synthesized sound (presentation only)
 src/ui/advisor.js       Flag lieutenant advice, tactics primer, debrief lessons
 src/ui/style.css        Paper-and-ink visual system, responsive layout

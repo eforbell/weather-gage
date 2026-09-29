@@ -16,6 +16,7 @@ A working naval chart, not a generic dashboard. Paper, ink, restrained blue and 
 - Complete a mission from brief to outcome; save and resume locally.
 - Non-goals: full historical fidelity, campaign, multiplayer, individually flown aircraft, production-scale combat.
 - Success: every scenario can be played, paused, finished, restarted, saved, and deterministically reproduced.
+- The optional **Battle view** lets a visual-first player watch the same action from an oblique, illustrated sea-level camera without replacing the chart or changing command rules.
 
 ## Personas and jobs
 Strategy/simulation players who enjoy Fleet Command's information warfare and Civilization's readable rules. Desktop/laptop is primary; smaller screens get a stacked layout, not a separate experience.
@@ -30,6 +31,8 @@ Command rather than micro-control. Information before firepower. Show uncertaint
 Warm paper #f2edde, ink #242b2d, muted #656b65, ocean #e2e8df, blue #285867, red #9d463c. Serif display with monospace operational labels; system fonts only, no network font dependency. 4px spacing rhythm, squared controls, thin rules, no floating-card shadows. Hex geometry and vector ship silhouettes instead of bitmap assets. Combat is animated on the chart (ship glide, muzzle flash, shell flight, splash/hit, torpedo wakes, sinking, callout banners) because a text-only transcript made play feel like reading a simulation. Animation is presentation only, derived from per-side `fx` events, and collapses to static markers under reduced motion. Sound is synthesized, opt-in and remembered per browser: quiet era-specific ambience begins after a sound-enabled user gesture, with combat effects layered above it.
 
 ## Components
+Battle view is a reversible overlay on the chart viewport, not a second simulation or a targeting tool. Its late-day light, projected ships, wakes, smoke, and combat flashes are SVG/CSS interpretations of the selected ship's player view. Unidentified or stale contacts remain uncertain markers; unseen enemies never appear. The roster, signal office, and clock stay usable, while precise hex plotting requires returning to the chart. No WebGL, downloaded art, or new dependency is required.
+
 Shared native buttons, selects, meters, dialog, roster entries and contact rows. SVG chart owns hex cells, contact uncertainty, ship symbols and order destinations. Tokens in `src/ui/style.css`; screen structure/rendering in `src/ui/app.js`. Selected, disabled, pending, stale, and terminal states must be distinct.
 
 ## Accessibility
