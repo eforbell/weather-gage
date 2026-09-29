@@ -172,7 +172,7 @@ export const SCENARIO_SETUPS = {
     ],
     ships: [
       subShip('b_dallas', 'blue', 'USS Dallas', 'Los Angeles-class attack submarine', 'ssn', 15, 4, 3, { speed: 4, quiet: 2, sonar: 5, torpedoes: 4, decoys: 2, captain: { name: 'Cdr. Mancuso', trait: 'steady' }, order: { type: 'shadow' }, roe: 'hold' }),
-      { ...subShip('r_konovalov', 'red', 'V. K. Konovalov', 'Alfa-class attack submarine', 'ssn', 0, 9, 0, { speed: 5, quiet: 4, sonar: 2, torpedoes: 4, decoys: 1, captain: { name: 'Capt. Tupolev', trait: 'reckless' }, order: { type: 'engage' }, speedSetting: 'flank' }), searchAt: [12, 5] },
+      { ...subShip('r_konovalov', 'red', 'V. K. Konovalov', 'Alfa-class attack submarine', 'ssn', 0, 9, 0, { speed: 5, quiet: 4, sonar: 2, torpedoes: 3, decoys: 1, captain: { name: 'Capt. Tupolev', trait: 'reckless' }, order: { type: 'engage' }, speedSetting: 'flank' }), searchAt: [12, 5] },
       { ...subShip('g_red_october', 'green', 'Red October', 'Typhoon-class missile submarine', 'ssbn', 0, 5, 0, { speed: 3, quiet: 0, sonar: 3, torpedoes: 2, decoys: 2, captain: { name: 'Capt. Ramius', trait: 'cunning' }, order: { type: 'proceed', q: 18, r: 8 }, speedSetting: 'standard', depth: 'deep' }), passiveClass: 'Seismic noise (magma displacement?)', goal: RENDEZVOUS },
     ],
   },

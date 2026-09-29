@@ -9,9 +9,13 @@ import { steamMove, headingTo, nearest } from './steam.js';
 const TRAITS = new Set(['steady', 'cunning', 'reckless']);
 const SUBMARINES = new Set(['ssn', 'ssbn']);
 const SURFACE_SHIPS = new Set(['asw_destroyer', 'carrier']);
-const TORPEDO_SPEED = 3; // hexes per tick
-const TORPEDO_RUN = 18;
-const SEEKER_RANGE = 3;
+const TORPEDO_SPEED = 4; // hexes per tick: roughly 55 knots against a 30-knot sprint
+const TORPEDO_RUN = 22;
+const WIRE_LENGTH = 12; // hexes of run before the guidance wire pays out
+const ENABLE_RANGE = 3; // the seeker switches on this close to the aim point
+const SEEKER_RANGE = 3; // acquisition range
+const TRACK_RANGE = 4; // a locked seeker holds a target a little farther out
+const DECOY_SEDUCTION = 0.45; // chance a noisemaker fools a given seeker
 const HEAR_TORPEDO = 6;
 const MAX_ENTITIES = 40;
 
@@ -20,6 +24,7 @@ const MAX_ENTITIES = 40;
 export function validateShip(ship, map) {
   if (!SUBMARINES.has(ship.type) && !SURFACE_SHIPS.has(ship.type)) throw new Error('Invalid ship type');
   for (const k of ['speed', 'quiet', 'sonar', 'torpedoes', 'decoys', 'noise', 'value']) if (!Number.isInteger(ship[k]) || ship[k] < 0) throw new Error(`Invalid ${k}`);
+  if (ship.chosenDepth !== undefined && ship.chosenDepth !== 'shallow' && ship.chosenDepth !== 'deep') throw new Error('Invalid chosenDepth');
   for (const k of ['pingAt', 'firedAt', 'ivanAt', 'decoyAt', 'evadingAt', 'driftAt']) if (!Number.isInteger(ship[k])) throw new Error(`Invalid ${k}`);
   if (!ship.captain || typeof ship.captain !== 'object' || typeof ship.captain.name !== 'string' || !TRAITS.has(ship.captain.trait)) throw new Error('Invalid captain');
   if (ship.passiveClass !== undefined && typeof ship.passiveClass !== 'string') throw new Error('Invalid passiveClass');
@@ -54,6 +59,14 @@ export function validateEntities(entities, shipIds, state) {
       for (const k of ['travelled', 'run', 'armAt']) if (!Number.isInteger(e[k]) || e[k] < 0) throw new Error(`Invalid torpedo ${k}`);
       assertCoord({ q: e.aimQ, r: e.aimR }, state.map);
       if (e.seeking !== null && typeof e.seeking !== 'string') throw new Error('Invalid torpedo seeker');
+      // Guidance state. Saves from before wire guidance lack it: those torpedoes have no
+      // wire and a live seeker from the start, and keep the old own-ship rule.
+      if (e.targetId !== undefined && e.targetId !== null && !shipIds.has(e.targetId)) throw new Error('Invalid torpedo target');
+      for (const k of ['wired', 'enabled']) if (e[k] !== undefined && typeof e[k] !== 'boolean') throw new Error(`Invalid torpedo ${k}`);
+      if (e.ignore !== undefined && (!Array.isArray(e.ignore) || e.ignore.length > MAX_ENTITIES || !e.ignore.every((x) => typeof x === 'string'))) throw new Error('Invalid torpedo ignore list');
+      if (e.lockQ !== undefined && e.lockQ !== null) assertCoord({ q: e.lockQ, r: e.lockR }, state.map);
+      else if (e.lockR !== undefined && e.lockR !== null) throw new Error('Invalid torpedo lock');
+      if (e.depth !== undefined && e.depth !== 'shallow' && e.depth !== 'deep') throw new Error('Invalid torpedo depth');
     } else if (e.kind === 'decoy') {
       if (!Number.isInteger(e.until)) throw new Error('Invalid decoy');
     } else throw new Error('Invalid entity kind');
@@ -91,6 +104,12 @@ function halfHexes(ship, setting) {
 
 export function beforeTick(state) {
   for (const ship of state.ships) if (ship.era === 'coldwar') ship.noise = ship.quiet; // at rest; movement adds to it
+  // A boat that crossed the layer to evade returns to her ordered depth once clear.
+  for (const ship of state.ships) {
+    if (ship.chosenDepth === undefined || ship.evadingAt >= state.tick - 2) continue;
+    if (ship.doctrine.depth !== 'surface') ship.doctrine = { ...ship.doctrine, depth: ship.chosenDepth };
+    delete ship.chosenDepth;
+  }
   state.patrols = (state.patrols || []).filter((patrol) => patrol.resolveAt >= state.tick);
   for (const patrol of state.patrols) if (patrol.resolveAt === state.tick) {
     const carrier = state.ships.find((s) => s.id === patrol.carrierId);
@@ -152,6 +171,13 @@ export function react(state, ship) {
   if (ship.decoys > 0 && ship.decoyAt < state.tick - 2 && state.entities.length < MAX_ENTITIES) {
     ship.decoys -= 1;
     ship.decoyAt = state.tick;
+    // Classic evasion: drop the noisemaker and go through the layer, leaving the decoy
+    // at the depth the torpedo was set for.
+    if (ship.doctrine.depth !== 'surface') {
+      ship.chosenDepth ??= ship.doctrine.depth; // remembered, restored once the danger passes
+      ship.doctrine = { ...ship.doctrine, depth: ship.doctrine.depth === 'deep' ? 'shallow' : 'deep' };
+      state = addLog(state, `${ship.name} crosses the layer to evade.`, 'defense', [ship.side]);
+    }
     state.entities.push({ id: `d${state.tick}_${ship.id}`, kind: 'decoy', side: ship.side, q: ship.q, r: ship.r, until: state.tick + 3 });
     state = addLog(state, `${ship.name} launches a noisemaker.`, 'defense', [ship.side]);
     state = addFx(state, { type: 'decoy', shooterId: ship.id });
@@ -213,8 +239,13 @@ export function combat(state) {
     if (!isActive(ship) || ship.doctrine.roe === 'hold' || ship.torpedoes <= 0 || ship.reloadUntil > state.tick || ship.order.type === 'withdraw' || state.entities.length >= MAX_ENTITIES) continue;
     const reckless = ship.captain.trait === 'reckless';
     const range = reckless ? ship.doctrine.range + 2 : ship.doctrine.range;
+    // Water-space management: a careful captain won't shoot at a contact with a friendly
+    // boat right on top of it, because the seeker cannot tell them apart; she takes the next
+    // target instead. The wire operator handles friendlies farther off.
+    const friends = friendsOf(state, ship.side);
+    const crowded = (c) => state.ships.some((s) => s !== ship && friends.has(s.side) && isActive(s) && distance(s, c) <= 1);
     const target = contactsFor(state, ship, (s, c) => believedHostile(state, ship, c) && (ship.type !== 'asw_destroyer' || SUBMARINES.has(s.type)))
-      .find(({ c }) => distance(ship, c) <= range && (reckless || CONF_RANK[c.confidence] >= CONF_RANK.classified));
+      .find(({ c }) => distance(ship, c) <= range && (reckless || CONF_RANK[c.confidence] >= CONF_RANK.classified) && (reckless || !crowded(c)));
     if (!target) continue;
     ship.torpedoes -= 1;
     ship.reloadUntil = state.tick + 3;
@@ -223,6 +254,10 @@ export function combat(state) {
       id: `t${state.tick}_${ship.id}`, kind: 'torpedo', side: ship.side, shooterId: ship.id,
       q: ship.q, r: ship.r, facing: directionToward(ship, target.c), travelled: 0, run: TORPEDO_RUN,
       armAt: reckless ? 0 : 2, aimQ: target.c.q, aimR: target.c.r, seeking: null,
+      targetId: target.s.id, wired: true, enabled: reckless, ignore: [], lockQ: null, lockR: null,
+      // Sonar reports bearing and range, not depth: fire control presets the search depth
+      // to the firing boat's own depth (surface ships search shallow).
+      depth: ship.doctrine.depth === 'deep' ? 'deep' : 'shallow',
     });
     state = markAttack(state, ship.side, target.s.side);
     state = addLog(state, `${ship.name} fires ${ship.type === 'asw_destroyer' ? 'an ASW torpedo' : 'a torpedo'} at ${target.s.name}${reckless ? ', safeties off' : ''}.`, 'combat');
@@ -231,24 +266,44 @@ export function combat(state) {
   return state;
 }
 
-// Torpedoes run after ships move: wire-guided toward the aim point, then the seeker
-// takes the loudest thing in its forward cone. The seeker cannot tell friend from foe.
+// Torpedoes run after ships move. The model follows a wire-guided homing torpedo:
+//  1. While the wire holds, the firing boat steers it toward her *current* track of the
+//     target (her own sonar picture, with its uncertainty), not the launch-time position.
+//  2. The seeker switches on near the aim point (or at once with the safeties off), so it
+//     is not seduced by everything it passes on the way out.
+//  3. A live seeker takes the loudest thing in its forward cone. It cannot tell friend
+//     from foe: only the wire operator can reject a friendly lock, so once the wire is
+//     cut friendly boats are fair game. It will not come back for the boat that fired it
+//     unless the safeties are off and it has run long enough to circle.
+//  4. Locked on, it turns harder and leads the target. Losing lock, it runs to the last
+//     position it heard and circles to re-attack. Noisemakers fool some seekers, not all.
 export function afterMove(state) {
   const survivors = [];
   for (const t of (state.entities || [])) {
     if (t.kind !== 'torpedo') { survivors.push(t); continue; }
     let alive = true;
+    state = updateWire(state, t);
     for (let step = 0; step < TORPEDO_SPEED && alive; step += 1) {
-      const quarry = acquire(state, t);
-      t.seeking = quarry ? quarry.id : t.seeking;
-      const goal = quarry || (distance(t, { q: t.aimQ, r: t.aimR }) > 0 ? { q: t.aimQ, r: t.aimR } : null);
-      if (goal) {
-        const want = directionToward(t, goal);
-        if (turnDistance(t.facing, want) > 0) t.facing = (t.facing + (((want - t.facing + 6) % 6) <= 3 ? 1 : 5)) % 6;
+      const aim = { q: t.aimQ, r: t.aimR };
+      if (!t.enabled && (t.enabled === undefined || distance(t, aim) <= ENABLE_RANGE || !t.wired)) t.enabled = true;
+      const quarry = t.enabled ? acquire(state, t) : null;
+      if (quarry) { t.seeking = quarry.id; t.lockQ = quarry.q; t.lockR = quarry.r; }
+      else if (t.seeking && !state.ships.some((s) => s.id === t.seeking && isActive(s)) && !(state.entities || []).some((e) => e.id === t.seeking && e.until >= state.tick)) t.seeking = null;
+      const goal = steeringGoal(t, quarry, aim);
+      const turnRate = quarry && distance(t, quarry) <= 2 ? 2 : 1;
+      if (goal) turn(t, directionToward(t, goal), turnRate);
+      else turn(t, (t.facing + 1) % 6, 1); // search circle: nothing to steer for, keep turning
+      if (!clearHex(state, ahead(t, t.facing))) {
+        const around = [1, 5, 2, 4].map((o) => (t.facing + o) % 6).find((f) => clearHex(state, ahead(t, f)));
+        if (around === undefined) { state = addLog(state, 'A torpedo runs into the seabed and is lost.', 'info', [t.side]); alive = false; break; }
+        t.facing = around;
       }
-      const [dq, dr] = DIRECTIONS[t.facing];
-      const next = { q: t.q + dq, r: t.r + dr };
-      if (!inBounds(next, state.map) || terrainAt(state, next.q, next.r) === 'land') { state = addLog(state, 'A torpedo runs into the seabed and is lost.', 'info', [t.side]); alive = false; break; }
+      // The wire operator steers around her own side's boats when there is water to do it.
+      if (t.wired && friendlyAt(state, t, ahead(t, t.facing))) {
+        const around = [1, 5, 2, 4].map((o) => (t.facing + o) % 6).find((f) => clearHex(state, ahead(t, f)) && !friendlyAt(state, t, ahead(t, f)));
+        if (around !== undefined) t.facing = around;
+      }
+      const next = ahead(t, t.facing);
       t.q = next.q; t.r = next.r; t.travelled += 1;
       const decoy = (state.entities || []).find((e) => e.kind === 'decoy' && e.q === t.q && e.r === t.r && t.seeking === e.id);
       if (decoy) {
@@ -257,7 +312,7 @@ export function afterMove(state) {
         state = addLog(state, 'A torpedo detonates on a noisemaker.', 'defense');
         alive = false; break;
       }
-      const victim = state.ships.find((s) => isActive(s) && s.q === t.q && s.r === t.r && (s.id !== t.shooterId || t.travelled > 3));
+      const victim = state.ships.find((s) => isActive(s) && s.q === t.q && s.r === t.r && (s.id !== t.shooterId || ownShipFair(t)));
       if (victim) { state = strike(state, t, victim); alive = false; break; }
       if (t.travelled >= t.run) {
         state = addLog(state, 'A torpedo runs out of fuel and sinks.', 'info', [t.side]);
@@ -270,13 +325,87 @@ export function afterMove(state) {
   return state;
 }
 
+function updateWire(state, t) {
+  if (!t.wired) return state;
+  const shooter = state.ships.find((s) => s.id === t.shooterId);
+  const cut = !shooter || !isActive(shooter) || shooter.evadingAt === state.tick || t.travelled >= WIRE_LENGTH;
+  if (cut) {
+    t.wired = false;
+    if (shooter && isActive(shooter) && t.travelled < WIRE_LENGTH) state = addLog(state, `${shooter.name} cuts a guidance wire to evade.`, 'info', [t.side]);
+    return state;
+  }
+  const track = contactsForShip(state, shooter).find((c) => c.targetId === t.targetId && !c.stale);
+  if (track && terrainAt(state, track.q, track.r) !== 'land') { t.aimQ = track.q; t.aimR = track.r; }
+  return state;
+}
+
+// Where to steer this step. Ships have already moved when torpedoes run, so the quarry's
+// hex is where she is: pure pursuit, no lead. A lost lock sends the torpedo to where she
+// was last heard; arriving there, that becomes the search point it circles.
+function steeringGoal(t, quarry, aim) {
+  if (quarry) return quarry;
+  if (t.lockQ !== null && t.lockQ !== undefined) {
+    if (distance(t, { q: t.lockQ, r: t.lockR }) > 0) return { q: t.lockQ, r: t.lockR };
+    t.aimQ = t.lockQ; t.aimR = t.lockR; t.lockQ = null; t.lockR = null;
+  }
+  return distance(t, aim) > 0 ? aim : null;
+}
+
+function turn(t, want, rate) {
+  for (let i = 0; i < rate && t.facing !== want; i += 1) t.facing = (t.facing + (((want - t.facing + 6) % 6) <= 3 ? 1 : 5)) % 6;
+}
+
+function ahead(p, facing) {
+  const [dq, dr] = DIRECTIONS[facing];
+  return { q: p.q + dq, r: p.r + dr };
+}
+
+function clearHex(state, c) {
+  return inBounds(c, state.map) && terrainAt(state, c.q, c.r) !== 'land';
+}
+
+function friendlyAt(state, t, c) {
+  const friends = friendsOf(state, t.side);
+  return state.ships.some((s) => isActive(s) && friends.has(s.side) && s.q === c.q && s.r === c.r);
+}
+
+// A side's friends: itself, sides it commands, and sides that command it (the defector and Dallas).
+function friendsOf(state, side) {
+  const out = new Set([side, ...(state.command?.[side] || [])]);
+  for (const [commander, list] of Object.entries(state.command || {})) if (list.includes(side)) out.add(commander);
+  return out;
+}
+
+// Own-ship safety covers both the seeker and the fuze. Torpedoes from saves made before
+// wire guidance (no `wired` field) keep the old rule: fair game after 3 hexes.
+function ownShipFair(t) {
+  if (t.wired === undefined) return t.travelled > 3;
+  return t.armAt === 0 && t.travelled > 8;
+}
+
 function acquire(state, t) {
   const inCone = (p) => { const rel = (directionToward(t, p) - t.facing + 6) % 6; return rel === 0 || rel === 1 || rel === 5; };
+  const ignore = t.ignore || [];
   const options = [
-    ...state.ships.filter((s) => isActive(s) && (s.id !== t.shooterId || t.travelled > 3)).map((s) => ({ id: s.id, q: s.q, r: s.r, noise: s.noise })),
-    ...(state.entities || []).filter((e) => e.kind === 'decoy' && e.until >= state.tick).map((e) => ({ id: e.id, q: e.q, r: e.r, noise: 10 })),
-  ].filter((p) => distance(t, p) <= SEEKER_RANGE && distance(t, p) > 0 && inCone(p));
-  return options.sort((a, b) => (distance(t, a) - a.noise * 0.3) - (distance(t, b) - b.noise * 0.3) || (a.id < b.id ? -1 : 1))[0] || null;
+    // While the wire holds, the firing boat's operator rejects locks on her own side's boats.
+    ...state.ships.filter((s) => isActive(s) && (s.id !== t.shooterId || ownShipFair(t)) && !(t.wired && friendsOf(state, t.side).has(s.side)))
+      .map((s) => ({ id: s.id, q: s.q, r: s.r, noise: s.noise, facing: s.facing, depth: s.doctrine.depth === 'surface' ? 'shallow' : s.doctrine.depth })),
+    ...(state.entities || []).filter((e) => e.kind === 'decoy' && e.until >= state.tick && !ignore.includes(e.id))
+      .map((e) => ({ id: e.id, q: e.q, r: e.r, noise: 10, decoy: true })),
+  ].filter((p) => distance(t, p) > 0 && inCone(p) && distance(t, p) <= reach(t, p));
+  // A noisemaker gets one chance to fool each seeker; a seeker that sees through it ignores it.
+  const fooled = options.filter((p) => !p.decoy || chance(state, `decoy|${t.id}|${p.id}`, DECOY_SEDUCTION));
+  if (t.ignore) for (const p of options) if (p.decoy && !fooled.includes(p)) t.ignore.push(p.id);
+  const score = (p) => distance(t, p) - p.noise * 0.3 - (p.id === t.seeking ? 1.5 : 0); // hold lock rather than flit between targets
+  const pick = fooled.sort((a, b) => score(a) - score(b) || (a.id < b.id ? -1 : 1))[0] || null;
+  if (pick && pick.depth && t.depth) t.depth = pick.depth; // locked on, the seeker follows her through the layer
+  return pick;
+}
+
+// A seeker hears less of a boat on the other side of the thermal layer.
+function reach(t, p) {
+  const base = p.id === t.seeking ? TRACK_RANGE : SEEKER_RANGE;
+  return p.depth && t.depth && p.depth !== t.depth ? base - 1 : base;
 }
 
 function strike(state, t, victim) {

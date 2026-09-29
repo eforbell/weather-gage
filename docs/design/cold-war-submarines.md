@@ -42,3 +42,26 @@ Towed arrays, convergence zones, SOSUS, surface ships and ASW helicopters, missi
 
 ## What the test harness should reveal
 Run 200 seeds for: captains alone; Dallas shadowing Konovalov; Dallas pinging early; Dallas firing first. Whatever looks wrong goes in the "discovered" section of `docs/era-extension.md`.
+
+## Torpedo guidance model (revised 2026-09-29)
+A census of every torpedo fired over 200 seeds showed only 21–35% hitting their intended target. Stale wire guidance, no re-attack, a 60° turn limit at point-blank range, noisemakers that always won, and torpedoes running into ridges accounted for most misses. The model now follows a wire-guided homing torpedo:
+
+1. **Wire guidance.** For its first 12 hexes the firing boat steers the torpedo toward her *current* track of the target: her own sonar picture, uncertainty included. The wire is cut when she evades, is lost, or the run pays it out.
+2. **Enable point.** The seeker switches on within 3 hexes of the aim point, when the wire is cut, or at once with the safeties off.
+3. **Seeker.** It takes the loudest boat in a forward cone out to 3 hexes, and holds a lock out to 4. It turns 120° a hex in terminal homing (pure pursuit: boats have already moved when torpedoes run). If it loses lock it runs to the last position it heard, and that becomes the point it circles to re-attack.
+4. **Friend or foe.** The seeker can't tell them apart. While the wire holds, the operator rejects locks on friendly boats (own side, plus sides under or holding command, such as Red October once she answers the ping) and steers around them. Careful captains won't shoot at a contact with a friendly within 1 hex of it and take the next target instead (water-space management). The launcher is never a target unless the safeties are off and the torpedo has run 8 hexes.
+5. **Countermeasures.** Each noisemaker gets one seeded chance (45%) to fool each seeker; a seeker that sees through it ignores it thereafter. Sonar gives no depth, so fire control presets the search depth to the firing boat's own depth (surface ships search shallow). A seeker's reach is one hex shorter against a boat on the other side of the layer until it locks and follows her. Evading captains cross the layer as they drop a noisemaker, and return to their ordered depth once clear.
+6. **Kinematics.** 4 hexes a tick (about 55 knots against a 30-knot sprint), 22-hex run, and it steers around seabed ridges. The wire never aims at land.
+
+Measured with `npm run census:torpedoes` (200 seeds each, default captains):
+
+| Fate | Defector before → after | Northern Screen before → after |
+|---|---|---|
+| Hits the intended target | 35% → 50% | 21% → 41% |
+| Hits another enemy | 2% → 7% | ~5% → 13% |
+| Friendly fire | ~0% → 0% | ~16% → 11% (all after the wire is cut) |
+| Hits its own launcher | 9% → 2% | 7% → 0% |
+| Seduced by a noisemaker | 38% → 30% | 33% → 20% |
+| Seabed / out of fuel | 17% / 0% → 0% / 8% | 4% / 5% → 0% / 5% |
+
+**Balance consequences.** Konovalov now carries 3 torpedoes (was 4). Defector plans: captains alone 45%, fire first 50%, ping for contact 66%. Working torpedoes make shooting first a sound tactic, so "don't start a war" needs a cost of its own if it is to stay a lesson. Northern Screen was not re-tuned: blue wins about 37% with captains alone (was about 42%).

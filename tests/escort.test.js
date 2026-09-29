@@ -74,10 +74,13 @@ test('ASW destroyer can ping and attack a submarine, while the carrier cannot pi
 });
 
 test('escort outcome names its carrier objective rather than the Defector', () => {
-  for (const [seed, result, title] of [[1, 'victory', 'Escort Reaches Rendezvous'], [5, 'defeat', 'Carrier Lost']]) {
+  // Find a won and a lost sortie rather than pinning seeds, so balance changes don't break the check.
+  const titles = {};
+  for (let seed = 1; seed <= 40 && !(titles.victory && titles.defeat); seed += 1) {
     let state = createGame('northern_screen', seed);
     while (!state.outcome) state = step(state);
-    assert.equal(state.outcome.result, result);
-    assert.equal(state.outcome.title, title);
+    titles[state.outcome.result] ??= state.outcome.title;
   }
+  assert.equal(titles.victory, 'Escort Reaches Rendezvous');
+  assert.equal(titles.defeat, 'Carrier Lost');
 });
