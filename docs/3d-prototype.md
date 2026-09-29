@@ -27,3 +27,6 @@ Do **not** merge this branch on the strength of a successful build alone. The go
 - The sea and smoke are restrained prototypes, not volumetric rendering. No post-processing bloom or physically based environment map is included.
 - The 3D camera is for immersion, not aiming or exact navigation; use the chart for hex plotting.
 - Reduced-motion users get a static 3D view that updates on turns and camera gestures. WebGL is still required for the mode.
+
+## Visual direction
+The plan for taking the view from prototype to a convincing 2026 look (art direction, scale rule, water, ships, effects, camera, sound, performance tiers, milestones and quick wins) is in [3d-visual-direction.md](3d-visual-direction.md).
