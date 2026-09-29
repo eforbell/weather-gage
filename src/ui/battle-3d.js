@@ -1,240 +1,373 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { battleActors } from './battle-presentation.js';
-import { createActorModel, disposeActorModel } from './battle-models.js';
+import { Water } from 'three/addons/objects/Water.js';
+import { Sky } from 'three/addons/objects/Sky.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
+import { battleActors, hexToWorld, HEX } from './battle-presentation.js';
+import { createActorModel, disposeActorModel, animateWakes } from './battle-models.js';
+import { createEffects } from './battle-effects.js';
+import { lookFor } from './battle-looks.js';
 
-const clamp = (n, low, high) => Math.max(low, Math.min(high, n));
+const ORIGIN = { q: 0, r: 0 };
 const dirs = [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]];
-const world = (point, focus) => new THREE.Vector3(
-  ((point.q - focus.q) + (point.r - focus.r) / 2) * 4.8,
-  focus.y,
-  (point.r - focus.r) * 4.15,
-);
+const rad = THREE.MathUtils.degToRad;
 function facingAngle(facing) {
   const [q, r] = dirs[facing] || dirs[0];
   return Math.atan2(-(q + r / 2), -r * 0.866);
 }
-function disposeTree(root) {
-  root.traverse(item => {
-    item.geometry?.dispose();
-    if (Array.isArray(item.material)) item.material.forEach(m => m.dispose());
-    else item.material?.dispose();
+// The wind index names where it blows from; smoke drifts the other way.
+function downwind(wind) {
+  const { x, z } = hexToWorld({ q: dirs[(wind + 3) % 6][0], r: dirs[(wind + 3) % 6][1] }, ORIGIN);
+  return new THREE.Vector3(x, 0, z).setLength(1.1);
+}
+function hashPhase(id) {
+  let h = 0;
+  for (const ch of String(id)) h = (h * 31 + ch.charCodeAt(0)) | 0;
+  return (h >>> 0) / 4294967296 * Math.PI * 2;
+}
+
+// Tileable normal map from integer-frequency waves, so the sea needs no
+// downloaded texture. Presentation-only randomness from a fixed seed.
+function waterNormals(size = 256) {
+  let seed = 3;
+  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  const waves = Array.from({ length: 28 }, () => {
+    let kx = 0, ky = 0;
+    while (Math.hypot(kx, ky) < 3) { kx = Math.round(rnd() * 20 - 10); ky = Math.round(rnd() * 20 - 10); } // no broad tilts
+    return { kx, ky, a: 1 / Math.hypot(kx, ky) ** 1.3, phase: rnd() * Math.PI * 2 };
   });
-}
-
-function skyDome() {
-  const geometry = new THREE.SphereGeometry(180, 36, 20);
-  const positions = geometry.getAttribute('position');
-  const colors = [];
-  const low = new THREE.Color(0xedb078), high = new THREE.Color(0x273f55);
-  for (let i = 0; i < positions.count; i++) {
-    const t = clamp((positions.getY(i) + 4) / 112, 0, 1);
-    const c = low.clone().lerp(high, Math.pow(t, 0.55));
-    colors.push(c.r, c.g, c.b);
+  const data = new Uint8Array(size * size * 4);
+  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
+    let dx = 0, dy = 0;
+    for (const w of waves) {
+      const c = Math.cos(Math.PI * 2 * (w.kx * x + w.ky * y) / size + w.phase) * w.a * Math.PI * 2;
+      dx += c * w.kx; dy += c * w.ky;
+    }
+    const n = new THREE.Vector3(-dx * 0.05, -dy * 0.05, 1).normalize();
+    data.set([(n.x * 0.5 + 0.5) * 255, (n.y * 0.5 + 0.5) * 255, (n.z * 0.5 + 0.5) * 255, 255], (y * size + x) * 4);
   }
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-  return new THREE.Mesh(geometry, new THREE.MeshBasicMaterial({ vertexColors: true, side: THREE.BackSide, fog: false, depthWrite: false }));
+  const texture = new THREE.DataTexture(data, size, size);
+  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+  texture.generateMipmaps = true;
+  texture.minFilter = THREE.LinearMipmapLinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.needsUpdate = true;
+  return texture;
 }
 
-function sunGlow() {
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 128;
-  const ctx = canvas.getContext('2d');
-  const gradient = ctx.createRadialGradient(64, 64, 3, 64, 64, 64);
-  gradient.addColorStop(0, 'rgba(255,244,202,1)');
-  gradient.addColorStop(0.12, 'rgba(255,225,160,.88)');
-  gradient.addColorStop(0.42, 'rgba(255,190,112,.22)');
-  gradient.addColorStop(1, 'rgba(255,190,112,0)');
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, 128, 128);
-  const texture = new THREE.CanvasTexture(canvas);
-  const sprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, transparent: true, depthWrite: false, fog: false }));
-  sprite.position.set(-42, 13, -100);
-  sprite.scale.set(39, 39, 1);
-  return sprite;
-}
+// Painted grade in linear light, before tone mapping: tint, saturation, vignette.
+const GradeShader = {
+  uniforms: { tDiffuse: { value: null }, tint: { value: new THREE.Vector3(1, 1, 1) }, saturation: { value: 1 }, vignette: { value: 0.3 } },
+  vertexShader: 'varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }',
+  fragmentShader: /* glsl */`
+    uniform sampler2D tDiffuse;
+    uniform vec3 tint;
+    uniform float saturation, vignette;
+    varying vec2 vUv;
+    void main() {
+      vec4 c = texture2D(tDiffuse, vUv);
+      float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
+      vec3 color = max(mix(vec3(l), c.rgb, saturation), 0.0) * tint;
+      vec2 d = vUv - 0.5;
+      color *= 1.0 - vignette * dot(d, d) * 2.2;
+      gl_FragColor = vec4(color, c.a);
+    }`,
+};
 
-function sea() {
-  const geometry = new THREE.PlaneGeometry(360, 360, 76, 76);
-  geometry.rotateX(-Math.PI / 2);
-  const mesh = new THREE.Mesh(geometry, new THREE.MeshStandardMaterial({ color: 0x24596c, metalness: 0.04, roughness: 0.88, side: THREE.DoubleSide }));
-  mesh.receiveShadow = true;
-  const base = Float32Array.from(geometry.getAttribute('position').array);
-  return { mesh, base };
-}
-
-function sunGlitter() {
-  const points = [];
-  for (let i = 0; i < 115; i++) {
-    const z = -4 - ((i * 47) % 75);
-    const center = z * 0.18;
-    const spread = 1.4 + Math.abs(z) * 0.19;
-    const x = center + Math.sin(i * 71.3) * spread;
-    const length = 0.12 + (i % 7) * 0.085;
-    points.push(x - length, 0.14, z, x + length, 0.14, z);
-  }
-  const geometry = new THREE.BufferGeometry();
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(points, 3));
-  return new THREE.LineSegments(geometry, new THREE.LineBasicMaterial({ color: 0xffd69c, transparent: true, opacity: 0.29, depthWrite: false }));
-}
-
-function smokeFor(model, actor, undersea) {
-  if (undersea || actor.uncertain || /submarine|ssn|ssbn/i.test(actor.type || '')) return null;
-  const group = new THREE.Group();
-  const canvas = document.createElement('canvas');
-  canvas.width = canvas.height = 64;
-  const ctx = canvas.getContext('2d');
-  const gradient = ctx.createRadialGradient(32, 32, 4, 32, 32, 31);
-  gradient.addColorStop(0, 'rgba(62,70,72,.58)');
-  gradient.addColorStop(0.5, 'rgba(86,92,91,.28)');
-  gradient.addColorStop(1, 'rgba(110,116,113,0)');
-  ctx.fillStyle = gradient; ctx.fillRect(0, 0, 64, 64);
-  const texture = new THREE.CanvasTexture(canvas);
-  const material = new THREE.SpriteMaterial({ map: texture, transparent: true, opacity: actor.hull < 60 ? 0.7 : 0.35, depthWrite: false });
-  for (let i = 0; i < 7; i++) {
-    const puff = new THREE.Sprite(material);
-    puff.userData.offset = i / 7;
-    group.add(puff);
-  }
-  model.add(group);
-  return { group, texture };
+function distanceToSegment(p, a, b) {
+  const ab = b.clone().sub(a), t = THREE.MathUtils.clamp(p.clone().sub(a).dot(ab) / ab.lengthSq(), 0, 1);
+  return a.clone().addScaledVector(ab, t).distanceTo(p);
 }
 
 export function createBattle3D(host, onFailure = () => {}) {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false, powerPreference: 'high-performance' });
-  renderer.setPixelRatio(Math.min(devicePixelRatio || 1, 1.5));
+  const renderer = new THREE.WebGLRenderer({ antialias: false, alpha: false, powerPreference: 'high-performance' });
+  let quality = 1;
+  const pixelRatio = () => Math.min(devicePixelRatio || 1, 1.5) * quality;
+  renderer.setPixelRatio(pixelRatio());
   renderer.outputColorSpace = THREE.SRGBColorSpace;
-  renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.28;
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFShadowMap;
+  renderer.info.autoReset = false;
   renderer.domElement.className = 'battle-canvas';
   renderer.domElement.setAttribute('aria-label', '3D battle camera. Drag to orbit and scroll or pinch to zoom.');
   renderer.domElement.setAttribute('role', 'img');
-  host.replaceChildren(renderer.domElement);
+  const hud = document.createElement('pre');
+  hud.className = 'battle-hud';
+  hud.hidden = !/[?&]hud\b/.test(location.search);
+  host.replaceChildren(renderer.domElement, hud);
 
   const scene = new THREE.Scene();
-  scene.fog = new THREE.FogExp2(0x365e6a, 0.007);
-  const sky = skyDome(); scene.add(sky);
-  const sun = sunGlow(); scene.add(sun);
-  const water = sea(); scene.add(water.mesh);
-  const glitter = sunGlitter(); scene.add(glitter);
-  const ambient = new THREE.HemisphereLight(0xffdfaf, 0x254d65, 2.2);
-  scene.add(ambient);
-  const sunlight = new THREE.DirectionalLight(0xffce96, 2.9);
-  sunlight.position.set(-48, 36, -70);
+  scene.fog = new THREE.FogExp2(0x9aa6a8, 0.006);
+  // Ships and effects live in sea-fixed coordinates inside `world`, which eases
+  // so the followed ship stays at the camera's origin: smoke stays on the sea.
+  const world = new THREE.Group();
+  const worldTarget = new THREE.Vector3();
+  scene.add(world);
+
+  // Preetham radiance is several times brighter than lit hulls; scale it once at
+  // the source so the sky, its environment map, reflections and haze all agree.
+  // The sun disc is clamped so it blooms as a bright sun, not a white-out, and
+  // below the horizon the sky becomes the sea haze, so there is no hard band.
+  const sky = new Sky();
+  sky.scale.setScalar(1500);
+  Object.assign(sky.material.uniforms, { skyScale: { value: 0.2 }, seaHaze: { value: new THREE.Color() }, hazeMix: { value: 0 } });
+  sky.material.fragmentShader = 'uniform float skyScale, hazeMix;\nuniform vec3 seaHaze;\n' + sky.material.fragmentShader.replace(
+    'gl_FragColor = vec4( texColor, 1.0 );',
+    'gl_FragColor = vec4( mix( min( texColor * skyScale, vec3( 3.5 ) ), seaHaze, hazeMix * smoothstep( 0.02, -0.01, direction.y ) ), 1.0 );');
+  scene.add(sky);
+  const skyScene = new THREE.Scene();
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  let envTarget = null;
+
+  const sunDirection = new THREE.Vector3(0, 1, 0);
+  const water = new Water(new THREE.PlaneGeometry(6000, 6000), {
+    textureWidth: 512, textureHeight: 512, waterNormals: waterNormals(), sunDirection,
+    sunColor: 0xffffff, waterColor: 0x1d3a3e, distortionScale: 3, fog: true,
+  });
+  water.rotation.x = -Math.PI / 2;
+  // Water.js layers two kilometre-scale noise octaves meant for distant cameras;
+  // at follow-camera range they read as dark blotches, so retune them to chop.
+  water.material.fragmentShader = water.material.fragmentShader
+    .replace('uv / vec2( 8907.0, 9803.0 )', 'uv / vec2( 37.0, 41.0 )')
+    .replace('uv / vec2( 1091.0, 1027.0 )', 'uv / vec2( 23.0, 29.0 )');
+  scene.add(water);
+  const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x3d8193, side: THREE.DoubleSide }));
+  scene.add(ceiling);
+
+  const sunlight = new THREE.DirectionalLight(0xffffff, 3);
   sunlight.castShadow = true;
-  sunlight.shadow.mapSize.set(1024, 1024);
-  sunlight.shadow.camera.left = sunlight.shadow.camera.bottom = -40;
-  sunlight.shadow.camera.right = sunlight.shadow.camera.top = 40;
-  sunlight.shadow.normalBias = 0.035;
-  scene.add(sunlight);
-  const bounce = new THREE.DirectionalLight(0xa7c6d1, 0.85);
-  bounce.position.set(20, 10, 25); scene.add(bounce);
-  const underwaterLight = new THREE.PointLight(0x9bc6ce, 0, 30);
+  sunlight.shadow.mapSize.set(2048, 2048);
+  Object.assign(sunlight.shadow.camera, { left: -30, right: 30, top: 30, bottom: -30, near: 1, far: 400 });
+  sunlight.shadow.camera.updateProjectionMatrix();
+  sunlight.shadow.normalBias = 0.03;
+  scene.add(sunlight, sunlight.target);
+  const underwaterLight = new THREE.PointLight(0x9bc6ce, 0, 40);
   scene.add(underwaterLight);
 
-  const camera = new THREE.PerspectiveCamera(45, 1, 0.15, 550);
+  const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 2400);
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = !reduced.matches;
   controls.dampingFactor = 0.06;
   controls.enablePan = false;
-  controls.minDistance = 9;
-  controls.maxDistance = 64;
-  controls.minPolarAngle = 0.19;
-  controls.maxPolarAngle = Math.PI / 2.12;
-  let lastFrame = 0, frame = 0, active = false, disposed = false, era = '', underseaMode = null, cameraDepth = 0;
-  function resetCamera() {
+
+  const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }));
+  composer.addPass(new RenderPass(scene, camera));
+  const bloom = new UnrealBloomPass(new THREE.Vector2(256, 256), 0.3, 0.35, 3.2);
+  composer.addPass(bloom);
+  const grade = new ShaderPass(GradeShader);
+  composer.addPass(grade);
+  composer.addPass(new OutputPass());
+
+  const effects = createEffects(world);
+  const models = new Map();
+  let lastFrame = 0, frame = 0, active = false, disposed = false, era = '', lookId = '', underseaMode = null, cameraDepth = 0, focusId = null;
+  let look = lookFor('', 'dreadnought');
+  const stats = { frames: 0, since: 0, work: 0, fps: 0, ms: 0, slow: 0, stalls: 0 };
+
+  // Average the sky around the horizon so haze matches the air it fades into.
+  function horizonColor() {
+    const target = new THREE.WebGLRenderTarget(8, 8, { type: THREE.FloatType });
+    const probe = new THREE.PerspectiveCamera(70, 1, 0.1, 3000);
+    const pixels = new Float32Array(8 * 8 * 4), sum = new THREE.Color(0, 0, 0);
+    try {
+      for (const a of [0, 90, 180, 270]) {
+        probe.lookAt(Math.sin(rad(a)), 0.06, Math.cos(rad(a)));
+        renderer.setRenderTarget(target);
+        renderer.render(skyScene, probe);
+        renderer.readRenderTargetPixels(target, 0, 0, 8, 8, pixels);
+        for (let i = 0; i < pixels.length; i += 4) sum.r += pixels[i], sum.g += pixels[i + 1], sum.b += pixels[i + 2];
+      }
+      return sum.multiplyScalar(1 / 256);
+    } catch {
+      return null;
+    } finally {
+      renderer.setRenderTarget(null);
+      target.dispose();
+    }
+  }
+
+  function applyLook(undersea) {
+    const u = sky.material.uniforms, s = look.sky;
+    sunDirection.setFromSphericalCoords(1, rad(90 - look.sun[0]), rad(look.sun[1]));
+    u.turbidity.value = s.turbidity;
+    u.skyScale.value = look.skyScale ?? 0.2;
+    u.rayleigh.value = s.rayleigh;
+    u.mieCoefficient.value = s.mie;
+    u.mieDirectionalG.value = s.g;
+    u.cloudCoverage.value = s.clouds;
+    u.cloudDensity.value = s.cloudDensity;
+    u.sunPosition.value.copy(sunDirection);
+    // Environment map from the same sky (sun disc off to avoid fireflies).
+    skyScene.add(sky);
+    u.showSunDisc.value = 0;
+    u.hazeMix.value = 0;
+    envTarget?.dispose();
+    envTarget = pmrem.fromScene(skyScene, 0, 0.1, 3000);
+    const horizon = horizonColor();
+    u.showSunDisc.value = 1;
+    scene.add(sky);
+    scene.environment = envTarget.texture;
+    scene.environmentIntensity = undersea ? 0.25 : look.env;
+
+    const sunColor = new THREE.Color(look.sunColor);
+    sunlight.color.copy(sunColor);
+    sunlight.intensity = undersea ? 0.2 : look.sunIntensity;
+    sunlight.position.copy(sunDirection).multiplyScalar(150);
+    const wu = water.material.uniforms;
+    wu.sunColor.value.copy(sunColor).multiplyScalar(0.9);
+    wu.waterColor.value.set(look.water);
+    wu.size.value = look.waves.size;
+    wu.distortionScale.value = look.waves.distortion;
+
+    renderer.toneMapping = look.tone === 'agx' ? THREE.AgXToneMapping : THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = look.exposure;
+    grade.uniforms.tint.value.set(...look.grade.tint);
+    grade.uniforms.saturation.value = look.grade.saturation;
+    grade.uniforms.vignette.value = look.grade.vignette;
+
+    sky.visible = water.visible = !undersea;
+    ceiling.visible = undersea;
+    scene.background = undersea ? new THREE.Color(0x08283a) : null;
+    scene.fog.color.copy(undersea ? new THREE.Color(0x08283a) : horizon || new THREE.Color(0x9aa6a8));
+    scene.fog.density = undersea ? 0.045 : look.haze;
+    u.seaHaze.value.copy(scene.fog.color);
+    u.hazeMix.value = 1;
+    underwaterLight.intensity = undersea ? 40 : 0;
+    const smokeLight = new THREE.Color(1, 1, 1).lerp(sunColor, 0.35).multiplyScalar(look.smoke);
+    effects.setScene({ era, wind: downwind(0), fog: scene.fog, tint: smokeLight, surface: undersea ? cameraDepth : 0 });
+  }
+
+  // Follow camera: framed from the ship's own size, from whichever bearing is
+  // clear of neighbouring hulls, with the low sun behind and to one side of the
+  // camera (three-quarter key light), on the end of the ship the sun lights, so
+  // hull sides and canvas facing us are the lit ones.
+  function frameCamera() {
+    const item = models.get(focusId);
     if (underseaMode) {
-      controls.minDistance = 7;
-      controls.maxDistance = 24;
-      controls.minPolarAngle = 1.48;
-      controls.maxPolarAngle = 1.56;
+      controls.minDistance = 7; controls.maxDistance = 26;
+      controls.minPolarAngle = 1.48; controls.maxPolarAngle = 1.56;
       camera.position.set(8, cameraDepth + 1.2, 11);
       controls.target.set(0, cameraDepth, 0);
-    } else {
-      controls.minDistance = 9;
-      controls.maxDistance = 64;
-      controls.minPolarAngle = 0.19;
-      controls.maxPolarAngle = Math.PI / 2.12;
-      camera.position.set(12, 8, 17);
-      controls.target.set(0, 0.75, 0);
+    } else if (item) {
+      const r = item.model.userData.radius;
+      const target = new THREE.Vector3(0, r * 0.2, 0);
+      const distance = r * 3.1 + 3, elevation = rad(12);
+      const sun = sunDirection.clone().setY(0).normalize();
+      const heading = item.model.rotation.y, forward = new THREE.Vector3(-Math.sin(heading), 0, -Math.cos(heading));
+      const others = [...models.values()].filter(m => m !== item).map(m => ({ p: m.target.clone().sub(item.target), r: m.model.userData.radius }));
+      let best = null, bestScore = -Infinity;
+      for (let k = 0; k < 18; k++) {
+        const a = heading + k * Math.PI / 9;
+        const position = new THREE.Vector3(Math.sin(a) * Math.cos(elevation), Math.sin(elevation), Math.cos(a) * Math.cos(elevation)).multiplyScalar(distance).add(target);
+        const clearance = Math.min(Infinity, ...others.map(o => distanceToSegment(o.p, target, position) - o.r));
+        const view = target.clone().sub(position).setY(0).normalize();
+        const quarter = Math.abs(Math.sin(k * Math.PI / 9)) > 0.3; // not dead ahead or astern
+        const litEnd = forward.dot(view) * forward.dot(sun) < 0; // we see the end the sun lights
+        const score = (clearance > 1 ? 0 : clearance - 100) - Math.abs(view.dot(sun) + 0.35) * 2 + (quarter ? 0.3 : 0) + (litEnd ? 0.6 : 0);
+        if (score > bestScore) { bestScore = score; best = position; }
+      }
+      controls.minDistance = r * 1.25;
+      controls.maxDistance = HEX * 7;
+      controls.minPolarAngle = 0.15;
+      controls.maxPolarAngle = Math.PI / 2 - 0.04;
+      camera.position.copy(best);
+      controls.target.copy(target);
     }
     controls.update();
     renderOnce();
   }
-  resetCamera();
 
-  const models = new Map();
-  const effects = [];
   const resize = () => {
     if (!host.clientWidth || !host.clientHeight) return;
     camera.aspect = host.clientWidth / host.clientHeight;
     camera.updateProjectionMatrix();
+    renderer.setPixelRatio(pixelRatio());
     renderer.setSize(host.clientWidth, host.clientHeight, false);
+    composer.setPixelRatio(pixelRatio());
+    composer.setSize(host.clientWidth, host.clientHeight);
     renderOnce();
   };
   const observer = new ResizeObserver(resize);
   observer.observe(host);
   const contextLost = event => { event.preventDefault(); stop(); onFailure('3D graphics context was lost. Returned to the tactical chart.'); };
   renderer.domElement.addEventListener('webglcontextlost', contextLost);
+  const toggleHud = event => { if (event.key === '`' && active) hud.hidden = !hud.hidden; };
+  document.addEventListener('keydown', toggleHud);
 
   function renderOnce() {
-    if (disposed) return;
+    if (disposed || !host.clientWidth) return;
     if (underseaMode) underwaterLight.position.copy(camera.position);
-    renderer.render(scene, camera);
+    renderer.info.reset();
+    composer.render();
   }
-  function moveWaves(seconds) {
-    const attr = water.mesh.geometry.getAttribute('position');
-    const target = attr.array;
-    for (let i = 0; i < target.length; i += 3) {
-      const x = water.base[i], z = water.base[i + 2];
-      target[i + 1] = Math.sin(x * 0.28 + seconds * 0.9) * 0.13 + Math.cos(z * 0.24 - seconds * 0.68) * 0.11 + Math.sin((x + z) * 0.47 + seconds * 1.3) * 0.045;
-    }
-    attr.needsUpdate = true;
-    water.mesh.geometry.computeVertexNormals();
-  }
-  function updateSmoke(seconds) {
-    for (const { smoke } of models.values()) if (smoke) {
-      for (const puff of smoke.group.children) {
-        const age = (seconds * 0.22 + puff.userData.offset) % 1;
-        puff.position.set(0.6 + age * 1.25, 1.6 + age * 4.3, 0.6 + Math.sin(seconds + age * 8) * 0.25);
-        puff.scale.setScalar(0.45 + age * 2.2);
-      }
-    }
-  }
-  function updateEffects(now) {
-    for (let i = effects.length - 1; i >= 0; i--) {
-      const effect = effects[i];
-      const progress = (now - effect.start) / effect.duration;
-      if (progress >= 1) { scene.remove(effect.group); disposeTree(effect.group); effects.splice(i, 1); continue; }
-      if (effect.path) {
-        effect.group.position.copy(effect.path.getPoint(clamp(progress, 0, 1)));
-        effect.group.scale.setScalar(0.7 + progress * 0.35);
-      } else {
-        effect.group.scale.setScalar(0.3 + progress * 3.2);
-        effect.group.children.forEach(obj => { if (obj.material) obj.material.opacity = 0.9 * (1 - progress); });
-      }
+
+  // Hulls sit in the water: heave, pitch and roll from the swell, and the slow
+  // settle of a sinking or a list after striking.
+  function moveShips(seconds) {
+    const swell = underseaMode ? 0 : look.swell;
+    for (const item of models.values()) {
+      const { model, target } = item;
+      const k = item.sinking ? 0.012 : 0.13;
+      model.position.x += (target.x - model.position.x) * 0.13;
+      model.position.z += (target.z - model.position.z) * 0.13;
+      item.y += (target.y - item.y) * k;
+      item.pitch += (item.pitchTarget - item.pitch) * k;
+      item.roll += (item.rollTarget - item.roll) * k;
+      const sea = item.floats ? swell : 0, t = seconds + item.phase;
+      model.position.y = item.y + sea * 0.07 * Math.sin(t * 0.9);
+      model.rotation.x = item.pitch + sea * 0.012 * Math.sin(t * 0.7);
+      model.rotation.z = item.roll + sea * 0.02 * Math.sin(t * 0.55 + 1.3);
     }
   }
+
+  function measure(now, interval, work) {
+    stats.frames++; stats.work += work;
+    if (interval > 250) stats.stalls++;
+    if (now - stats.since < 1000) return;
+    const seconds = (now - stats.since) / 1000;
+    stats.fps = stats.frames / seconds; stats.ms = stats.work / stats.frames;
+    // Adaptive resolution: if the GPU cannot hold ~20 fps under the 30 fps cap,
+    // step the pixel ratio down (never up mid-battle, to avoid oscillating).
+    // Mostly-stalled windows are a throttled or backgrounded tab, not a slow GPU.
+    const throttled = document.hidden || stats.stalls > stats.frames / 2;
+    if (stats.since && !throttled && stats.fps < 20 && quality > 0.6) { stats.slow++; if (stats.slow >= 2) { quality -= 0.2; stats.slow = 0; resize(); } }
+    else stats.slow = 0;
+    stats.since = now; stats.frames = 0; stats.work = 0; stats.stalls = 0;
+    if (!hud.hidden) {
+      const { calls, triangles } = renderer.info.render;
+      hud.textContent = `${stats.fps.toFixed(0)} fps · ${stats.ms.toFixed(1)} ms cpu\n${calls} draws · ${(triangles / 1000).toFixed(0)}k tris\n${effects.particles} particles · ${renderer.getPixelRatio().toFixed(2)}× px\n${look.note}`;
+    }
+  }
+
   function animate(now) {
     if (!active || disposed) return;
     frame = requestAnimationFrame(animate);
     if (now - lastFrame < 32) return; // keep the scene near 30 fps
+    const interval = lastFrame ? now - lastFrame : 33;
+    const dt = Math.min(0.1, interval / 1000);
     lastFrame = now;
-    const seconds = now / 1000;
-    moveWaves(seconds);
-    updateSmoke(seconds);
-    glitter.material.opacity = 0.21 + Math.sin(seconds * 1.4) * 0.07;
-    updateEffects(now);
-    for (const { model, target } of models.values()) model.position.lerp(target, 0.13);
+    const started = performance.now(), seconds = now / 1000;
+    world.position.lerp(worldTarget, 0.13);
+    moveShips(seconds);
+    animateWakes(seconds);
+    water.material.uniforms.time.value += dt * look.waves.speed;
+    sky.material.uniforms.time.value = seconds;
+    if (!underseaMode) effects.shipSmoke(models.values(), dt);
+    effects.update(dt, camera);
     controls.update();
     renderOnce();
+    measure(now, interval, performance.now() - started);
   }
   function start() {
     if (disposed || active) return;
     active = true;
+    lastFrame = 0;
+    stats.since = 0;
     resize();
     if (!reduced.matches) frame = requestAnimationFrame(animate);
     else renderOnce();
@@ -245,74 +378,75 @@ export function createBattle3D(host, onFailure = () => {}) {
   function removeModel(id) {
     const item = models.get(id);
     if (!item) return;
-    scene.remove(item.model);
+    world.remove(item.model);
     disposeActorModel(item.model);
-    item.smoke?.texture.dispose();
     models.delete(id);
-  }
-  function addEffects(events, focus) {
-    for (const event of events.slice(0, 18)) {
-      const origin = event.from && world(event.from, focus);
-      const destination = (event.to || event.at) && world(event.to || event.at, focus);
-      if (!destination && !origin) continue;
-      const hit = ['missile-hit', 'torpedo-hit', 'mine', 'ram'].includes(event.type) || (['salvo', 'broadside'].includes(event.type) && event.hits);
-      const shot = ['salvo', 'broadside', 'missile'].includes(event.type) && origin && destination;
-      if (!hit && !shot) continue;
-      const group = new THREE.Group();
-      let path;
-      if (shot) {
-        path = new THREE.QuadraticBezierCurve3(origin.clone().add(new THREE.Vector3(0, 1.2, 0)), origin.clone().lerp(destination, 0.5).add(new THREE.Vector3(0, event.type === 'missile' ? 2.7 : 7, 0)), destination.clone().add(new THREE.Vector3(0, 0.5, 0)));
-        group.add(new THREE.Mesh(new THREE.SphereGeometry(event.type === 'missile' ? 0.18 : 0.12, 8, 6), new THREE.MeshBasicMaterial({ color: event.type === 'missile' ? 0xffd495 : 0xfff0c5 })));
-      } else {
-        group.position.copy(destination);
-        group.add(new THREE.Mesh(new THREE.SphereGeometry(0.4, 12, 8), new THREE.MeshBasicMaterial({ color: 0xff9b45, transparent: true, opacity: 0.9, depthWrite: false })));
-        group.add(new THREE.Mesh(new THREE.SphereGeometry(0.25, 10, 8), new THREE.MeshBasicMaterial({ color: 0xfff1cb, transparent: true, opacity: 0.9, depthWrite: false })));
-      }
-      scene.add(group);
-      effects.push({ group, path, start: performance.now(), duration: shot ? 1050 : 1300 });
-    }
   }
   function sync(view, selectedId, nextEra, events = []) {
     if (disposed) return { reports: 0 };
     const presented = battleActors(view, selectedId);
     if (!presented.focus) return { reports: 0 };
     const undersea = nextEra === 'coldwar' && presented.focus.depth !== 'surface';
-    const changedEra = era !== nextEra || underseaMode !== undersea;
-    const cameraChanged = underseaMode !== undersea || cameraDepth !== presented.focus.y;
+    const nextLook = view.scenarioId || nextEra;
+    const changedEra = era !== nextEra || underseaMode !== undersea || lookId !== nextLook;
+    const reframe = changedEra || cameraDepth !== presented.focus.y || focusId !== presented.focus.id;
     era = nextEra;
+    lookId = nextLook;
     underseaMode = undersea;
     cameraDepth = presented.focus.y;
-    sky.visible = sun.visible = glitter.visible = !undersea;
-    water.mesh.material.color.set(undersea ? 0x12384b : 0x24596c);
-    scene.background = undersea ? new THREE.Color(0x08283a) : null;
-    scene.fog.color.set(undersea ? 0x08283a : 0x365e6a);
-    scene.fog.density = undersea ? 0.052 : 0.007;
-    ambient.intensity = undersea ? 1.1 : 2.2;
-    sunlight.intensity = undersea ? 0.18 : 2.9;
-    bounce.intensity = undersea ? 0.65 : 0.85;
-    underwaterLight.intensity = undersea ? 32 : 0;
-    if (cameraChanged) resetCamera();
+    focusId = presented.focus.id;
+    if (changedEra) {
+      look = lookFor(view.scenarioId, nextEra);
+      effects.clear();
+      applyLook(undersea);
+    }
+    effects.setScene({ era, wind: downwind(view.wind ?? 0), fog: scene.fog, surface: undersea ? cameraDepth : 0 });
+
+    // Sea-fixed coordinates: the focus sits at `origin`; `world` eases to follow it.
+    const origin = hexToWorld(presented.focus, ORIGIN);
+    worldTarget.set(-origin.x, 0, -origin.z);
+    if (changedEra || world.position.distanceTo(worldTarget) > HEX * 8) world.position.copy(worldTarget);
+
     const ids = new Set(presented.actors.map(a => a.id));
     for (const id of models.keys()) if (!ids.has(id) || changedEra) removeModel(id);
     for (const actor of presented.actors) {
       let item = models.get(actor.id);
       if (item && (item.type !== actor.type || item.uncertain !== actor.uncertain || item.stale !== actor.stale)) { removeModel(actor.id); item = null; }
+      const sunk = actor.own && actor.status === 'sunk', struck = actor.own && actor.status === 'struck';
+      const target = new THREE.Vector3(actor.x + origin.x, actor.y - (sunk ? 2.6 : struck ? 0.15 : 0), actor.z + origin.z);
       if (!item) {
         const model = createActorModel(actor, nextEra);
-        const target = new THREE.Vector3(actor.x, actor.y - (actor.own && actor.status !== 'active' ? 0.65 : 0), actor.z);
         model.position.copy(target);
         model.rotation.y = actor.own ? facingAngle(actor.facing) : Math.PI * 0.3;
-        if (actor.own && actor.status !== 'active') model.rotation.z = 0.24;
-        scene.add(model);
-        item = { model, target, type: actor.type, uncertain: actor.uncertain, stale: actor.stale, smoke: smokeFor(model, actor, undersea) };
+        world.add(model);
+        item = { model, target, y: target.y, pitch: 0, roll: 0, type: actor.type, uncertain: actor.uncertain, stale: actor.stale, phase: hashPhase(actor.id) };
         models.set(actor.id, item);
       }
-      item.target.set(actor.x, actor.y - (actor.own && actor.status !== 'active' ? 0.65 : 0), actor.z);
+      item.target.copy(target);
+      item.sinking = sunk;
+      item.pitchTarget = sunk ? -0.15 : 0;
+      item.rollTarget = sunk ? 0.4 : struck ? 0.12 : 0;
+      item.floats = !undersea && !(actor.uncertain && !actor.own) && actor.y === 0;
+      item.underway = item.floats && (!actor.own || actor.status === 'active');
+      item.afloat = !sunk;
+      item.hull = actor.own ? actor.hull : undefined;
+      if (item.model.userData.wake) item.model.userData.wake.visible = item.underway;
       if (actor.own) item.model.rotation.y = facingAngle(actor.facing);
     }
-    if (events.length) addEffects(events, presented.focus);
+    if (reframe) frameCamera();
+    const pos = ref => {
+      if (!ref || !Number.isFinite(ref.q) || !Number.isFinite(ref.r)) return null;
+      const { x, z } = hexToWorld(ref, ORIGIN);
+      return new THREE.Vector3(x, undersea ? cameraDepth : 0, z);
+    };
+    if (events.length && !reduced.matches) effects.play(events.slice(0, 18), { pos });
     if (reduced.matches) {
-      for (const { model, target } of models.values()) model.position.copy(target);
+      world.position.copy(worldTarget);
+      for (const item of models.values()) {
+        item.model.position.copy(item.target);
+        item.y = item.target.y; item.pitch = item.pitchTarget; item.roll = item.rollTarget;
+        item.model.rotation.x = item.pitch; item.model.rotation.z = item.roll;
+      }
       renderOnce();
     }
     return { reports: view.contacts.length };
@@ -323,16 +457,19 @@ export function createBattle3D(host, onFailure = () => {}) {
     observer.disconnect();
     controls.dispose();
     renderer.domElement.removeEventListener('webglcontextlost', contextLost);
+    document.removeEventListener('keydown', toggleHud);
     for (const id of [...models.keys()]) removeModel(id);
-    for (const effect of effects) { scene.remove(effect.group); disposeTree(effect.group); }
-    effects.length = 0;
-    water.mesh.geometry.dispose(); water.mesh.material.dispose();
-    glitter.geometry.dispose(); glitter.material.dispose();
+    effects.dispose();
+    water.geometry.dispose(); water.material.dispose(); water.material.uniforms.normalSampler.value.dispose();
+    ceiling.geometry.dispose(); ceiling.material.dispose();
     sky.geometry.dispose(); sky.material.dispose();
-    sun.material.map.dispose(); sun.material.dispose();
+    envTarget?.dispose(); pmrem.dispose();
+    composer.dispose();
     renderer.dispose();
     renderer.domElement.remove();
+    hud.remove();
     disposed = true;
   }
-  return { start, stop, sync, resetCamera, resize, dispose };
+  if (import.meta.env?.DEV) window.__battle3d = { scene, camera, renderer, controls, sky, water, models, effects, get look() { return look; } };
+  return { start, stop, sync, resetCamera: frameCamera, resize, dispose };
 }

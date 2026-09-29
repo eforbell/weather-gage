@@ -1,3 +1,13 @@
+// Readability and scale (docs/3d-visual-direction.md): ships are drawn far larger
+// than true scale and distances are compressed, so one hex reads as about 1.5
+// capital-ship lengths. Camera, smoke, splash and haze sizes all derive from HEX.
+export const HEX = 13.5;
+export const SHIP_LENGTH = HEX / 1.5;
+export const hexToWorld = ({ q, r }, focus) => ({
+  x: ((q - focus.q) + (r - focus.r) / 2) * HEX,
+  z: (r - focus.r) * HEX * Math.sqrt(3) / 2,
+});
+
 // The only data allowed to enter the 3D renderer is the selected ship's
 // public getView() result. These actors deliberately contain no hidden IDs,
 // enemy health, or authoritative positions from the simulation state.
@@ -8,17 +18,14 @@ export function battleActors(view, selectedId) {
   const depthOf = ship => coldwar ? ship.doctrine?.depth || 'shallow' : 'surface';
   const level = depth => ({ surface: 0, shallow: -2.7, deep: -8 }[depth] ?? 0);
   const focusDepth = depthOf(focus);
-  const position = ({ q, r }) => ({
-    x: ((q - focus.q) + (r - focus.r) / 2) * 4.8,
-    z: (r - focus.r) * 4.15,
-  });
+  const position = point => hexToWorld(point, focus);
   const opticallyVisible = ship => {
     if (!coldwar || ship.id === focus.id) return true;
     const depth = depthOf(ship);
     if (focusDepth === 'surface') return depth === 'surface';
     if (depth !== focusDepth) return false;
     const { x, z } = position(ship);
-    return Math.hypot(x, z) <= 12;
+    return Math.hypot(x, z) <= 2.5 * HEX;
   };
   const actors = [
     ...view.ships.filter(s => s.status !== 'reserve' && opticallyVisible(s)).map(s => ({

@@ -135,6 +135,8 @@ These make the prototype markedly better at once and are worth doing regardless:
 6. **Foam wakes and a bow wave** as textured ribbons instead of lines.
 7. **The presentation-contract test** listing every event type and entity kind, with the missing 3D handlers marked as known gaps.
 
+**Status (2026-09-29): all seven are in** on this branch, plus a frame-time HUD from M0. See [3d-prototype.md](3d-prototype.md#painted-realism-pass) for what landed, where to tune it, and the measured cost. Still open before M1: the golden screenshot set and Craig-test rubric (M0), hero models, positional audio and the action camera.
+
 ## Risks
 - **Download size and phone GPUs.** Mitigated by lazy per-era packs, quality tiers and budgets.
 - **The uncanny middle.** Half-realistic looks worse than honestly stylised. Hence painted realism.
