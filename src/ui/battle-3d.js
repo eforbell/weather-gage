@@ -7,7 +7,7 @@ const clamp = (n, low, high) => Math.max(low, Math.min(high, n));
 const dirs = [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]];
 const world = (point, focus) => new THREE.Vector3(
   ((point.q - focus.q) + (point.r - focus.r) / 2) * 4.8,
-  0,
+  focus.y,
   (point.r - focus.r) * 4.15,
 );
 function facingAngle(facing) {
@@ -120,7 +120,8 @@ export function createBattle3D(host, onFailure = () => {}) {
   const sun = sunGlow(); scene.add(sun);
   const water = sea(); scene.add(water.mesh);
   const glitter = sunGlitter(); scene.add(glitter);
-  scene.add(new THREE.HemisphereLight(0xffdfaf, 0x254d65, 2.2));
+  const ambient = new THREE.HemisphereLight(0xffdfaf, 0x254d65, 2.2);
+  scene.add(ambient);
   const sunlight = new THREE.DirectionalLight(0xffce96, 2.9);
   sunlight.position.set(-48, 36, -70);
   sunlight.castShadow = true;
@@ -131,6 +132,8 @@ export function createBattle3D(host, onFailure = () => {}) {
   scene.add(sunlight);
   const bounce = new THREE.DirectionalLight(0xa7c6d1, 0.85);
   bounce.position.set(20, 10, 25); scene.add(bounce);
+  const underwaterLight = new THREE.PointLight(0x9bc6ce, 0, 30);
+  scene.add(underwaterLight);
 
   const camera = new THREE.PerspectiveCamera(45, 1, 0.15, 550);
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -141,8 +144,26 @@ export function createBattle3D(host, onFailure = () => {}) {
   controls.maxDistance = 64;
   controls.minPolarAngle = 0.19;
   controls.maxPolarAngle = Math.PI / 2.12;
-  let lastFrame = 0, frame = 0, active = false, disposed = false, era = '', underseaMode = null;
-  function resetCamera() { camera.position.set(12, 8, 17); controls.target.set(0, 0.75, 0); controls.update(); renderOnce(); }
+  let lastFrame = 0, frame = 0, active = false, disposed = false, era = '', underseaMode = null, cameraDepth = 0;
+  function resetCamera() {
+    if (underseaMode) {
+      controls.minDistance = 7;
+      controls.maxDistance = 24;
+      controls.minPolarAngle = 1.48;
+      controls.maxPolarAngle = 1.56;
+      camera.position.set(8, cameraDepth + 1.2, 11);
+      controls.target.set(0, cameraDepth, 0);
+    } else {
+      controls.minDistance = 9;
+      controls.maxDistance = 64;
+      controls.minPolarAngle = 0.19;
+      controls.maxPolarAngle = Math.PI / 2.12;
+      camera.position.set(12, 8, 17);
+      controls.target.set(0, 0.75, 0);
+    }
+    controls.update();
+    renderOnce();
+  }
   resetCamera();
 
   const models = new Map();
@@ -159,7 +180,11 @@ export function createBattle3D(host, onFailure = () => {}) {
   const contextLost = event => { event.preventDefault(); stop(); onFailure('3D graphics context was lost. Returned to the tactical chart.'); };
   renderer.domElement.addEventListener('webglcontextlost', contextLost);
 
-  function renderOnce() { if (!disposed) renderer.render(scene, camera); }
+  function renderOnce() {
+    if (disposed) return;
+    if (underseaMode) underwaterLight.position.copy(camera.position);
+    renderer.render(scene, camera);
+  }
   function moveWaves(seconds) {
     const attr = water.mesh.geometry.getAttribute('position');
     const target = attr.array;
@@ -251,14 +276,22 @@ export function createBattle3D(host, onFailure = () => {}) {
     if (disposed) return { reports: 0 };
     const presented = battleActors(view, selectedId);
     if (!presented.focus) return { reports: 0 };
-    const undersea = nextEra === 'coldwar' && !['carrier', 'asw_destroyer'].includes(presented.focus.type);
+    const undersea = nextEra === 'coldwar' && presented.focus.depth !== 'surface';
     const changedEra = era !== nextEra || underseaMode !== undersea;
+    const cameraChanged = underseaMode !== undersea || cameraDepth !== presented.focus.y;
     era = nextEra;
     underseaMode = undersea;
-    sky.visible = sun.visible = water.mesh.visible = glitter.visible = !undersea;
-    scene.background = undersea ? new THREE.Color(0x092a3d) : null;
-    scene.fog.color.set(undersea ? 0x0b3349 : 0x365e6a);
-    scene.fog.density = undersea ? 0.025 : 0.007;
+    cameraDepth = presented.focus.y;
+    sky.visible = sun.visible = glitter.visible = !undersea;
+    water.mesh.material.color.set(undersea ? 0x12384b : 0x24596c);
+    scene.background = undersea ? new THREE.Color(0x08283a) : null;
+    scene.fog.color.set(undersea ? 0x08283a : 0x365e6a);
+    scene.fog.density = undersea ? 0.052 : 0.007;
+    ambient.intensity = undersea ? 1.1 : 2.2;
+    sunlight.intensity = undersea ? 0.18 : 2.9;
+    bounce.intensity = undersea ? 0.65 : 0.85;
+    underwaterLight.intensity = undersea ? 32 : 0;
+    if (cameraChanged) resetCamera();
     const ids = new Set(presented.actors.map(a => a.id));
     for (const id of models.keys()) if (!ids.has(id) || changedEra) removeModel(id);
     for (const actor of presented.actors) {
@@ -266,7 +299,7 @@ export function createBattle3D(host, onFailure = () => {}) {
       if (item && (item.type !== actor.type || item.uncertain !== actor.uncertain || item.stale !== actor.stale)) { removeModel(actor.id); item = null; }
       if (!item) {
         const model = createActorModel(actor, nextEra);
-        const target = new THREE.Vector3(actor.x, actor.own && actor.status !== 'active' ? -0.65 : 0, actor.z);
+        const target = new THREE.Vector3(actor.x, actor.y - (actor.own && actor.status !== 'active' ? 0.65 : 0), actor.z);
         model.position.copy(target);
         model.rotation.y = actor.own ? facingAngle(actor.facing) : Math.PI * 0.3;
         if (actor.own && actor.status !== 'active') model.rotation.z = 0.24;
@@ -274,7 +307,7 @@ export function createBattle3D(host, onFailure = () => {}) {
         item = { model, target, type: actor.type, uncertain: actor.uncertain, stale: actor.stale, smoke: smokeFor(model, actor, undersea) };
         models.set(actor.id, item);
       }
-      item.target.set(actor.x, actor.own && actor.status !== 'active' ? -0.65 : 0, actor.z);
+      item.target.set(actor.x, actor.y - (actor.own && actor.status !== 'active' ? 0.65 : 0), actor.z);
       if (actor.own) item.model.rotation.y = facingAngle(actor.facing);
     }
     if (events.length) addEffects(events, presented.focus);
@@ -282,7 +315,7 @@ export function createBattle3D(host, onFailure = () => {}) {
       for (const { model, target } of models.values()) model.position.copy(target);
       renderOnce();
     }
-    return { reports: presented.actors.filter(a => !a.own).length };
+    return { reports: view.contacts.length };
   }
   function dispose() {
     if (disposed) return;

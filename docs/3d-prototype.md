@@ -7,7 +7,8 @@ This work lives on `prototype/three-battle-view`. The existing SVG chart and det
 - Real orbit/zoom perspective, 3D meshes for sail, ironclad, battleship/destroyer, carrier, and submarine roles.
 - Lit sea, low sun, wakes, smoke, shell/missile paths, and impact flashes.
 - The selected ship remains the camera anchor; orders, clock, saves, and mission results still come from the same simulation.
-- Unseen enemies are absent. Unidentified and stale contacts get uncertain 3D markers, not detailed enemy models.
+- Unseen enemies are absent. Surface-era uncertain and stale contacts get markers, not detailed enemy models. Cold War sonar/air reports have no public depth and remain in the chart/list instead of appearing as physical hulls.
+- Friendly vessels carry their own doctrine depth into presentation. Surface cameras omit submerged boats; underwater cameras follow shallow/deep depth and show only nearby friendlies on the same layer through limited-visibility fog.
 - A Vite build produces static `dist/` files. No remote art, font, account, or runtime service is needed.
 
 ## Cost and decision boundary

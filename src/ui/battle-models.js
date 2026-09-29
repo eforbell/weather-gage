@@ -2,6 +2,7 @@ import * as THREE from 'three';
 
 const steel = new THREE.MeshStandardMaterial({ color: 0x57656b, metalness: 0.72, roughness: 0.35 });
 const darkSteel = new THREE.MeshStandardMaterial({ color: 0x263844, metalness: 0.67, roughness: 0.43 });
+const subSteel = new THREE.MeshStandardMaterial({ color: 0x526b73, metalness: 0.45, roughness: 0.48, emissive: 0x174253, emissiveIntensity: 0.42 });
 const paleSteel = new THREE.MeshStandardMaterial({ color: 0x8b9693, metalness: 0.55, roughness: 0.47 });
 const deck = new THREE.MeshStandardMaterial({ color: 0x6b6860, metalness: 0.25, roughness: 0.72 });
 const wood = new THREE.MeshStandardMaterial({ color: 0x65452f, roughness: 0.82 });
@@ -128,11 +129,11 @@ function sailingShip(parent) {
 }
 
 function submarine(parent) {
-  const body = mesh(parent, new THREE.SphereGeometry(1, 18, 10), darkSteel, 0, -0.16, 0);
+  const body = mesh(parent, new THREE.SphereGeometry(1, 18, 10), subSteel, 0, -0.16, 0);
   body.scale.set(0.68, 0.57, 4.2);
-  box(parent, 0.55, 0.8, 1.15, 0, 0.55, -0.3, darkSteel);
-  box(parent, 2.1, 0.05, 0.46, 0, -0.19, 2.7, darkSteel);
-  box(parent, 0.06, 1.1, 0.8, 0, 0.2, 3.7, darkSteel);
+  box(parent, 0.55, 0.8, 1.15, 0, 0.55, -0.3, subSteel);
+  box(parent, 2.1, 0.05, 0.46, 0, -0.19, 2.7, subSteel);
+  box(parent, 0.06, 1.1, 0.8, 0, 0.2, 3.7, subSteel);
 }
 
 function reportMarker(parent, stale, uncertainty) {
@@ -162,6 +163,6 @@ export function createActorModel(actor, era) {
 export function disposeActorModel(group) {
   group.traverse(item => {
     item.geometry?.dispose();
-    if (item.material && ![steel, darkSteel, paleSteel, deck, wood, canvas, glass, wake, glow, rigging].includes(item.material)) item.material.dispose();
+    if (item.material && ![steel, darkSteel, subSteel, paleSteel, deck, wood, canvas, glass, wake, glow, rigging].includes(item.material)) item.material.dispose();
   });
 }
