@@ -81,3 +81,14 @@ test('authored metre conversion is applied once at the nominal capital-ship scal
   assert.equal(MODEL_METERS_TO_WORLD, WORLD_UNITS_PER_METER * PRESENTATION_SCALE);
   assert.ok(Math.abs(210 * MODEL_METERS_TO_WORLD - SHIP_LENGTH) < 1e-9);
 });
+
+
+test('friendly actor class identity comes only from the public view', () => {
+  const view = getView(createGame('hampton', 12));
+  const actors = battleActors(view, view.ships[0].id).actors;
+  for (const actor of actors.filter(a => a.own)) {
+    const ship = view.ships.find(s => s.id === actor.id);
+    assert.equal(actor.className, ship.className);
+    assert.equal(actor.type, ship.type);
+  }
+});

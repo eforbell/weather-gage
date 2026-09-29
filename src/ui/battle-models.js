@@ -270,15 +270,17 @@ function surfaceShip(parent, spec) {
   const { beam, freeboard } = spec.dimensions;
   const deckY = freeboard + 0.045;
   const bridge = spec.bridge || { z: -0.3, length: 1.5, height: 0.75 };
-  box(parent, beam * 0.58, bridge.height, bridge.length, 0, deckY + 0.05 + bridge.height / 2, bridge.z, materialFor(spec, 'upper', paleSteel));
-  box(parent, beam * 0.45, 0.18, 0.47, 0, deckY + bridge.height + 0.18, bridge.z - 0.35, materialFor(spec, 'glass', glass));
+  if (spec.gunStyle !== 'casemate') {
+    box(parent, beam * 0.58, bridge.height, bridge.length, 0, deckY + 0.05 + bridge.height / 2, bridge.z, materialFor(spec, 'upper', paleSteel));
+    box(parent, beam * 0.45, 0.18, 0.47, 0, deckY + bridge.height + 0.18, bridge.z - 0.35, materialFor(spec, 'glass', glass));
+  }
   box(parent, beam * 0.74, 0.1, Math.max(1.8, bridge.length * 1.65), 0, deckY + 0.06, bridge.z, materialFor(spec, 'deck', deck));
   if (spec.gunStyle === 'casemate') casemate(parent, spec, deckY);
   else if (spec.gunStyle === 'monitor-turret') monitorTurret(parent, spec, deckY);
   else if (spec.gunStyle === 'exposed') exposedDeckGuns(parent, spec, deckY);
   else for (const t of spec.turrets || []) turret(parent, t.x || 0, t.z, t.size === 'large', t.barrels || 1, deckY, t.facing);
   if (spec.gunStyle) groupGunStyle(parent, spec.gunStyle);
-  for (const f of spec.funnels || []) funnel(parent, f.x || 0, f.z, f.height || 1, deckY);
+  for (const f of spec.funnels || []) funnel(parent, f.x || 0, f.z, f.height || 1, deckY + (spec.gunStyle === 'casemate' ? spec.casemate.height + 0.035 : 0));
   for (const m of spec.masts || []) mast(parent, m.height, m.z, deckY);
   if (spec.paddleBoxes) for (const side of [-1, 1]) box(parent, beam * 0.28, 0.56, 1.28, side * beam * 0.58, deckY + 0.05, 0.25, materialFor(spec, 'upper', paleSteel));
   return hullDimensions(spec);
@@ -380,8 +382,8 @@ export function createActorModel(actor, era) {
   let size = null;
   if (!actor.own && actor.uncertain) reportMarker(group, actor.stale, actor.uncertainty);
   else {
-    const type = actor.type || '';
-    const spec = shipSpecFor(type, era, actor.name);
+    const type = actor.className || actor.type || '';
+    const spec = shipSpecFor(type, era);
     if (spec.key === 'submarine') submarine(group);
     else if (spec.key === 'carrier') size = carrier(group, spec);
     else if (spec.key === 'sail_frigate' || spec.key === 'wooden_sail_ship') size = sailingShip(group, spec); // no funnel, so no coal smoke
@@ -393,7 +395,7 @@ export function createActorModel(actor, era) {
   group.userData.radius = new THREE.Box3().setFromObject(group).getBoundingSphere(new THREE.Sphere()).radius || 1;
   if (size) {
     group.userData.size = size;
-    group.userData.waterlineFoam = waterlineFoam(group, shipSpecFor(actor.type || '', era, actor.name));
+    group.userData.waterlineFoam = waterlineFoam(group, shipSpecFor(actor.className || actor.type || '', era));
     foamWake(group, size.width, size.length);
   }
   group.userData.wake = group.getObjectByName('wake') || null;

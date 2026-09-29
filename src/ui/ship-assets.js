@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
+import { MODEL_METERS_TO_WORLD } from './battle-presentation.js';
 import { createActorModel, disposeActorModel } from './battle-models.js';
 
 export const SHIP_ASSET_REGISTRY = Object.freeze({
@@ -57,7 +58,12 @@ function actorKeys(actor) {
 export function normalizeShipAssetSpec(spec) {
   if (!spec) return null;
   assertLocalPath(spec.url, 'ship asset url');
-  const scale = Number.isFinite(spec.scale) ? spec.scale : 1;
+  if (!['meters', 'presentation'].includes(spec.units)) throw new Error('ship asset units must be meters or presentation');
+  const scale = spec.units === 'meters' ? MODEL_METERS_TO_WORLD : (spec.scale === undefined ? 1 : spec.scale);
+  if (!Number.isFinite(scale) || scale <= 0) throw new Error('ship asset scale must be positive and finite');
+  if (spec.units === 'meters' && spec.scale !== undefined && spec.scale !== scale) {
+    throw new Error('meter asset scale must use the shared conversion; omit scale');
+  }
   const size = spec.size || (Number.isFinite(spec.length) && Number.isFinite(spec.width) ? { length: spec.length * scale, width: spec.width * scale } : null);
   return Object.freeze({
     ...spec,
@@ -94,7 +100,7 @@ function applySpecTransform(child, spec) {
   child.position.y -= spec.waterlineY * spec.scale;
 }
 
-export function cloneShipAsset(source, spec = normalizeShipAssetSpec({ url: './procedural.glb' })) {
+export function cloneShipAsset(source, spec = normalizeShipAssetSpec({ units: 'presentation', url: './procedural.glb' })) {
   const normalized = normalizeShipAssetSpec(spec);
   const child = (source.scene || source).clone(true);
   child.traverse(item => {

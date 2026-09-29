@@ -35,7 +35,7 @@ export function battleActors(view, selectedId) {
   };
   const actors = [
     ...view.ships.filter(s => s.status !== 'reserve' && opticallyVisible(s)).map(s => ({
-      id: s.id, own: true, name: s.name, type: s.type,
+      id: s.id, own: true, name: s.name, type: s.type, className: s.className,
       facing: s.facing, hull: s.hull, status: s.status, depth: depthOf(s), y: level(depthOf(s)),
       ...position(s),
     })),

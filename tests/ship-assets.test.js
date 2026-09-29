@@ -38,27 +38,27 @@ test('default ship asset registry is intentionally empty by era', () => {
 });
 
 test('shipAssetSpecFor resolves and normalizes class/type names within an era registry', () => {
-  const spec = { url: '/assets/ships/lion.glb' };
+  const spec = { units: 'presentation', url: '/assets/ships/lion.glb' };
   const registry = { dreadnought: { battlecruiser: spec } };
   assert.deepEqual(shipAssetSpecFor({ type: 'Battlecruiser' }, 'dreadnought', registry), normalizeShipAssetSpec(spec));
   assert.equal(shipAssetSpecFor({ type: 'Battlecruiser' }, 'sail', registry), null);
 });
 
 test('ship asset lookup prefers public ship/class variant keys before generic type', () => {
-  const lion = { url: '/assets/ships/lion.glb' };
-  const seydlitz = { url: '/assets/ships/seydlitz.glb' };
-  const generic = { url: '/assets/ships/battlecruiser.glb' };
+  const lion = { units: 'presentation', url: '/assets/ships/lion.glb' };
+  const seydlitz = { units: 'presentation', url: '/assets/ships/seydlitz.glb' };
+  const generic = { units: 'presentation', url: '/assets/ships/battlecruiser.glb' };
   const registry = { dreadnought: { lion, seydlitz, battlecruiser: generic } };
   assert.deepEqual(shipAssetSpecFor({ own: true, name: 'Lion', type: 'Battlecruiser' }, 'dreadnought', registry), normalizeShipAssetSpec(lion));
   assert.deepEqual(shipAssetSpecFor({ own: false, name: 'Seydlitz', type: 'Battlecruiser' }, 'dreadnought', registry), normalizeShipAssetSpec(seydlitz));
   assert.deepEqual(shipAssetSpecFor({ own: false, type: 'Battlecruiser' }, 'dreadnought', registry), normalizeShipAssetSpec(generic));
-  assert.equal(hasShipAsset({ type: 'Battlecruiser' }, 'dreadnought', { dreadnought: { battlecruiser: { url: 'https://bad.example/lion.glb' } } }), true);
+  assert.equal(hasShipAsset({ type: 'Battlecruiser' }, 'dreadnought', { dreadnought: { battlecruiser: { units: 'presentation', url: 'https://bad.example/lion.glb' } } }), true);
 });
 
 test('asset manager lazily caches glTF templates and clones per instance', async () => {
   const source = templateShip();
   const loader = fakeLoader(source);
-  const spec = { url: '/assets/ships/lion.glb' };
+  const spec = { units: 'presentation', url: '/assets/ships/lion.glb' };
   const manager = createShipAssetManager({ gltfLoader: loader, registry: { dreadnought: { battlecruiser: spec } } });
 
   const first = await manager.createModel({ id: 'a', own: true, type: 'Battlecruiser' }, 'dreadnought');
@@ -77,7 +77,7 @@ test('asset manager lazily caches glTF templates and clones per instance', async
 test('normalized spec applies waterline, orientation, scale, shadows, funnels, and size metadata', () => {
   const source = templateShip();
   const instance = cloneShipAsset(source, {
-    url: '/assets/ships/test.glb', scale: 2, waterlineY: 0.3, rotationY: Math.PI / 4,
+    units: 'presentation', url: '/assets/ships/test.glb', scale: 2, waterlineY: 0.3, rotationY: Math.PI / 4,
     length: 9, width: 2, lengthMeters: 180, beamMeters: 24, className: 'Test class', funnels: [{ x: 0.2, y: 1.5, z: -0.4 }],
   });
   assert.equal(instance.scale.x, 1);
@@ -115,7 +115,7 @@ test('asset manager falls back procedurally when no registered asset exists', as
 test('stale scene load guard drops late glTF results', async () => {
   let release;
   const loader = { loadAsync: () => new Promise(resolve => { release = () => resolve({ scene: templateShip() }); }) };
-  const manager = createShipAssetManager({ gltfLoader: loader, registry: { dreadnought: { cruiser: { url: '/assets/ships/cruiser.glb' } } } });
+  const manager = createShipAssetManager({ gltfLoader: loader, registry: { dreadnought: { cruiser: { units: 'presentation', url: '/assets/ships/cruiser.glb' } } } });
   const token = manager.beginSceneLoad();
   const pending = manager.createModel({ own: true, type: 'Cruiser' }, 'dreadnought', token);
   manager.beginSceneLoad();
@@ -126,7 +126,7 @@ test('stale scene load guard drops late glTF results', async () => {
 test('remote asset and transcoder URLs are rejected and keep proceduralFallback identity', async () => {
   const manager = createShipAssetManager({
     gltfLoader: fakeLoader(templateShip()),
-    registry: { dreadnought: { cruiser: { url: 'https://example.com/cruiser.glb' } } },
+    registry: { dreadnought: { cruiser: { units: 'presentation', url: 'https://example.com/cruiser.glb' } } },
     fallbackFactory: () => new THREE.Group(),
   });
   const originalWarn = console.warn;
@@ -138,14 +138,14 @@ test('remote asset and transcoder URLs are rejected and keep proceduralFallback 
     console.warn = originalWarn;
   }
   assert.throws(() => createShipAssetManager({ renderer: {}, basisTranscoderPath: 'https://cdn.example/basis/' }), /local path/);
-  assert.throws(() => normalizeShipAssetSpec({ url: 'urn:ship:lion' }), /local path/);
-  assert.throws(() => normalizeShipAssetSpec({ url: '//cdn.example/lion.glb' }), /local path/);
+  assert.throws(() => normalizeShipAssetSpec({ units: 'presentation', url: 'urn:ship:lion' }), /local path/);
+  assert.throws(() => normalizeShipAssetSpec({ units: 'presentation', url: '//cdn.example/lion.glb' }), /local path/);
 });
 
 test('rejected glTF loads fall back with proceduralFallback identity', async () => {
   const manager = createShipAssetManager({
     gltfLoader: fakeLoader(templateShip(), { reject: 'missing fixture' }),
-    registry: { dreadnought: { cruiser: { url: '/assets/ships/cruiser.glb' } } },
+    registry: { dreadnought: { cruiser: { units: 'presentation', url: '/assets/ships/cruiser.glb' } } },
     fallbackFactory: () => new THREE.Group(),
   });
   const originalWarn = console.warn;
@@ -159,7 +159,7 @@ test('rejected glTF loads fall back with proceduralFallback identity', async () 
 });
 
 test('disposeShipAssetInstance disposes cloned material resources but not shared geometry or textures', () => {
-  const instance = cloneShipAsset(templateShip(), { url: '/assets/ships/test.glb' });
+  const instance = cloneShipAsset(templateShip(), { units: 'presentation', url: '/assets/ships/test.glb' });
   const mesh = firstMesh(instance);
   const geometry = mesh.geometry;
   const material = mesh.material;
@@ -183,7 +183,7 @@ test('manager disposal frees cached template geometry, material, and shared text
   geometry.dispose = () => { geometryDisposed += 1; };
   material.dispose = () => { materialDisposed += 1; };
   texture.dispose = () => { textureDisposed += 1; };
-  const manager = createShipAssetManager({ gltfLoader: fakeLoader(source), registry: { dreadnought: { cruiser: { url: '/assets/ships/cruiser.glb' } } } });
+  const manager = createShipAssetManager({ gltfLoader: fakeLoader(source), registry: { dreadnought: { cruiser: { units: 'presentation', url: '/assets/ships/cruiser.glb' } } } });
   await manager.createModel({ own: true, type: 'Cruiser' }, 'dreadnought');
   manager.dispose();
   assert.equal(geometryDisposed, 1);
@@ -197,7 +197,7 @@ test('manager disposal frees templates that resolve after shutdown', async () =>
   const loader = { loadAsync: () => new Promise(resolve => { release = () => resolve({ scene: source }); }) };
   let disposed = 0;
   source.children[0].geometry.dispose = () => { disposed += 1; };
-  const manager = createShipAssetManager({ gltfLoader: loader, registry: { dreadnought: { cruiser: { url: '/assets/ships/cruiser.glb' } } } });
+  const manager = createShipAssetManager({ gltfLoader: loader, registry: { dreadnought: { cruiser: { units: 'presentation', url: '/assets/ships/cruiser.glb' } } } });
   const pending = manager.createModel({ own: true, type: 'Cruiser' }, 'dreadnought');
   manager.dispose();
   release();
@@ -209,7 +209,7 @@ test('uncertain and stale contacts cannot trigger authored asset loads', async (
   const loader = fakeLoader(templateShip());
   const manager = createShipAssetManager({
     gltfLoader: loader,
-    registry: { dreadnought: { lion: { url: '/ships/lion.glb' }, battlecruiser: { url: '/ships/generic.glb' } } },
+    registry: { dreadnought: { lion: { units: 'presentation', url: '/ships/lion.glb' }, battlecruiser: { units: 'presentation', url: '/ships/generic.glb' } } },
     fallbackFactory: () => new THREE.Group(),
   });
   for (const stale of [false, true]) {
@@ -218,4 +218,36 @@ test('uncertain and stale contacts cannot trigger authored asset loads', async (
   }
   assert.equal(loader.calls, 0);
   manager.dispose();
+});
+
+test('declared meter assets receive the shared conversion exactly once', async () => {
+  const { MODEL_METERS_TO_WORLD } = await import('../src/ui/battle-presentation.js');
+  const spec = normalizeShipAssetSpec({ units: 'meters', url: '/ships/test.glb', length: 210, width: 28, waterlineY: 3 });
+  assert.equal(spec.scale, MODEL_METERS_TO_WORLD);
+  assert.deepEqual(normalizeShipAssetSpec(spec), spec, 'normalization is idempotent');
+  assert.equal(spec.size.length, 9);
+  const model = cloneShipAsset(templateShip(), spec);
+  assert.equal(model.children[0].scale.x, MODEL_METERS_TO_WORLD);
+  assert.equal(model.children[0].position.y, -3 * MODEL_METERS_TO_WORLD);
+});
+
+test('asset units and scale are validated rather than guessed', () => {
+  assert.throws(() => normalizeShipAssetSpec({ url: '/ships/test.glb' }), /units/);
+  assert.throws(() => normalizeShipAssetSpec({ units: 'feet', url: '/ships/test.glb' }), /units/);
+  assert.throws(() => normalizeShipAssetSpec({ units: 'meters', scale: 1, url: '/ships/test.glb' }), /scale/);
+  for (const scale of [0, -1, Infinity, NaN, null, '2']) assert.throws(() => normalizeShipAssetSpec({ units: 'presentation', scale, url: '/ships/test.glb' }), /scale/);
+  assert.equal(normalizeShipAssetSpec({ units: 'presentation', scale: 2, url: '/ships/test.glb' }).scale, 2);
+});
+
+
+test('missing unit declarations fail before any asset fetch and retain fallback', async () => {
+  const loader = fakeLoader(templateShip());
+  const manager = createShipAssetManager({ gltfLoader: loader, registry: { dreadnought: { battlecruiser: { url: '/ships/test.glb' } } }, fallbackFactory: () => new THREE.Group() });
+  const warn = console.warn;
+  console.warn = () => {};
+  try {
+    const model = await manager.createModel({ own: true, type: 'Battlecruiser' }, 'dreadnought');
+    assert.equal(model.userData.proceduralFallback, true);
+    assert.equal(loader.calls, 0);
+  } finally { console.warn = warn; manager.dispose(); }
 });

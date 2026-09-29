@@ -26,7 +26,7 @@ const registry = {
       // presentation units used by wake/foam handoff and camera metadata
       size: { length: 9.4, width: 1.9 },
       // transform from DCC coordinates into the battle view's waterline/orientation
-      scale: MODEL_METERS_TO_WORLD, // import from battle-presentation.js
+      units: 'meters', // normalization applies MODEL_METERS_TO_WORLD once
       waterlineY: 0,
       rotationY: 0,
       funnels: [{ x: 0, y: 1.7, z: -0.8 }],
@@ -38,7 +38,7 @@ const registry = {
 };
 ```
 
-Do not add paths here until the model can be redistributed in this web game and its provenance is recorded. Registry keys are matched against lower-case public actor fields in this order: `name`, `className`, then generic `type`; this supports public/identified variants like Lion and Seydlitz without reading hidden side data. Specs are normalized at load time with defaults for `scale`, `waterlineY`, `rotationY`, `size`, and real-world `dimensions` metadata.
+Do not add paths here until the model can be redistributed in this web game and its provenance is recorded. Registry keys are matched against lower-case public actor fields in this order: `name`, `className`, then generic `type`; this supports public/identified variants like Lion and Seydlitz without reading hidden side data. Entries must declare `units: 'meters' | 'presentation'`. Specs are normalized at load time with defaults for `scale`, `waterlineY`, `rotationY`, `size`, and real-world `dimensions` metadata.
 
 ## Integration advice for `battle-3d.js`
 
@@ -64,10 +64,21 @@ The loader is wired for KTX2 textures and meshopt-compressed geometry through Th
 
 ### Coordinate contract
 
-The returned actor wrapper has identity scale/orientation/waterline transform. Its authored child receives `scale`, `rotationY` (radians), and `waterlineY` (source units, scaled once). The actor wrapper's negative Z is bow and Y=0 is the waterline. `size` and `funnels` are already in wrapper/world units: do not scale them again. The shorthand `length`/`width` inputs, if used instead of `size`, are source units multiplied by `scale`.
+The returned actor wrapper has identity scale/orientation/waterline transform. Its authored child receives normalized `scale`, `rotationY` (radians), and `waterlineY` (source units, scaled once). The actor wrapper's negative Z is bow and Y=0 is the waterline. `size` and `funnels` are already in wrapper/world units: do not scale them again. The shorthand `length`/`width` inputs, if used instead of `size`, are source units multiplied by `scale`.
 
 Pinned Three 0.186.1 constructs its default Basis JS/WASM URLs with `new URL(..., import.meta.url)`; Vite emits both files in `dist/assets`. Do not copy an older Three decoder-path recipe without checking the pinned loader. This verifies packaging, not successful KTX2 transcoding of a model.
 
 This foundation expects static mesh ship assets. Skinned/animated rigs, authored
 LODs, trim-texture damage layers and compressed-fixture CI are not yet supported
 or acceptance-tested; keep using procedural models until those gates are met.
+
+
+### Enforced units
+
+Registry entries must explicitly declare `units`. For `meters`, normalization
+uses `MODEL_METERS_TO_WORLD` automatically and rejects conflicting manual scales.
+For `presentation`, scale defaults to 1; any explicit scale must be finite and
+positive. Re-normalizing a spec is idempotent, so the metre conversion cannot be
+applied twice. `length`/`width` and `waterlineY` remain source units; `size` and
+`funnels` remain explicit world-space metadata. Invalid declarations fall back
+to the procedural model through the existing load boundary.
