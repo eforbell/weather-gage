@@ -65,3 +65,30 @@ Measured with `npm run census:torpedoes` (200 seeds each, default captains):
 | Seabed / out of fuel | 17% / 0% → 0% / 8% | 4% / 5% → 0% / 5% |
 
 **Balance consequences.** Konovalov now carries 3 torpedoes (was 4). Defector plans: captains alone 45%, fire first 50%, ping for contact 66%. Working torpedoes make shooting first a sound tactic, so "don't start a war" needs a cost of its own if it is to stay a lesson. Northern Screen was not re-tuned: blue wins about 37% with captains alone (was about 42%).
+
+## Anti-submarine warfare (added 2026-09-29)
+Navies answered the submarine with more ears and more ways to put a weapon in the water. Firing now has consequences, and a submarine that does is hunted.
+
+1. **Datum and counter-fire.** A heavyweight torpedo heard early in its run (within 6 hexes, in its first 12 hexes) points back down its track to where it was fired. The listener gets a *datum*: a fixed point at the launch position with a 2-hex uncertainty. It never sharpens into a track and does not follow the boat, which has usually moved on. Escorts on Screen prosecute submerged contacts and datums up to 6 ticks old, but only within 8 hexes of the carrier they screen; engaged boats close on recent datums too. A submarine under attack by a hostile heavyweight snap-shoots at the contact lying back down that torpedo's bearing in her own picture, without waiting to classify it, at 2 hexes' extra range for that contact only.
+2. **Escort standoff weapon (ASROC).** Each ASW destroyer carries 3. Beyond tube range and out to 8 hexes, with a fix no worse than 2 hexes on a contact sonar reports as submerged, and no friendly within 2 hexes of it, a rocket puts a lightweight torpedo in open water beside the contact on the launcher's side, never on land or on a ship. If there is no such water, the round is held.
+3. **Carrier anti-submarine aircraft.** Each patrol flight leaves a sonobuoy field (radius 3) that keeps listening for 6 ticks and reports only to its carrier. Buoys hear shallow boats about 80% of the time per tick and deep boats about 45% (louder boats more often). With a fix no worse than 1 hex on a submerged contact within 14 hexes and weapons free, aircraft drop one of 4 lightweight torpedoes on it. Buoys are silent: the enemy never sees them.
+
+**Lightweight torpedoes** (ASROC and air-dropped) have no wire, a seeker live on splashdown, a shallow search preset (neither launcher knows the depth), 3 hexes a tick, an 8-hex run, a 1-hex arming distance, and a smaller warhead (30–45 hull against 55–80). Crossing the layer is the deep boat's best defence against them. The target hears the splash but never learns where the hunter aimed.
+
+Hunters act on what sonar can tell: a contact is known to be *submerged* (not surface) from how it sounds, not its class, so ASW weapons don't need a classified contact but don't read the true ship type either.
+
+### Measured effect (200 seeds each)
+| Northern Screen | Before | After |
+|---|---|---|
+| Blue wins (captains alone) | 37% | 49% |
+| Careful enemy submarine lost within 5 ticks of her first shot | 9% | 18% |
+| Reckless enemy submarine lost within 5 ticks of her first shot | 5% | 13% |
+| Enemy submarines surviving | about 62% | 45–50% |
+
+| The Defector plan | Before | After |
+|---|---|---|
+| Captains alone | 45% | 58% |
+| Fire first | 50% | 51% |
+| Ping for contact | 66% | 57% |
+
+Submarines stay formidable: half of them survive, the escort usually loses a ship or two, and a boat that holds her fire and stays deep is hard to find. Firing doubles her chance of being caught soon afterwards. Counter-fire changed The Defector: once Konovalov shoots, the datum and snap shots let Ramius answer, so the captains alone do better, and firing first is no longer the best plan. It also means that making contact by ping no longer beats letting the captains fight. What contact should buy the player (a shared sonar picture, joint evasion, Dallas taking the datum) is the next design question for that mission.

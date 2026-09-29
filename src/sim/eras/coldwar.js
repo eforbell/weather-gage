@@ -1,5 +1,6 @@
-// Cold War undersea and escort rules: acoustic signatures, sonar, baffles,
-// the thermal layer, carrier patrol reports, torpedo entities, decoys, and captains.
+// Cold War undersea and escort rules: acoustic signatures, sonar, baffles, the thermal
+// layer, carrier patrols and sonobuoy fields, torpedo entities (heavyweight, rocket-thrown
+// and air-dropped), decoys, datums and counter-fire, and captains.
 import {
   DIRECTIONS, distance, isActive, addLog, addFx, applyDamage, resolveStatus, nextRandom,
   directionToward, turnDistance, inBounds, terrainAt, clamp, CONF_RANK, hostile, markAttack, assertCoord, sidesOf, chance, seededHash, believedHostile, worthClosing, contactsForShip,
@@ -18,6 +19,15 @@ const TRACK_RANGE = 4; // a locked seeker holds a target a little farther out
 const DECOY_SEDUCTION = 0.45; // chance a noisemaker fools a given seeker
 const HEAR_TORPEDO = 6;
 const MAX_ENTITIES = 40;
+const TRACE_RUN = 12; // a torpedo this early in its run still points back at the boat that fired it
+const DATUM_AGE = 6; // ticks a last-known position is worth prosecuting
+// Lightweight torpedoes (rocket-thrown by escorts, dropped by aircraft): no wire, seeker
+// live on splashdown, slower, shorter run, smaller warhead, and a shallow search preset.
+const LIGHT = { speed: 3, run: 8, armAt: 1 };
+const ASROC_RANGE = 8;
+const BUOY_RADIUS = 3;
+const BUOY_LIFE = 6;
+const AIR_RANGE = 14;
 
 // ---------- Validation ----------
 
@@ -34,6 +44,9 @@ export function validateShip(ship, map) {
   if (SURFACE_SHIPS.has(ship.type) && (ship.doctrine.depth !== 'surface' || ship.doctrine.speed !== 'standard')) throw new Error('Surface ship doctrine must stay on the surface');
   if (ship.type === 'carrier' && (!Number.isInteger(ship.airSorties) || ship.airSorties < 0 || !Number.isInteger(ship.patrolReadyAt) || ship.patrolReadyAt < 0)) throw new Error('Invalid carrier patrol capacity');
   if (ship.type !== 'carrier' && (ship.airSorties !== undefined || ship.patrolReadyAt !== undefined)) throw new Error('Invalid air patrol capacity');
+  // Anti-submarine weapons (absent in older saves, which then simply carry none).
+  if (ship.asroc !== undefined && (ship.type !== 'asw_destroyer' || !Number.isInteger(ship.asroc) || ship.asroc < 0)) throw new Error('Invalid ASROC load');
+  for (const k of ['airTorpedoes', 'airStrikeReadyAt']) if (ship[k] !== undefined && (ship.type !== 'carrier' || !Number.isInteger(ship[k]) || ship[k] < 0)) throw new Error(`Invalid ${k}`);
 }
 
 export function validatePatrols(patrols, state) {
@@ -67,6 +80,12 @@ export function validateEntities(entities, shipIds, state) {
       if (e.lockQ !== undefined && e.lockQ !== null) assertCoord({ q: e.lockQ, r: e.lockR }, state.map);
       else if (e.lockR !== undefined && e.lockR !== null) throw new Error('Invalid torpedo lock');
       if (e.depth !== undefined && e.depth !== 'shallow' && e.depth !== 'deep') throw new Error('Invalid torpedo depth');
+      if (e.speed !== undefined && (!Number.isInteger(e.speed) || e.speed < 1 || e.speed > 6)) throw new Error('Invalid torpedo speed');
+      if (e.weight !== undefined && e.weight !== 'heavy' && e.weight !== 'light') throw new Error('Invalid torpedo weight');
+      if (e.originQ !== undefined) assertCoord({ q: e.originQ, r: e.originR }, state.map);
+    } else if (e.kind === 'buoys') {
+      const carrier = state.ships.find((s) => s.id === e.carrierId);
+      if (!carrier || carrier.type !== 'carrier' || carrier.side !== e.side || !Number.isInteger(e.until)) throw new Error('Invalid sonobuoy field');
     } else if (e.kind === 'decoy') {
       if (!Number.isInteger(e.until)) throw new Error('Invalid decoy');
     } else throw new Error('Invalid entity kind');
@@ -113,7 +132,13 @@ export function beforeTick(state) {
   state.patrols = (state.patrols || []).filter((patrol) => patrol.resolveAt >= state.tick);
   for (const patrol of state.patrols) if (patrol.resolveAt === state.tick) {
     const carrier = state.ships.find((s) => s.id === patrol.carrierId);
-    if (carrier && isActive(carrier)) state = addLog(state, `${carrier.name} patrol searches sector ${patrol.q}, ${patrol.r}.`, 'info', [carrier.side]);
+    if (!carrier || !isActive(carrier)) continue;
+    const sow = (state.entities || []).length < MAX_ENTITIES && !(state.entities || []).some((e) => e.id === `b${state.tick}_${carrier.id}`);
+    state = addLog(state, `${carrier.name} patrol searches sector ${patrol.q}, ${patrol.r}${sow ? ' and sows a sonobuoy field' : ''}.`, 'info', [carrier.side]);
+    if (sow) {
+      state.entities = [...(state.entities || []), { id: `b${state.tick}_${carrier.id}`, kind: 'buoys', side: carrier.side, carrierId: carrier.id, q: patrol.q, r: patrol.r, until: state.tick + BUOY_LIFE }];
+      state = addFx(state, { type: 'buoys', shooterId: carrier.id, at: { q: patrol.q, r: patrol.r }, audience: [carrier.side] });
+    }
   }
   // Pings ordered last tick go out now.
   for (const ship of state.ships) {
@@ -122,7 +147,7 @@ export function beforeTick(state) {
     state = addFx(state, { type: 'ping', shooterId: ship.id });
     state = answerPing(state, ship);
   }
-  state.entities = (state.entities || []).filter((e) => e.kind !== 'decoy' || e.until >= state.tick);
+  state.entities = (state.entities || []).filter((e) => (e.kind !== 'decoy' && e.kind !== 'buoys') || e.until >= state.tick);
   return state;
 }
 
@@ -136,6 +161,12 @@ export function detection(observer, enemy, state) {
     && (enemy.doctrine.depth !== 'deep' || chance(state, `patrol|${state.tick}|${p.carrierId}|${p.q}|${p.r}|${enemy.id}`, 0.55)))) {
     return { confidence: 'sighted', range: d, uncertainty: 2 };
   }
+  if (observer.type === 'carrier' && SUBMARINES.has(enemy.type) && buoysHear(state, observer, enemy)) return { confidence: 'sighted', range: d, uncertainty: 1, submerged: enemy.doctrine.depth !== 'surface' };
+  const heard = hullSonar(observer, enemy, state, d) || traceTorpedo(observer, enemy, state, d);
+  return heard && { ...heard, submerged: enemy.doctrine.depth !== 'surface' };
+}
+
+function hullSonar(observer, enemy, state, d) {
   const rel = (directionToward(observer, enemy) - observer.facing + 6) % 6;
   if (rel === 3 && observer.ivanAt !== state.tick) return null; // the baffles: deaf astern
   const layer = observer.doctrine.depth !== enemy.doctrine.depth ? 3 : 0;
@@ -146,6 +177,25 @@ export function detection(observer, enemy, state) {
   // Near the limit of hearing a contact fades in and out with the water, not on a hard edge.
   if (d > range - 2 && !chance(state, `hear|${state.tick}|${observer.id}|${enemy.id}`, 0.5)) return null;
   return { confidence: d <= 2 ? 'identified' : 'sighted', range: d, uncertainty: d <= 2 ? 0 : Math.min(4, 1 + Math.floor(d / 3)) };
+}
+
+// The datum: a torpedo heard running early in its run points back down its track to
+// where it was fired. That is a fixed point with a 2-hex uncertainty, not a track: it does
+// not sharpen or follow the boat, which has usually moved on.
+function traceTorpedo(observer, enemy, state, d) {
+  if (observer.side === enemy.side || d > TRACE_RUN + HEAR_TORPEDO) return null;
+  const t = (state.entities || []).find((e) => e.kind === 'torpedo' && e.shooterId === enemy.id && e.travelled <= TRACE_RUN && e.weight !== 'light'
+    && e.originQ !== undefined && distance(e, observer) <= HEAR_TORPEDO);
+  return t ? { confidence: 'sighted', range: d, uncertainty: 2, datum: { q: t.originQ, r: t.originR } } : null;
+}
+
+// Sonobuoys listen above the layer: shallow boats are heard reliably, deep ones about
+// half the time, and louder boats more often. Reports go only to the carrier that laid them.
+function buoysHear(state, carrier, enemy) {
+  const depthPenalty = enemy.doctrine.depth === 'deep' ? 0.35 : 0;
+  const p = clamp(0.8 - depthPenalty + enemy.noise * 0.03, 0.05, 0.95);
+  return (state.entities || []).some((e) => e.kind === 'buoys' && e.carrierId === carrier.id && e.until >= state.tick && distance(e, enemy) <= BUOY_RADIUS
+    && chance(state, `buoys|${state.tick}|${e.id}|${enemy.id}`, p));
 }
 
 // ---------- Captains ----------
@@ -214,11 +264,25 @@ function desiredFacing(state, ship, destination, torpedo) {
     if (ship.captain.trait === 'cunning' && torpedo.travelled < torpedo.armAt + 2 && distance(ship, torpedo) <= 3) return dir;
     return nearest(ship.facing, [(dir + 3) % 6, (dir + 2) % 6, (dir + 4) % 6]);
   }
+  if (ship.type === 'asw_destroyer' && ship.doctrine.roe === 'free' && ['engage', 'screen'].includes(ship.order.type)) {
+    // Prosecute: close on a fresh submarine contact near the screen, else on a recent datum.
+    // On Screen an escort only goes after what threatens the ship she screens.
+    const ward = ship.order.type === 'screen' ? state.ships.find((s) => s.side === ship.side && s.type === 'carrier' && isActive(s)) : null;
+    const leashed = (c) => !ward || distance(ward, c) <= 8;
+    const sub = contactsFor(state, ship, (s, c) => c.submerged && worthClosing(state, ship, c)).find(({ c }) => distance(ship, c) <= 8 && leashed(c));
+    if (sub) return distance(ship, sub.c) > 3 ? directionToward(ship, sub.c) : nearest(ship.facing, [(directionToward(ship, sub.c) + 1) % 6, (directionToward(ship, sub.c) + 5) % 6]);
+    const datum = recentDatum(state, ship, 6);
+    if (datum && leashed(datum)) return directionToward(ship, datum);
+  }
   const target = ship.order.type === 'engage' && ship.doctrine.roe === 'free' ? contactsFor(state, ship, (s, c) => worthClosing(state, ship, c))[0] : null;
   if (target) {
     const d = distance(ship, target.c);
     if (d > ship.doctrine.range - 1) return directionToward(ship, target.c);
     return nearest(ship.facing, [(directionToward(ship, target.c) + 1) % 6, (directionToward(ship, target.c) + 5) % 6]);
+  }
+  if (ship.order.type === 'engage' && ship.doctrine.roe === 'free' && ship.type !== 'carrier') {
+    const datum = recentDatum(state, ship, 10);
+    if (datum && distance(ship, datum) > 1) return directionToward(ship, datum);
   }
   if (ship.order.type === 'shadow') {
     // Shadow the contact you are not at war with first (the unknown), then anyone.
@@ -226,6 +290,25 @@ function desiredFacing(state, ship, destination, torpedo) {
     if (quarry) return distance(ship, quarry.c) > 3 ? directionToward(ship, quarry.c) : null;
   }
   return headingTo(state, ship, destination);
+}
+
+// Snap shot: the contact lying back down the bearing of an incoming hostile heavyweight,
+// judged from the torpedo's heading and this boat's own picture (not who really fired it).
+function snapTarget(state, ship) {
+  const incoming = (state.entities || []).filter((e) => e.kind === 'torpedo' && e.side !== ship.side && e.weight !== 'light' && distance(e, ship) <= HEAR_TORPEDO)
+    .sort((a, b) => distance(a, ship) - distance(b, ship))[0];
+  if (!incoming) return null;
+  const back = (incoming.facing + 3) % 6;
+  const candidates = contactsFor(state, ship, (s, c) => c.submerged !== false && turnDistance(directionToward(incoming, c), back) <= 1 && distance(incoming, c) <= TRACE_RUN + 4);
+  return candidates.sort((a, b) => distance(incoming, a.c) - distance(incoming, b.c) || (a.s.id < b.s.id ? -1 : 1))[0]?.s.id || null;
+}
+
+// The freshest last-known position of a contact worth hunting, if recent and near enough.
+function recentDatum(state, ship, maxRange) {
+  return contactsForShip(state, ship)
+    .filter((c) => c.stale && state.tick - c.lastSeen <= DATUM_AGE && distance(ship, c) <= maxRange && distance(ship, c) > 0)
+    .filter((c) => { const s = state.ships.find((x) => x.id === c.targetId); return s && isActive(s) && worthClosing(state, ship, c); })
+    .sort((a, b) => b.lastSeen - a.lastSeen || distance(ship, a) - distance(ship, b) || (a.id < b.id ? -1 : 1))[0] || null;
 }
 
 function hearers(state, point) {
@@ -236,8 +319,19 @@ function hearers(state, point) {
 
 export function combat(state) {
   for (const ship of state.ships) {
-    if (!isActive(ship) || ship.doctrine.roe === 'hold' || ship.torpedoes <= 0 || ship.reloadUntil > state.tick || ship.order.type === 'withdraw' || state.entities.length >= MAX_ENTITIES) continue;
+    if (!isActive(ship) || ship.doctrine.roe === 'hold' || ship.order.type === 'withdraw' || state.entities.length >= MAX_ENTITIES) continue;
+    if (ship.type === 'carrier') { state = airStrike(state, ship); continue; }
+    if (ship.reloadUntil > state.tick) continue;
+    if (ship.type === 'asw_destroyer' && (ship.asroc || 0) > 0) {
+      const before = ship.asroc;
+      state = asroc(state, ship);
+      if (ship.asroc < before) continue;
+    }
+    if (ship.torpedoes <= 0) continue;
     const reckless = ship.captain.trait === 'reckless';
+    // Snap shot: a boat under torpedo attack fires back down the bearing at the shooter's
+    // rough position without waiting to classify it.
+    const snapAt = SUBMARINES.has(ship.type) && ship.evadingAt === state.tick ? snapTarget(state, ship) : null;
     const range = reckless ? ship.doctrine.range + 2 : ship.doctrine.range;
     // Water-space management: a careful captain won't shoot at a contact with a friendly
     // boat right on top of it, because the seeker cannot tell them apart; she takes the next
@@ -245,7 +339,8 @@ export function combat(state) {
     const friends = friendsOf(state, ship.side);
     const crowded = (c) => state.ships.some((s) => s !== ship && friends.has(s.side) && isActive(s) && distance(s, c) <= 1);
     const target = contactsFor(state, ship, (s, c) => believedHostile(state, ship, c) && (ship.type !== 'asw_destroyer' || SUBMARINES.has(s.type)))
-      .find(({ c }) => distance(ship, c) <= range && (reckless || CONF_RANK[c.confidence] >= CONF_RANK.classified) && (reckless || !crowded(c)));
+      .sort((a, b) => (b.s.id === snapAt) - (a.s.id === snapAt))
+      .find(({ c, s }) => distance(ship, c) <= range + (s.id === snapAt ? 2 : 0) && (reckless || s.id === snapAt || CONF_RANK[c.confidence] >= CONF_RANK.classified) && (reckless || !crowded(c)));
     if (!target) continue;
     ship.torpedoes -= 1;
     ship.reloadUntil = state.tick + 3;
@@ -254,16 +349,68 @@ export function combat(state) {
       id: `t${state.tick}_${ship.id}`, kind: 'torpedo', side: ship.side, shooterId: ship.id,
       q: ship.q, r: ship.r, facing: directionToward(ship, target.c), travelled: 0, run: TORPEDO_RUN,
       armAt: reckless ? 0 : 2, aimQ: target.c.q, aimR: target.c.r, seeking: null,
-      targetId: target.s.id, wired: true, enabled: reckless, ignore: [], lockQ: null, lockR: null,
+      targetId: target.s.id, wired: true, enabled: reckless, ignore: [], lockQ: null, lockR: null, originQ: ship.q, originR: ship.r,
       // Sonar reports bearing and range, not depth: fire control presets the search depth
       // to the firing boat's own depth (surface ships search shallow).
       depth: ship.doctrine.depth === 'deep' ? 'deep' : 'shallow',
     });
     state = markAttack(state, ship.side, target.s.side);
-    state = addLog(state, `${ship.name} fires ${ship.type === 'asw_destroyer' ? 'an ASW torpedo' : 'a torpedo'} at ${target.s.name}${reckless ? ', safeties off' : ''}.`, 'combat');
+    state = addLog(state, `${ship.name} fires ${ship.type === 'asw_destroyer' ? 'an ASW torpedo' : 'a torpedo'} at ${target.s.name}${reckless ? ', safeties off' : target.s.id === snapAt ? ', a snap shot down the bearing' : ''}.`, 'combat');
     state = addFx(state, { type: 'torpedo', shooterId: ship.id, targetId: target.s.id, at: { q: target.c.q, r: target.c.r } });
   }
   return state;
+}
+
+// A lightweight torpedo put in the water just short of a contact's reported position,
+// pointing at it: seeker live, no wire, shallow search preset (neither a rocket nor an
+// aircraft knows the depth). Splashing down on top of her would leave the seeker blind.
+export function splashPoint(state, launcher, contact) {
+  const toward = directionToward(contact, launcher);
+  const order = [toward, (toward + 1) % 6, (toward + 5) % 6, (toward + 2) % 6, (toward + 4) % 6, (toward + 3) % 6];
+  return order.map((f) => ({ q: contact.q + DIRECTIONS[f][0], r: contact.r + DIRECTIONS[f][1] }))
+    .find((c) => inBounds(c, state.map) && terrainAt(state, c.q, c.r) !== 'land' && !state.ships.some((s) => isActive(s) && s.q === c.q && s.r === c.r)) || null;
+}
+
+function dropLightweight(state, launcher, contact, target, kind, splash) {
+  state.entities.push({
+    id: `${kind === 'asroc' ? 'a' : 'p'}${state.tick}_${launcher.id}`, kind: 'torpedo', side: launcher.side, shooterId: launcher.id,
+    q: splash.q, r: splash.r, facing: directionToward(splash, contact), travelled: 0, run: LIGHT.run, armAt: LIGHT.armAt,
+    aimQ: contact.q, aimR: contact.r, seeking: null, targetId: target.id, wired: false, enabled: true, ignore: [], lockQ: null, lockR: null,
+    depth: 'shallow', speed: LIGHT.speed, weight: 'light',
+  });
+  state = markAttack(state, launcher.side, target.side);
+  return addFx(state, { type: kind, shooterId: launcher.id, targetId: target.id, at: { q: contact.q, r: contact.r } });
+}
+
+// Escort standoff weapon: a rocket carries a lightweight torpedo to a submarine contact
+// out beyond the ship's own tube range, if the fix is good enough to be worth a round.
+function asroc(state, ship) {
+  const friends = friendsOf(state, ship.side);
+  const target = contactsFor(state, ship, (s, c) => c.submerged && believedHostile(state, ship, c))
+    .find(({ c }) => distance(ship, c) > ship.doctrine.range && distance(ship, c) <= ASROC_RANGE && (c.uncertainty ?? 0) <= 2
+      && !state.ships.some((s) => friends.has(s.side) && isActive(s) && s !== ship && distance(s, c) <= 2));
+  const splash = target && splashPoint(state, ship, target.c);
+  if (!target || !splash) return state;
+  ship.asroc -= 1;
+  ship.reloadUntil = state.tick + 3;
+  state = addLog(state, `${ship.name} fires an ASROC at a submarine contact.`, 'combat');
+  return dropLightweight(state, ship, target.c, target.s, 'asroc', splash);
+}
+
+// Carrier aircraft: with a good fix on a submarine from their own sonobuoys or patrol,
+// they drop a lightweight torpedo on it. They cannot hunt what the carrier has not heard.
+function airStrike(state, carrier) {
+  if (!(carrier.airTorpedoes > 0) || (carrier.airStrikeReadyAt ?? 0) > state.tick) return state;
+  const friends = friendsOf(state, carrier.side);
+  const target = contactsFor(state, carrier, (s, c) => c.submerged && believedHostile(state, carrier, c))
+    .find(({ c }) => distance(carrier, c) <= AIR_RANGE && (c.uncertainty ?? 0) <= 1
+      && !state.ships.some((s) => friends.has(s.side) && isActive(s) && distance(s, c) <= 2));
+  const splash = target && splashPoint(state, carrier, target.c);
+  if (!target || !splash) return state;
+  carrier.airTorpedoes -= 1;
+  carrier.airStrikeReadyAt = state.tick + 2;
+  state = addLog(state, `${carrier.name}'s aircraft drop a torpedo on a submarine contact.`, 'combat', [carrier.side]);
+  return dropLightweight(state, carrier, target.c, target.s, 'airdrop', splash);
 }
 
 // Torpedoes run after ships move. The model follows a wire-guided homing torpedo:
@@ -283,7 +430,7 @@ export function afterMove(state) {
     if (t.kind !== 'torpedo') { survivors.push(t); continue; }
     let alive = true;
     state = updateWire(state, t);
-    for (let step = 0; step < TORPEDO_SPEED && alive; step += 1) {
+    for (let step = 0; step < (t.speed ?? TORPEDO_SPEED) && alive; step += 1) {
       const aim = { q: t.aimQ, r: t.aimR };
       if (!t.enabled && (t.enabled === undefined || distance(t, aim) <= ENABLE_RANGE || !t.wired)) t.enabled = true;
       const quarry = t.enabled ? acquire(state, t) : null;
@@ -321,7 +468,7 @@ export function afterMove(state) {
     }
     if (alive) survivors.push(t);
   }
-  state.entities = survivors.filter((e) => e.kind !== 'decoy' || e.until >= state.tick);
+  state.entities = survivors.filter((e) => (e.kind !== 'decoy' && e.kind !== 'buoys') || e.until >= state.tick);
   return state;
 }
 
@@ -416,11 +563,11 @@ function strike(state, t, victim) {
     state = addFx(state, { type: 'dud', shooterId: t.shooterId, targetId: victim.id });
     return resolveStatus(state, victim);
   }
-  const damage = 55 + Math.floor(nextRandom(state) * 25);
+  const damage = t.weight === 'light' ? 30 + Math.floor(nextRandom(state) * 15) : 55 + Math.floor(nextRandom(state) * 25);
   applyDamage(victim, { hull: damage, propulsion: damage * 0.7, weapons: damage * 0.4, crew: damage * 0.5 });
   if (shooter && shooter.side !== victim.side) state = markAttack(state, shooter.side, victim.side);
   state = addLog(state, `${victim.name} is hit by a torpedo${shooter && shooter.id === victim.id ? ' — her own' : ''}.`, 'damage');
-  state = addFx(state, { type: 'torpedo-hit', shooterId: t.shooterId, targetId: victim.id, hits: 1, damage, heavy: true });
+  state = addFx(state, { type: 'torpedo-hit', shooterId: t.shooterId, targetId: victim.id, hits: 1, damage, heavy: t.weight !== 'light' });
   return resolveStatus(state, victim);
 }
 
@@ -430,6 +577,7 @@ export function publicEntities(state, side, observerId = null) {
   const own = observerId ? state.ships.filter((s) => s.id === observerId && s.side === side && isActive(s))
     : state.ships.filter((s) => s.side === side && isActive(s));
   return (state.entities || []).flatMap((e) => {
+    if (e.kind === 'buoys') return e.side === side && (!observerId || e.carrierId === observerId) ? [{ id: e.id, kind: 'buoys', q: e.q, r: e.r, own: true, radius: BUOY_RADIUS, until: e.until }] : [];
     if (e.side === side && (!observerId || e.shooterId === observerId || (e.kind === 'decoy' && e.id.endsWith(`_${observerId}`)))) {
       return [{ id: e.id, kind: e.kind, q: e.q, r: e.r, facing: e.facing ?? 0, own: true, armed: e.kind === 'torpedo' ? e.travelled >= e.armAt : undefined }];
     }
