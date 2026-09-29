@@ -52,3 +52,33 @@ The "quick wins before M1" from [3d-visual-direction.md](3d-visual-direction.md)
 
 ## Visual direction
 The plan for taking the view from prototype to a convincing 2026 look (art direction, scale rule, water, ships, effects, camera, sound, performance tiers, milestones and quick wins) is in [3d-visual-direction.md](3d-visual-direction.md).
+
+## Ship foundation follow-up
+
+The follow-up worktree `feat/battle-ship-foundation` adds public, type/era-driven
+presentation specs (`ship-specs.js`), a lofted hull kit (`ship-hull.js`), boot-topping,
+angular gun houses, tiered sails and stationary hull foam. Foam is anchored to the
+flat sea rather than inheriting deck pitch/roll. `battle-sea.js` tunes directional
+normal-map swell/chop and bounded reflection distortion; a failed pinned shader
+patch leaves plain Three Water and a HUD warning, not a failed battle camera.
+This is still a flat reflector, not a shared displaced-wave buoyancy model.
+
+`ship-assets.js` provides optional local per-era glTF loading with meshopt/KTX2
+hooks, public identified-name variants, shared geometry and procedural fallback.
+The registry remains empty. No hero art or borrowed reference images are shipped;
+compressed decode needs a small original fixture before it is an acceptance claim.
+See [asset contract](ship-assets.md) and [Blender/reference recommendation](ship-model-research.md).
+The chart, simulation, fog-of-war input boundary and reduced-motion path remain
+unchanged. These procedural improvements do not replace Craig's visual sign-off,
+real-device frame-time measurement or hero-model provenance gates.
+
+Foundation verification (2026-09-29): `npm test` **162 passing**; syntax check,
+`git diff --check`, and production build pass. Production-preview browser smoke
+covered all six scenarios, reduced-motion tick updates and WebGL-loss chart
+fallback, with no unexpected console errors. Scenario-table tests cover every
+current ship's spec and procedural dispatch. Screenshots are local QA artifacts
+under `output/playwright/*-final.png`, not a fixed-seed golden reference suite.
+The new lazy 3D chunk is **820.54 kB / 224.00 kB gzip**; Vite's size warning
+remains. Basis JS/WASM are emitted locally and both return HTTP 200 from preview;
+that is packaging evidence only, not compressed-texture decode validation.
+Phone/mid-laptop frame times and Craig's art acceptance were not measured.

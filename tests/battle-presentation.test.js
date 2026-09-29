@@ -74,3 +74,10 @@ test('Cold War sonar reports without public depth do not become physical hulls',
   const result = battleActors({ ...view, contacts: [report] }, 'b_steadfast');
   assert.ok(!result.actors.some(a => a.id === report.id));
 });
+
+test('authored metre conversion is applied once at the nominal capital-ship scale', async () => {
+  const { MODEL_METERS_TO_WORLD, SHIP_LENGTH, WORLD_UNITS_PER_METER, PRESENTATION_SCALE } = await import('../src/ui/battle-presentation.js');
+  assert.equal(PRESENTATION_SCALE, 3);
+  assert.equal(MODEL_METERS_TO_WORLD, WORLD_UNITS_PER_METER * PRESENTATION_SCALE);
+  assert.ok(Math.abs(210 * MODEL_METERS_TO_WORLD - SHIP_LENGTH) < 1e-9);
+});

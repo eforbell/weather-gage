@@ -1,0 +1,73 @@
+# Ship asset pipeline foundation
+
+`src/ui/ship-assets.js` is the first shared boundary between authored ship art and the procedural models already used by the 3D battle view.
+
+## What exists now
+
+- `SHIP_ASSET_REGISTRY` is present but empty for every simulation era (`sail`, `ironclad`, `dreadnought`, `modern`, `coldwar`). This is deliberate: no speculative model paths or unlicensed assets are registered yet.
+- `createShipAssetManager()` builds a lazy glTF loader using the pinned Three.js addons already in `node_modules`: `GLTFLoader`, `KTX2Loader`, and `MeshoptDecoder`.
+- The manager accepts injected loaders for tests and future integration, caches each glTF template by URL, and returns a cloned scene per ship instance.
+- Each clone shares template geometry but receives its own material objects so per-ship damage, paint, decals, or disposal will not mutate another ship. Geometry and texture objects remain shared with the cached template and are disposed only when the manager is disposed.
+- If no spec is registered, or a load fails, the manager returns the existing procedural model from `battle-models.js` with `userData.proceduralFallback === true`.
+- Local-only paths are enforced for ship URLs and optional KTX2 transcoder paths. Any URL scheme (`https:`, `urn:`, etc.) or protocol-relative path is rejected for registry assets. A default LoadingManager also rejects cross-origin embedded glTF dependencies; KTX2 decoder files use Three's bundled local addon resolution unless a local transcoder path is supplied.
+
+## Registry shape
+
+Keep registry entries evidence-backed and license-reviewed. Example shape for a future asset pack:
+
+```js
+const registry = {
+  dreadnought: {
+    'hms lion': {
+      url: '/assets/ships/dreadnought/hms-lion.glb',
+      className: 'Lion-class battlecruiser',
+      lengthMeters: 213,
+      beamMeters: 27,
+      // presentation units used by wake/foam handoff and camera metadata
+      size: { length: 9.4, width: 1.9 },
+      // transform from DCC coordinates into the battle view's waterline/orientation
+      scale: MODEL_METERS_TO_WORLD, // import from battle-presentation.js
+      waterlineY: 0,
+      rotationY: 0,
+      funnels: [{ x: 0, y: 1.7, z: -0.8 }],
+      turrets: [{ name: 'A', x: 0, z: -70, guns: 2 }],
+      paint: 'grand-fleet-grey',
+      license: 'record in assets/CREDITS.md before registration',
+    },
+  },
+};
+```
+
+Do not add paths here until the model can be redistributed in this web game and its provenance is recorded. Registry keys are matched against lower-case public actor fields in this order: `name`, `className`, then generic `type`; this supports public/identified variants like Lion and Seydlitz without reading hidden side data. Specs are normalized at load time with defaults for `scale`, `waterlineY`, `rotationY`, `size`, and real-world `dimensions` metadata.
+
+## Integration advice for `battle-3d.js`
+
+Create one manager per 3D view after the renderer exists:
+
+```js
+const shipAssets = createShipAssetManager({ renderer });
+```
+
+At the start of a scene/era/model refresh, get a load token:
+
+```js
+const token = shipAssets.beginSceneLoad();
+```
+
+When adding an actor, keep the procedural model immediately unless `hasShipAsset(actor, era)` returns true. For registered public/known actors, await `createModel(actor, era, token)`. If it returns `null`, the result was stale because the view was disposed or a newer refresh began; skip attaching it. If it returns a procedural fallback, keep the current procedural model. Dispose live authored instances with `disposeShipAssetInstance(model)` and dispose the manager when the 3D view is torn down so KTX2 workers, cached template geometry/materials, and shared textures are released.
+
+This token guard matters because glTF loads are asynchronous: a late HMS Lion load must not attach itself to a disposed scene, the wrong era, or a ship that has already left the player-visible view. Authored instances expose `userData.shipAssetSpec`, `shipClass`, `dimensions`, `size`, `radius`, and any spec-provided `funnels` as `THREE.Vector3` points for smoke. The current battle view uses an item-identity guard instead of advancing generation on every sync; a tick must not cancel valid loads for ships still visible. It transfers the procedural wake/waterline foam before disposing the previous model so visual continuity is preserved. Foam uses shared procedural materials and is detached/disposed separately before disposing authored instance materials.
+
+## Compression status
+
+The loader is wired for KTX2 textures and meshopt-compressed geometry through Three's pinned addons. There are no compressed ship fixtures in the repository yet, so decoding is not claimed as runtime-tested. Add a tiny licensed `.glb`/`.ktx2` fixture before making decode support part of CI.
+
+### Coordinate contract
+
+The returned actor wrapper has identity scale/orientation/waterline transform. Its authored child receives `scale`, `rotationY` (radians), and `waterlineY` (source units, scaled once). The actor wrapper's negative Z is bow and Y=0 is the waterline. `size` and `funnels` are already in wrapper/world units: do not scale them again. The shorthand `length`/`width` inputs, if used instead of `size`, are source units multiplied by `scale`.
+
+Pinned Three 0.186.1 constructs its default Basis JS/WASM URLs with `new URL(..., import.meta.url)`; Vite emits both files in `dist/assets`. Do not copy an older Three decoder-path recipe without checking the pinned loader. This verifies packaging, not successful KTX2 transcoding of a model.
+
+This foundation expects static mesh ship assets. Skinned/animated rigs, authored
+LODs, trim-texture damage layers and compressed-fixture CI are not yet supported
+or acceptance-tested; keep using procedural models until those gates are met.

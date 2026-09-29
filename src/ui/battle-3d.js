@@ -11,6 +11,9 @@ import { battleActors, hexToWorld, HEX } from './battle-presentation.js';
 import { createActorModel, disposeActorModel, animateWakes } from './battle-models.js';
 import { createEffects } from './battle-effects.js';
 import { lookFor } from './battle-looks.js';
+import { anchorSurfaceFoam } from './battle-waterline.js';
+import { createWaterNormals, configureSea } from './battle-sea.js';
+import { createShipAssetManager, hasShipAsset, disposeShipAssetInstance } from './ship-assets.js';
 
 const ORIGIN = { q: 0, r: 0 };
 const dirs = [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]];
@@ -28,35 +31,6 @@ function hashPhase(id) {
   let h = 0;
   for (const ch of String(id)) h = (h * 31 + ch.charCodeAt(0)) | 0;
   return (h >>> 0) / 4294967296 * Math.PI * 2;
-}
-
-// Tileable normal map from integer-frequency waves, so the sea needs no
-// downloaded texture. Presentation-only randomness from a fixed seed.
-function waterNormals(size = 256) {
-  let seed = 3;
-  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
-  const waves = Array.from({ length: 28 }, () => {
-    let kx = 0, ky = 0;
-    while (Math.hypot(kx, ky) < 3) { kx = Math.round(rnd() * 20 - 10); ky = Math.round(rnd() * 20 - 10); } // no broad tilts
-    return { kx, ky, a: 1 / Math.hypot(kx, ky) ** 1.3, phase: rnd() * Math.PI * 2 };
-  });
-  const data = new Uint8Array(size * size * 4);
-  for (let y = 0; y < size; y++) for (let x = 0; x < size; x++) {
-    let dx = 0, dy = 0;
-    for (const w of waves) {
-      const c = Math.cos(Math.PI * 2 * (w.kx * x + w.ky * y) / size + w.phase) * w.a * Math.PI * 2;
-      dx += c * w.kx; dy += c * w.ky;
-    }
-    const n = new THREE.Vector3(-dx * 0.05, -dy * 0.05, 1).normalize();
-    data.set([(n.x * 0.5 + 0.5) * 255, (n.y * 0.5 + 0.5) * 255, (n.z * 0.5 + 0.5) * 255, 255], (y * size + x) * 4);
-  }
-  const texture = new THREE.DataTexture(data, size, size);
-  texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-  texture.generateMipmaps = true;
-  texture.minFilter = THREE.LinearMipmapLinearFilter;
-  texture.magFilter = THREE.LinearFilter;
-  texture.needsUpdate = true;
-  return texture;
 }
 
 // Painted grade in linear light, before tone mapping: tint, saturation, vignette.
@@ -126,15 +100,11 @@ export function createBattle3D(host, onFailure = () => {}) {
 
   const sunDirection = new THREE.Vector3(0, 1, 0);
   const water = new Water(new THREE.PlaneGeometry(6000, 6000), {
-    textureWidth: 512, textureHeight: 512, waterNormals: waterNormals(), sunDirection,
+    textureWidth: 512, textureHeight: 512, waterNormals: createWaterNormals(), sunDirection,
     sunColor: 0xffffff, waterColor: 0x1d3a3e, distortionScale: 3, fog: true,
   });
   water.rotation.x = -Math.PI / 2;
-  // Water.js layers two kilometre-scale noise octaves meant for distant cameras;
-  // at follow-camera range they read as dark blotches, so retune them to chop.
-  water.material.fragmentShader = water.material.fragmentShader
-    .replace('uv / vec2( 8907.0, 9803.0 )', 'uv / vec2( 37.0, 41.0 )')
-    .replace('uv / vec2( 1091.0, 1027.0 )', 'uv / vec2( 23.0, 29.0 )');
+  const seaSurface = configureSea(water);
   scene.add(water);
   const ceiling = new THREE.Mesh(new THREE.PlaneGeometry(4000, 4000).rotateX(-Math.PI / 2), new THREE.MeshBasicMaterial({ color: 0x3d8193, side: THREE.DoubleSide }));
   scene.add(ceiling);
@@ -165,6 +135,7 @@ export function createBattle3D(host, onFailure = () => {}) {
 
   const effects = createEffects(world);
   const models = new Map();
+  const shipAssets = createShipAssetManager({ renderer });
   let lastFrame = 0, frame = 0, active = false, disposed = false, era = '', lookId = '', underseaMode = null, cameraDepth = 0, focusId = null;
   let look = lookFor('', 'dreadnought');
   const stats = { frames: 0, since: 0, work: 0, fps: 0, ms: 0, slow: 0, stalls: 0 };
@@ -322,6 +293,7 @@ export function createBattle3D(host, onFailure = () => {}) {
       model.position.y = item.y + sea * 0.07 * Math.sin(t * 0.9);
       model.rotation.x = item.pitch + sea * 0.012 * Math.sin(t * 0.7);
       model.rotation.z = item.roll + sea * 0.02 * Math.sin(t * 0.55 + 1.3);
+      anchorSurfaceFoam(model);
     }
   }
 
@@ -340,7 +312,7 @@ export function createBattle3D(host, onFailure = () => {}) {
     stats.since = now; stats.frames = 0; stats.work = 0; stats.stalls = 0;
     if (!hud.hidden) {
       const { calls, triangles } = renderer.info.render;
-      hud.textContent = `${stats.fps.toFixed(0)} fps · ${stats.ms.toFixed(1)} ms cpu\n${calls} draws · ${(triangles / 1000).toFixed(0)}k tris\n${effects.particles} particles · ${renderer.getPixelRatio().toFixed(2)}× px\n${look.note}`;
+      hud.textContent = `${stats.fps.toFixed(0)} fps · ${stats.ms.toFixed(1)} ms cpu\n${calls} draws · ${(triangles / 1000).toFixed(0)}k tris\n${effects.particles} particles · ${renderer.getPixelRatio().toFixed(2)}× px\n${look.note}${water.material.userData.seaShaderFallback ? '\nplain sea · detail patch unavailable' : ''}`;
     }
   }
 
@@ -379,7 +351,14 @@ export function createBattle3D(host, onFailure = () => {}) {
     const item = models.get(id);
     if (!item) return;
     world.remove(item.model);
-    disposeActorModel(item.model);
+    if (item.model.userData.shipAssetInstance) {
+      // Transferred procedural foam uses shared materials, unlike glTF clones.
+      for (const key of ['wake', 'waterlineFoam']) {
+        const foam = item.model.userData[key];
+        if (foam) { item.model.remove(foam); disposeActorModel(foam); }
+      }
+      disposeShipAssetInstance(item.model);
+    } else disposeActorModel(item.model);
     models.delete(id);
   }
   function sync(view, selectedId, nextEra, events = []) {
@@ -400,6 +379,7 @@ export function createBattle3D(host, onFailure = () => {}) {
       effects.clear();
       applyLook(undersea);
     }
+    seaSurface.update({ wind: downwind(view.wind ?? 0), swell: look.swell });
     effects.setScene({ era, wind: downwind(view.wind ?? 0), fog: scene.fog, surface: undersea ? cameraDepth : 0 });
 
     // Sea-fixed coordinates: the focus sits at `origin`; `world` eases to follow it.
@@ -411,7 +391,7 @@ export function createBattle3D(host, onFailure = () => {}) {
     for (const id of models.keys()) if (!ids.has(id) || changedEra) removeModel(id);
     for (const actor of presented.actors) {
       let item = models.get(actor.id);
-      if (item && (item.type !== actor.type || item.uncertain !== actor.uncertain || item.stale !== actor.stale)) { removeModel(actor.id); item = null; }
+      if (item && (item.type !== actor.type || item.name !== actor.name || item.uncertain !== actor.uncertain || item.stale !== actor.stale)) { removeModel(actor.id); item = null; }
       const sunk = actor.own && actor.status === 'sunk', struck = actor.own && actor.status === 'struck';
       const target = new THREE.Vector3(actor.x + origin.x, actor.y - (sunk ? 2.6 : struck ? 0.15 : 0), actor.z + origin.z);
       if (!item) {
@@ -419,8 +399,40 @@ export function createBattle3D(host, onFailure = () => {}) {
         model.position.copy(target);
         model.rotation.y = actor.own ? facingAngle(actor.facing) : Math.PI * 0.3;
         world.add(model);
-        item = { model, target, y: target.y, pitch: 0, roll: 0, type: actor.type, uncertain: actor.uncertain, stale: actor.stale, phase: hashPhase(actor.id) };
+        item = { model, target, y: target.y, pitch: 0, roll: 0, type: actor.type, name: actor.name, uncertain: actor.uncertain, stale: actor.stale, phase: hashPhase(actor.id) };
         models.set(actor.id, item);
+        // Keep the procedural hull visible until a registered local asset is
+        // ready. Identity check rejects late loads after contact/era changes.
+        if ((!actor.uncertain || actor.own) && hasShipAsset(actor, nextEra)) {
+          const pendingItem = item;
+          shipAssets.createModel(actor, nextEra).then(loaded => {
+            if (!loaded) return;
+            if (disposed || models.get(actor.id) !== pendingItem || loaded.userData.proceduralFallback) {
+              disposeShipAssetInstance(loaded);
+              return;
+            }
+            const previous = pendingItem.model;
+            loaded.position.copy(previous.position);
+            loaded.rotation.order = 'YXZ';
+            loaded.quaternion.copy(previous.quaternion);
+            // Preserve surface effects from the matching procedural spec.
+            for (const key of ['wake', 'waterlineFoam']) {
+              if (previous.userData[key]) {
+                loaded.userData[key] = previous.userData[key];
+                loaded.add(previous.userData[key]);
+              }
+            }
+            loaded.userData.size ||= previous.userData.size;
+            world.remove(previous);
+            disposeActorModel(previous);
+            pendingItem.model = loaded;
+            world.add(loaded);
+            if (loaded.userData.wake) loaded.userData.wake.visible = pendingItem.underway;
+            anchorSurfaceFoam(loaded);
+            if (focusId === actor.id) frameCamera();
+            if (reduced.matches) renderOnce();
+          }).catch(error => console.warn('Ship asset unavailable; retaining procedural model', error));
+        }
       }
       item.target.copy(target);
       item.sinking = sunk;
@@ -430,7 +442,8 @@ export function createBattle3D(host, onFailure = () => {}) {
       item.underway = item.floats && (!actor.own || actor.status === 'active');
       item.afloat = !sunk;
       item.hull = actor.own ? actor.hull : undefined;
-      if (item.model.userData.wake) item.model.userData.wake.visible = item.underway;
+      if (item.model.userData.wake) item.model.userData.wake.visible = item.underway && !sunk;
+      if (item.model.userData.waterlineFoam) item.model.userData.waterlineFoam.visible = item.floats && !sunk;
       if (actor.own) item.model.rotation.y = facingAngle(actor.facing);
     }
     if (reframe) frameCamera();
@@ -446,6 +459,7 @@ export function createBattle3D(host, onFailure = () => {}) {
         item.model.position.copy(item.target);
         item.y = item.target.y; item.pitch = item.pitchTarget; item.roll = item.rollTarget;
         item.model.rotation.x = item.pitch; item.model.rotation.z = item.roll;
+        anchorSurfaceFoam(item.model);
       }
       renderOnce();
     }
@@ -460,6 +474,7 @@ export function createBattle3D(host, onFailure = () => {}) {
     document.removeEventListener('keydown', toggleHud);
     for (const id of [...models.keys()]) removeModel(id);
     effects.dispose();
+    shipAssets.dispose();
     water.geometry.dispose(); water.material.dispose(); water.material.uniforms.normalSampler.value.dispose();
     ceiling.geometry.dispose(); ceiling.material.dispose();
     sky.geometry.dispose(); sky.material.dispose();
