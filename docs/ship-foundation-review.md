@@ -49,8 +49,16 @@ Keying by class is right for fog of war, but HMS Lion and SMS Seydlitz are both 
 ### 8. Every instance copies its geometry (`src/ui/ship-assets.js:102`)
 `cloneShipAsset` clones geometry for each ship. For 20–40k-triangle hero models that multiplies GPU memory for no benefit: damage, paint and decals are material or decal work. Share the template's geometry and clone only materials, and don't dispose the shared geometry per instance (the manager already owns template lifetime).
 
-### 9. KTX2 decoding isn't wired up for Vite (`src/ui/ship-assets.js:17`)
-With `basisTranscoderPath: ''`, `KTX2Loader` requests `basis_transcoder.js` and `.wasm` relative to the site root, where Vite doesn't serve them. The doc's line "uses Three's bundled local addon resolution" isn't how `KTX2Loader` works. Copy `three/examples/jsm/libs/basis/*` into `public/basis/` (or add a Vite static-copy step), set the path to `/basis/`, and add the tiny licensed fixture the doc already mentions, so decoding is exercised in CI. The `meshopt` string in `SHIP_ASSET_DECODERS` is unused.
+### 9. KTX2 decoder packaging — original finding withdrawn
+**Correction from the PR #3 review:** the original claim that an empty
+`basisTranscoderPath` requests missing site-root files was incorrect for pinned
+Three 0.186.1. Its `KTX2Loader` uses module-relative `new URL(..., import.meta.url)`
+Basis JS/WASM URLs when the transcoder path is empty. Vite emits both into
+`dist/assets`; local preview serving was verified. Keep `basisTranscoderPath: ''`.
+No copy into `public/basis/` is required for this pinned version.
+
+The remaining gap is **runtime decoding validation**: no compressed glTF/KTX2
+fixture exercises the decoder yet. Packaging evidence does not close that gate.
 
 ### 10. Unused `steam` era key (`src/ui/ship-assets.js:11`)
 The simulation's eras are `sail`, `ironclad`, `dreadnought`, `coldwar` and `modern`. Harmless, but drop it or document what it's for.
@@ -74,3 +82,20 @@ Suggested additions:
 
 ## Suggested order
 Items 1–3 first: they're cheap and the most visible (Hampton Roads and Dogger Bank especially). Then 5 and 6 so the sea can't take the view down and the suite is green. Then 4 for the hull. Items 7–9 before the first authored model is registered.
+
+## Post-merge review follow-ups
+
+PR #3 was approved and merged after verification at `9dbe50c`: 162 tests, syntax
+checks, production build, scenario-wide model selection, and Hampton/Dogger
+browser smoke passed. The review identified no blocking findings. This document's
+initial failing-test observation and original implementation findings are historical.
+
+Non-blocking next-pass work:
+- Enforce authored-asset units at normalization/registration, rather than relying
+  only on authors to supply `MODEL_METERS_TO_WORLD`.
+- Remove scenario-specific ship-name alternatives from `shipSpecFor`; retain
+  class/type selection and the scenario-table regression tests.
+- Strengthen Virginia's casemate slope and narrow its flat top for a more
+  distinctive silhouette at the follow camera.
+
+Mid-laptop/phone frame-time measurements and Craig's visual acceptance remain open.
