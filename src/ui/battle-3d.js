@@ -391,7 +391,7 @@ export function createBattle3D(host, onFailure = () => {}) {
     for (const id of models.keys()) if (!ids.has(id) || changedEra) removeModel(id);
     for (const actor of presented.actors) {
       let item = models.get(actor.id);
-      if (item && (item.type !== actor.type || item.name !== actor.name || item.uncertain !== actor.uncertain || item.stale !== actor.stale)) { removeModel(actor.id); item = null; }
+      if (item && (item.type !== actor.type || item.className !== actor.className || item.name !== actor.name || item.uncertain !== actor.uncertain || item.stale !== actor.stale)) { removeModel(actor.id); item = null; }
       const sunk = actor.own && actor.status === 'sunk', struck = actor.own && actor.status === 'struck';
       const target = new THREE.Vector3(actor.x + origin.x, actor.y - (sunk ? 2.6 : struck ? 0.15 : 0), actor.z + origin.z);
       if (!item) {
@@ -399,7 +399,7 @@ export function createBattle3D(host, onFailure = () => {}) {
         model.position.copy(target);
         model.rotation.y = actor.own ? facingAngle(actor.facing) : Math.PI * 0.3;
         world.add(model);
-        item = { model, target, y: target.y, pitch: 0, roll: 0, type: actor.type, name: actor.name, uncertain: actor.uncertain, stale: actor.stale, phase: hashPhase(actor.id) };
+        item = { model, target, y: target.y, pitch: 0, roll: 0, type: actor.type, className: actor.className, name: actor.name, uncertain: actor.uncertain, stale: actor.stale, phase: hashPhase(actor.id) };
         models.set(actor.id, item);
         // Keep the procedural hull visible until a registered local asset is
         // ready. Identity check rejects late loads after contact/era changes.

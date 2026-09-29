@@ -44,7 +44,7 @@ test('every scenario ship resolves to the intended public model spec', () => {
     const era = scenarioEra(scenarioId);
     for (const ship of setup.ships) {
       seen.add(ship.id);
-      const spec = shipSpecFor(ship.type || ship.className, era, ship.name);
+      const spec = shipSpecFor(ship.className || ship.type, era);
       assert.equal(spec.key, expectedScenarioSpecs[ship.id], `${scenarioId}:${ship.name}`);
     }
   }
@@ -132,13 +132,13 @@ test('ironclad actor geometry exposes casemate, monitor turret, and exposed gun 
   assert.ok(virginia.userData.parts?.includes('casemate-broadside-guns'));
   disposeActorModel(virginia);
 
-  const monitor = createActorModel({ own: true, type: 'ironclad', name: 'USS Monitor' }, 'ironclad');
+  const monitor = createActorModel({ own: true, type: 'ironclad', className: 'Turret ironclad', name: 'USS Monitor' }, 'ironclad');
   assert.equal(monitor.userData.gunStyle, 'monitor-turret');
   assert.ok(monitor.userData.parts?.includes('round-monitor-turret'));
   assert.ok(monitor.userData.parts?.includes('monitor-pilot-house'));
   disposeActorModel(monitor);
 
-  const sidewheel = createActorModel({ own: true, type: 'wooden', name: 'CSS Patrick Henry' }, 'ironclad');
+  const sidewheel = createActorModel({ own: true, type: 'wooden', className: 'Side-wheel gunboat', name: 'CSS Patrick Henry' }, 'ironclad');
   assert.equal(sidewheel.userData.gunStyle, 'exposed');
   assert.ok(sidewheel.userData.parts?.includes('exposed-deck-guns'));
   disposeActorModel(sidewheel);
@@ -148,7 +148,7 @@ test('actor fittings sit on their class deck and after guns face aft', () => {
   const ironclad = createActorModel({ own: true, type: 'ironclad', name: 'CSS Virginia' }, 'ironclad');
   const ironSpec = shipSpecFor('ironclad', 'ironclad', 'CSS Virginia');
   const deckY = ironSpec.dimensions.freeboard + 0.045;
-  assert.ok(ironclad.userData.funnels.every(f => f.y < deckY + 1.15), 'ironclad funnel smoke sources are deck-relative, not floating high');
+  assert.ok(ironclad.userData.funnels.every(f => Math.abs(f.y - (deckY + 0.035 + ironSpec.casemate.height + ironSpec.funnels[0].height + 0.1)) < 1e-6), 'casemate funnel is mounted on the armored roof');
   disposeActorModel(ironclad);
 
   const model = createActorModel({ own: true, type: 'battlecruiser', name: 'HMS Lion' }, 'dreadnought');
@@ -173,7 +173,7 @@ test('createActorModel dispatch matches scenario ship specs', () => {
   for (const [scenarioId, setup] of Object.entries(SCENARIO_SETUPS)) {
     const era = scenarioEra(scenarioId);
     for (const ship of setup.ships) {
-      const model = createActorModel({ own: true, type: ship.type, name: ship.name }, era);
+      const model = createActorModel({ own: true, type: ship.type, className: ship.className, name: ship.name }, era);
       assert.equal(model.userData.specKey, expectedScenarioSpecs[ship.id], `${scenarioId}:${ship.name}`);
       if (['sail_frigate', 'wooden_sail_ship'].includes(expectedScenarioSpecs[ship.id])) assert.equal(model.userData.funnels, undefined, `${ship.name} has no funnel smoke source`);
       if (expectedScenarioSpecs[ship.id] === 'wooden_steamer') assert.ok(model.userData.funnels?.length, `${ship.name} has a steam funnel source`);
@@ -194,5 +194,22 @@ test('actor models expose size metadata, stationary waterline foam, and wake sep
   assert.equal(model.userData.waterlineFoam.parent, model);
   const fullRadius = new THREE.Box3().setFromObject(model).getBoundingSphere(new THREE.Sphere()).radius;
   assert.ok(fullRadius > model.userData.radius, 'camera radius excludes wake and waterline foam');
+  disposeActorModel(model);
+});
+
+test('procedural selection ignores scenario ship names', () => {
+  for (const name of ['USS Monitor', 'CSS Virginia', 'USS Minnesota', 'CSS Patrick Henry', 'Typhoon', 'Alfa', 'Los Angeles']) {
+    assert.equal(shipSpecFor('Sloop of war', 'ironclad', name).key, 'wooden_sail_ship');
+    assert.equal(shipSpecFor('Missile destroyer', 'modern', name).key, 'modern_surface');
+  }
+});
+
+test('casemate roof is narrow and unobstructed by a generic bridge', () => {
+  const spec = SHIP_SPECS.ironclad_casemate;
+  assert.ok(spec.casemate.slope >= 0.65);
+  const model = createActorModel({ own: true, type: 'Casemate ironclad', name: 'CSS Virginia' }, 'ironclad');
+  assert.ok(!model.children.some(p => p.material?.color?.getHex() === 0x1a343d), 'no generic bridge windows in the armor shell');
+  const roofY = spec.dimensions.freeboard + 0.045 + 0.035 + spec.casemate.height;
+  assert.ok(Math.abs(model.userData.funnels[0].y - (roofY + spec.funnels[0].height + 0.1)) < 1e-6);
   disposeActorModel(model);
 });

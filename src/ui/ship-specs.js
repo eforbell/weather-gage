@@ -34,7 +34,7 @@ export const SHIP_SPECS = Object.freeze({
     paint: IRON_PAINT,
     hull: { ...baseHull, bowFine: 0.08, sternWidth: 0.78, sheer: 0.1, flare: 0.05, tumblehome: 0.14, rake: 0.02, ram: 0.08 },
     gunStyle: 'casemate',
-    casemate: { z: -0.05, length: 3.45, width: 1.5, height: 0.82, slope: 0.28 },
+    casemate: { z: -0.05, length: 3.45, width: 1.5, height: 0.82, slope: 0.68 },
     broadsideGuns: [-1.15, -0.35, 0.45, 1.25],
     funnels: [{ x: 0, z: 0.65, height: 0.95 }],
     bridge: { z: -0.05, length: 3.3, height: 0.72 },
@@ -61,17 +61,17 @@ export const SHIP_SPECS = Object.freeze({
   submarine: { key: 'submarine', era: 'coldwar', loaderKey: 'coldwar/submarine-procedural', presentationUnits: true, dimensions: { length: 8.4, beam: 1.36, freeboard: 0.2, draft: 0.5 }, paint: { ...SURFACE_PAINT, hull: 'subSteel' } },
 });
 
-export function shipSpecFor(type = '', era = '', publicName = '') {
-  const label = `${String(type || '').toLowerCase()} ${String(publicName || '').toLowerCase()}`;
+export function shipSpecFor(type = '', era = '') {
+  const label = String(type || '').toLowerCase();
   if (/carrier/.test(label)) return SHIP_SPECS.carrier;
-  if (/submarine|ssn|ssbn|attack boat|typhoon|alfa|los angeles/.test(label)) return SHIP_SPECS.submarine;
+  if (/submarine|ssn|ssbn|attack boat/.test(label)) return SHIP_SPECS.submarine;
   if (era === 'sail') return SHIP_SPECS.sail_frigate;
   if (era === 'ironclad') {
     if (/monitor|turret/.test(label)) return SHIP_SPECS.ironclad_monitor;
-    if (/side[- ]?wheel|gunboat|patrick henry|jamestown/.test(label)) return SHIP_SPECS.sidewheel_gunboat;
-    if (/steam frigate|minnesota/.test(label)) return SHIP_SPECS.wooden_steamer;
-    if (/sail|sloop|cumberland|congress/.test(label)) return SHIP_SPECS.wooden_sail_ship;
-    if (/ironclad|casemate|virginia/.test(label)) return SHIP_SPECS.ironclad_casemate;
+    if (/side[- ]?wheel|gunboat/.test(label)) return SHIP_SPECS.sidewheel_gunboat;
+    if (/steam frigate/.test(label)) return SHIP_SPECS.wooden_steamer;
+    if (/sail|sloop/.test(label)) return SHIP_SPECS.wooden_sail_ship;
+    if (/ironclad|casemate/.test(label)) return SHIP_SPECS.ironclad_casemate;
     return SHIP_SPECS.wooden_steamer;
   }
   if (era === 'dreadnought') {
