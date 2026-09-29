@@ -3,6 +3,12 @@
 // capital-ship lengths. Camera, smoke, splash and haze sizes all derive from HEX.
 export const HEX = 13.5;
 export const SHIP_LENGTH = HEX / 1.5;
+// Authored assets are in metres. A representative 210 m capital ship occupies
+// SHIP_LENGTH; the nominal 3× enlargement and compressed chart distances are
+// presentation choices, not a physical nautical-mile conversion.
+export const PRESENTATION_SCALE = 3;
+export const WORLD_UNITS_PER_METER = SHIP_LENGTH / (210 * PRESENTATION_SCALE);
+export const MODEL_METERS_TO_WORLD = WORLD_UNITS_PER_METER * PRESENTATION_SCALE;
 export const hexToWorld = ({ q, r }, focus) => ({
   x: ((q - focus.q) + (r - focus.r) / 2) * HEX,
   z: (r - focus.r) * HEX * Math.sqrt(3) / 2,
