@@ -161,3 +161,6 @@ dialog.launcher{max-width:1240px;width:calc(100% - 32px)}
 .patrol-form input{width:48px;min-width:0;padding:5px;font-size:10px}
 .patrol-form button{grid-column:1/-1;font-size:9px;min-height:32px}
 @media(max-width:1150px){.patrol-form{grid-template-columns:auto 58px auto 58px}.patrol-form input{width:58px}}
+
+.entity.buoys .buoy-field{fill:#28586710;stroke:var(--blue);stroke-width:1;stroke-dasharray:2 4}
+.entity.buoys .buoy{fill:#f3b340;stroke:var(--blue);stroke-width:.6}

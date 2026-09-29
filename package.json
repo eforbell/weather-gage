@@ -9,6 +9,7 @@
     "dev": "node scripts/serve.mjs",
     "start": "node scripts/serve.mjs",
     "test": "node --test",
-    "check": "node scripts/check.mjs"
+    "check": "node scripts/check.mjs",
+    "census:torpedoes": "node scripts/census-torpedoes.mjs"
   }
 }

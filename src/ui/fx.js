@@ -262,6 +262,23 @@ export function createFx({ layer, tracks, wrap, banner, pt }) {
         case 'ivan':
           if (from) later(start * 0.4, () => floatText(from, 'CRAZY IVAN', 'muted'));
           break;
+        case 'asroc':
+          // A rocket arcs out from the escort; the torpedo splashes down near the contact.
+          later(t0, () => {
+            if (from) { flash(from, 7); sound('whoosh', 0); }
+            const drop = at || to;
+            if (drop && from) shell(from, drop, flight * 1.4, false, () => { splash(drop, true); floatText(drop, 'ASROC', 'muted'); });
+            else if (drop) splash(drop, true);
+          });
+          if (f.to?.own) showBanner('ASROC INBOUND', 'alert');
+          break;
+        case 'airdrop':
+          if (at || to) later(t0, () => { const drop = at || to; splash(drop, true); floatText(drop, 'AIR DROP', 'muted'); sound('splash', 0); });
+          if (f.to?.own) showBanner('AIR-DROPPED TORPEDO', 'alert');
+          break;
+        case 'buoys':
+          if (at) later(start * 0.4, () => { for (let k = 0; k < 6; k++) later(k * 70, () => splash(jitter(at, 30))); floatText(at, 'SONOBUOYS', 'muted'); });
+          break;
         case 'decoy':
           if (from) later(start * 0.4, () => { for (let k = 0; k < 4; k++) later(k * 90, () => splash(jitter(from, 9))); floatText(from, 'NOISEMAKER', 'muted'); });
           break;

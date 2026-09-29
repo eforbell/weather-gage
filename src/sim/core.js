@@ -138,7 +138,7 @@ export function publicFx(state, side, fx, shooter, target) {
   const out = { type, from: type === 'explosion' ? null : ref(shooter), to: ref(target) };
   if (!out.from && !out.to && !fx.at) return null;
   // Only the side that fired a torpedo knows where it was aimed; the target sees wakes.
-  const hiddenAim = fx.type === 'torpedo' && shooter && shooter.side !== side;
+  const hiddenAim = ['torpedo', 'asroc', 'airdrop'].includes(fx.type) && shooter && shooter.side !== side;
   if (fx.at && !hiddenAim) out.at = { q: fx.at.q, r: fx.at.r };
   for (const k of ['hits', 'shots', 'heavy', 'straddle', 'crossingT', 'smoke', 'eta', 'fc']) if (fx[k] !== undefined) out[k] = fx[k];
   if (target && target.side === side && fx.damage !== undefined) out.damage = fx.damage;
