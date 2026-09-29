@@ -154,3 +154,10 @@ dialog.launcher{max-width:1240px;width:calc(100% - 32px)}
 @media(prefers-reduced-motion:reduce){.fx-ping-wave,.entity .heard-ring{animation:none!important}}
 .mark-cell{fill:#5b6e3a22;stroke:#5b6e3a;stroke-width:1.2;stroke-dasharray:3 2;pointer-events:none}
 .mark-label{font:8px var(--mono);letter-spacing:1.5px;fill:#4d6130;text-anchor:middle;pointer-events:none}
+.hull.surface{fill:#285867}
+.carrier-hull{fill:#314f5a}
+.carrier-deck{fill:#d8e1d8;stroke:#285867;stroke-width:.7}
+.patrol-form{display:grid;grid-template-columns:auto 48px auto 48px;gap:6px;align-items:center;margin-top:12px;font-size:8px;color:var(--muted)}
+.patrol-form input{width:48px;min-width:0;padding:5px;font-size:10px}
+.patrol-form button{grid-column:1/-1;font-size:9px;min-height:32px}
+@media(max-width:1150px){.patrol-form{grid-template-columns:auto 58px auto 58px}.patrol-form input{width:58px}}

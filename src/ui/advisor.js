@@ -31,6 +31,7 @@ const PRIMERS = {
     ['One ping only', 'Active sonar gives an exact fix and tells everyone where you are. It is also how one captain says hello to another.'],
     ['Torpedoes have no loyalty', 'A seeker homes on the loudest boat ahead of it, including the one that fired it. Inside its arming distance a torpedo is just a heavy object.'],
     ['Don’t start a war', 'Peacetime rules: Dallas holds fire. Shoot first and Konovalov is your enemy too. But an attack on a boat under your protection is an attack on you.'],
+    ['Screens and patrols', 'Surface escorts and carriers have their own tactical pictures. Patrol aircraft can search a distant hex, but reports take time and do not magically update every submarine.'],
   ],
   modern: [
     ['Find without being found', 'Active radar sees far but announces you. Passive ships can still see emitters.'],
@@ -39,7 +40,10 @@ const PRIMERS = {
   ],
 };
 
-export function primer(era) { return PRIMERS[era] || []; }
+export function primer(era, scenarioId) {
+  const items = PRIMERS[era] || [];
+  return scenarioId === 'northern_screen' ? items.filter(([title]) => title !== 'Don’t start a war') : items;
+}
 
 export function advise(view, sc) {
   const own = view.ships.filter(isActive);
@@ -48,6 +52,10 @@ export function advise(view, sc) {
   if (!own.length) return 'No ships remain in action.';
   const lead = own[0];
   if (!fresh.length) {
+    if (sc.era === 'coldwar') {
+      const carrier = own.find(s => s.type === 'carrier');
+      if (carrier && (carrier.airSorties ?? 0) > 0 && (carrier.patrolReadyAt ?? 0) <= view.tick) return `${carrier.name} has aircraft ready. Launch a patrol toward the suspected lane; reports will arrive after two ticks.`;
+    }
     if (sc.era === 'modern' && !own.some(s => s.radar)) return 'Your ships are silent and blind. A short radar burst finds the enemy but tells him where you are.';
     return view.tick < 2 ? 'No contacts yet. Engage sends captains toward the enemy’s likely position; Proceed lets you choose the approach.' : 'Contact lost. Last-known markers show where the enemy was, not where he is.';
   }
@@ -69,6 +77,7 @@ export function advise(view, sc) {
     const quiet = fresh.find(c => /seismic|magma/i.test(c.className || ''));
     const heard = view.entities.find(e => !e.own && e.kind === 'torpedo');
     if (heard) return 'Torpedo in the water! Captains will evade on their own; a noisemaker or a turn into an unarmed fish may save them.';
+    if (listener?.type === 'asw_destroyer' && fresh.some(c => distance(listener, c) <= listener.doctrine.range)) return `${listener.name} is close enough to prosecute the contact. Keep the screen between the carrier and the datum.`;
     if (defector && defector.doctrine.depth === 'surface') return `${defector.name} is on the surface and visible for miles. Keep Dallas between her and the hunter, and be ready to defend her.`;
     if (defector) return `${defector.name} is under your command. Her route, speed and depth are yours to set; an attack on her is now an attack on you.`;
     if (quiet && listener && distance(listener, quiet) <= 8) return 'That “seismic noise” is moving at a steady course and speed. Nature doesn’t do that. One ping might get an answer.';
@@ -117,6 +126,11 @@ export function advise(view, sc) {
 export function lesson(view, sc, stats) {
   const result = view.outcome?.result;
   if (sc.era === 'coldwar') {
+    if (sc.id === 'northern_screen') {
+      if (result === 'victory') return 'Steadfast made the crossing. Separate sonar tracks, a forward submarine screen and timely patrol reports kept the carrier out of the raiders’ reach.';
+      if (result === 'defeat') return 'The carrier was exposed. Keep destroyers between her and the contacts, and launch patrols toward the likely approach before the enemy closes.';
+      return 'The escort survived but missed the rendezvous. A shorter route and earlier patrol reports may buy the time to cross.';
+    }
     if (result === 'victory') return 'Red October made the rendezvous. Whether by quiet patience, one ping or a torpedo that turned on its owner, the defector is home.';
     const commanded = view.ships.some(s => s.side !== 'blue');
     if (commanded) return 'She was under your protection and still did not make it. Keep Dallas close, slow her down before the hunter hears her, and be ready to defend her once she is attacked.';

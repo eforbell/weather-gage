@@ -68,7 +68,7 @@ export function ahead(ship, facing) {
 
 // Deep-draught ships treat shoals like land; shallow-draught ships cross them.
 export function passable(state, c, occupied, ship = null) {
-  if (!inBounds(c) || occupied.has(key(c.q, c.r))) return false;
+  if (!inBounds(c, state.map) || occupied.has(key(c.q, c.r))) return false;
   const t = terrainAt(state, c.q, c.r);
   return t !== 'land' && !(t === 'shoal' && ship?.draft === 'deep');
 }
@@ -83,7 +83,7 @@ export function headingTo(state, ship, destination) {
   let best = null;
   for (let f = 0; f < 6; f += 1) {
     const c = ahead(ship, f);
-    if (!inBounds(c) || !navigable(state, ship, c)) continue;
+    if (!inBounds(c, state.map) || !navigable(state, ship, c)) continue;
     const steps = field.get(key(c.q, c.r)) ?? 1000 + distance(c, destination);
     const score = steps * 10 + turnDistance(ship.facing, f);
     if (!best || score < best.score) best = { f, score };
@@ -112,7 +112,7 @@ function routeField(state, ship, destination) {
     for (const [dq, dr] of DIRECTIONS) {
       const n = { q: cur.q + dq, r: cur.r + dr };
       const k = key(n.q, n.r);
-      if (!inBounds(n) || field.has(k) || blocked.has(k) || !navigable(state, ship, n)) continue;
+      if (!inBounds(n, state.map) || field.has(k) || blocked.has(k) || !navigable(state, ship, n)) continue;
       field.set(k, d + 1);
       queue.push(n);
     }

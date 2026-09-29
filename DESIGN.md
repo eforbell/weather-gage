@@ -11,11 +11,11 @@ A working naval chart, not a generic dashboard. Paper, ink, restrained blue and 
 
 ## Product goals
 - Give a commodore useful decisions, then let captains execute.
-- Make each era feel different using one simulation (sail, WWI dreadnought, fictional modern).
+- Make each era feel different using one simulation (sail, ironclad, dreadnought, Cold War, fictional modern).
 - Teach as you play: a tactics primer in the briefing, a live flag-lieutenant advisor, and a debrief lesson.
 - Complete a mission from brief to outcome; save and resume locally.
-- Non-goals: full historical fidelity, campaign, multiplayer, aircraft/submarines, production-scale combat.
-- Success: both scenarios can be played, paused, finished, restarted, saved, and deterministically reproduced.
+- Non-goals: full historical fidelity, campaign, multiplayer, individually flown aircraft, production-scale combat.
+- Success: every scenario can be played, paused, finished, restarted, saved, and deterministically reproduced.
 
 ## Personas and jobs
 Strategy/simulation players who enjoy Fleet Command's information warfare and Civilization's readable rules. Desktop/laptop is primary; smaller screens get a stacked layout, not a separate experience.
@@ -41,7 +41,9 @@ Three columns on wide screens; command panel moves below chart on medium screens
 ## Interaction states
 Brief visible on first visit. No loading spinner: static ESM startup. Empty contact list says no contacts. Save failures remain playable and show a message; invalid imports do not replace current state. Outcome stops clock and opens a debrief. Running clocks pause on new fresh contact, outcome, hidden tab, briefing, and save/load operations.
 
-In Cold War sorties, the chart and contact list show the selected submarine's sonar track. Each captain moves and fires from that boat's own track; side-level summaries remain for command dispatches, not instant target sharing. Selecting another boat changes the sonar picture. Older saves rebuild tracks from each boat's current sensors rather than copying the former shared report.
+In Cold War sorties, the chart and contact list show the selected vessel's sensor track. Each captain moves and fires from that vessel's own track; side-level summaries remain for command dispatches, not instant target sharing. Selecting another vessel changes the tactical picture. Older saves rebuild tracks from each vessel's current sensors rather than copying the former shared report.
+
+The fictional Northern Screen sortie extends that rule to ASW destroyers and a carrier: each platform keeps its own contact picture. Carrier aircraft are finite two-tick patrol missions returning a one-tick report to the carrier, not autonomous aircraft units or globally shared detections. Its 30×18 map is scenario-sized; earlier missions and saves retain 20×14 charts.
 
 ## Content voice
 Short dispatches. Explain game rules rather than imply real-world accuracy. Modern setting is fictional. Keep display time/ticks explicitly abstract.

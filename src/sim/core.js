@@ -4,6 +4,7 @@
 
 export const WIDTH = 20;
 export const HEIGHT = 14;
+export const DEFAULT_MAP = Object.freeze({ width: WIDTH, height: HEIGHT });
 export const DIRECTIONS = Object.freeze([[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]]);
 export const SIDES = ['blue', 'red'];
 export const ALL_SIDES = ['blue', 'red', 'green'];
@@ -50,7 +51,7 @@ export const FX_NEEDS_ID = new Set(['fire', 'ram', 'sunk', 'struck', 'magazine',
 export const FX_SEEN_AS_EXPLOSION = new Set(['fire', 'ram', 'sunk', 'magazine', 'torpedo-hit', 'mine', 'missile-hit']);
 
 export function distance(a, b) {
-  assertCoord(a); assertCoord(b);
+  if (!a || !b || ![a.q, a.r, b.q, b.r].every((n) => Number.isInteger(n) && n >= 0)) throw new Error('Invalid coordinate');
   const as = -a.q - a.r;
   const bs = -b.q - b.r;
   return Math.max(Math.abs(a.q - b.q), Math.abs(a.r - b.r), Math.abs(as - bs));
@@ -60,8 +61,8 @@ export function isActive(ship) {
   return Boolean(ship && ship.status === 'active' && ship.hull > 0 && ship.crew > 0);
 }
 
-export function assertCoord(c) {
-  if (!c || !Number.isInteger(c.q) || !Number.isInteger(c.r) || c.q < 0 || c.r < 0 || c.q >= WIDTH || c.r >= HEIGHT) throw new Error('Invalid coordinate');
+export function assertCoord(c, map = DEFAULT_MAP) {
+  if (!c || !Number.isInteger(c.q) || !Number.isInteger(c.r) || c.q < 0 || c.r < 0 || c.q >= map.width || c.r >= map.height) throw new Error('Invalid coordinate');
 }
 
 export function nonEmptyString(value) {
@@ -192,7 +193,7 @@ export function hexDistanceRaw(a, b) { const as = -a.q - a.r; const bs = -b.q - 
 
 export function turnDistance(a, b) { const d = Math.abs(a - b) % 6; return Math.min(d, 6 - d); }
 
-export function inBounds(c) { return c.q >= 0 && c.r >= 0 && c.q < WIDTH && c.r < HEIGHT; }
+export function inBounds(c, map = DEFAULT_MAP) { return Boolean(c && Number.isInteger(c.q) && Number.isInteger(c.r) && c.q >= 0 && c.r >= 0 && c.q < map.width && c.r < map.height); }
 
 // Stable per-game noise: the same inputs give the same answer within a game, and a
 // different seed gives a different game. Used where the game RNG would be consumed

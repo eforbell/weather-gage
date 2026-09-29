@@ -214,7 +214,7 @@ function launchTorpedoes(state, ship, target) {
 export function torpedoRun(state, item) {
   const target = state.ships.find((s) => s.id === item.targetId);
   const aim = { q: item.aimQ, r: item.aimR };
-  assertCoord(aim);
+  assertCoord(aim, state.map);
   if (!target || !isActive(target)) return state;
   const miss = distance(target, aim);
   const p = miss === 0 ? 0.45 : miss === 1 ? 0.2 : 0;

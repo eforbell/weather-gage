@@ -1,4 +1,5 @@
 const RENDEZVOUS = [[18, 8], [19, 8], [18, 9], [19, 7], [17, 9]];
+const SCREEN_EXIT = [[27, 8], [27, 9], [28, 8], [28, 9], [29, 8], [29, 9]];
 
 export const SCENARIOS = [
   {
@@ -63,6 +64,23 @@ export const SCENARIOS = [
     victory: { own: ['b_dallas'], protect: ['g_red_october'] },
     marks: [{ label: 'RENDEZVOUS', cells: RENDEZVOUS }],
     hexScale: '1 hex ≈ 1 nautical mile',
+    tickLabel: '4-minute',
+  },
+  {
+    id: 'northern_screen',
+    title: 'The Northern Screen',
+    subtitle: 'Fictional carrier escort through a submarine cordon, 1986',
+    era: 'coldwar',
+    briefing:
+      'A small carrier group must cross contested northern waters. Two destroyers guard the surface screen while two attack submarines range ahead. Hostile boats are somewhere in the approaches; your carrier can launch a handful of patrol flights to search distant sectors. Keep her moving and get her to the eastern rendezvous.',
+    objective: 'Escort the carrier Steadfast to the eastern rendezvous. Her loss is a defeat; reaching the marked water is a victory. Each ship sees only its own contacts, and patrol reports return to the carrier after two ticks.',
+    maxTicks: 48,
+    year: 1986,
+    difficulty: 3,
+    teaches: 'ASW screens, separate sensor pictures, delayed carrier patrol reports',
+    victory: { own: ['b_steadfast'], protect: ['b_steadfast'], lossTitle: 'Carrier Lost', successTitle: 'Escort Reaches Rendezvous', timeoutTitle: 'Escort Still at Sea' },
+    marks: [{ label: 'RENDEZVOUS', cells: SCREEN_EXIT }],
+    hexScale: '1 hex ≈ 3 nautical miles',
     tickLabel: '4-minute',
   },
   {
@@ -156,6 +174,25 @@ export const SCENARIO_SETUPS = {
       subShip('b_dallas', 'blue', 'USS Dallas', 'Los Angeles-class attack submarine', 'ssn', 15, 4, 3, { speed: 4, quiet: 2, sonar: 5, torpedoes: 4, decoys: 2, captain: { name: 'Cdr. Mancuso', trait: 'steady' }, order: { type: 'shadow' }, roe: 'hold' }),
       { ...subShip('r_konovalov', 'red', 'V. K. Konovalov', 'Alfa-class attack submarine', 'ssn', 0, 9, 0, { speed: 5, quiet: 4, sonar: 2, torpedoes: 4, decoys: 1, captain: { name: 'Capt. Tupolev', trait: 'reckless' }, order: { type: 'engage' }, speedSetting: 'flank' }), searchAt: [12, 5] },
       { ...subShip('g_red_october', 'green', 'Red October', 'Typhoon-class missile submarine', 'ssbn', 0, 5, 0, { speed: 3, quiet: 0, sonar: 3, torpedoes: 2, decoys: 2, captain: { name: 'Capt. Ramius', trait: 'cunning' }, order: { type: 'proceed', q: 18, r: 8 }, speedSetting: 'standard', depth: 'deep' }), passiveClass: 'Seismic noise (magma displacement?)', goal: RENDEZVOUS },
+    ],
+  },
+  northern_screen: {
+    map: { width: 30, height: 18 },
+    wind: 0,
+    entities: true,
+    terrain: [
+      ...row(2, 12, 14, 'land'), ...row(15, 16, 18, 'land'),
+      { q: 15, r: 3, type: 'shoal' }, { q: 19, r: 14, type: 'shoal' },
+    ],
+    ships: [
+      { ...subShip('b_steadfast', 'blue', 'BNS Steadfast', 'Light carrier', 'carrier', 4, 8, 0, { speed: 4, quiet: 7, sonar: 0, torpedoes: 0, decoys: 0, captain: { name: 'Capt. Vale', trait: 'steady' }, order: { type: 'proceed', q: 27, r: 8 }, depth: 'surface' }), airSorties: 4, patrolReadyAt: 0, value: 4, goal: SCREEN_EXIT },
+      subShip('b_meridian', 'blue', 'BNS Meridian', 'ASW destroyer', 'asw_destroyer', 5, 5, 0, { speed: 6, quiet: 6, sonar: 4, torpedoes: 4, decoys: 0, captain: { name: 'Cdr. Hale', trait: 'steady' }, order: { type: 'screen' }, depth: 'surface', range: 4 }),
+      subShip('b_ward', 'blue', 'BNS Ward', 'ASW destroyer', 'asw_destroyer', 5, 11, 0, { speed: 6, quiet: 6, sonar: 4, torpedoes: 4, decoys: 0, captain: { name: 'Cdr. Sen', trait: 'steady' }, order: { type: 'screen' }, depth: 'surface', range: 4 }),
+      subShip('b_sable', 'blue', 'BNS Sable', 'Attack submarine', 'ssn', 8, 3, 0, { speed: 4, quiet: 2, sonar: 5, torpedoes: 4, decoys: 2, captain: { name: 'Cdr. Imani', trait: 'steady' }, order: { type: 'engage' } }),
+      subShip('b_kite', 'blue', 'BNS Kite', 'Attack submarine', 'ssn', 8, 14, 0, { speed: 4, quiet: 2, sonar: 5, torpedoes: 4, decoys: 2, captain: { name: 'Cdr. Orlov', trait: 'steady' }, order: { type: 'engage' }, depth: 'deep' }),
+      { ...subShip('r_razor', 'red', 'RNS Razor', 'Attack submarine', 'ssn', 23, 4, 3, { speed: 4, quiet: 3, sonar: 4, torpedoes: 4, decoys: 2, captain: { name: 'Capt. Soren', trait: 'steady' }, order: { type: 'engage' } }), searchAt: [10, 7] },
+      { ...subShip('r_echo', 'red', 'RNS Echo', 'Attack submarine', 'ssn', 24, 10, 3, { speed: 4, quiet: 2, sonar: 5, torpedoes: 4, decoys: 2, captain: { name: 'Capt. Varin', trait: 'steady' }, order: { type: 'engage' }, depth: 'deep' }), searchAt: [10, 9] },
+      { ...subShip('r_dart', 'red', 'RNS Dart', 'Fast attack submarine', 'ssn', 26, 15, 3, { speed: 5, quiet: 4, sonar: 3, torpedoes: 4, decoys: 1, captain: { name: 'Capt. Taran', trait: 'reckless' }, order: { type: 'engage' }, speedSetting: 'flank' }), searchAt: [12, 11] },
     ],
   },
   strait: {
@@ -264,7 +301,7 @@ function subShip(id, side, name, className, type, q, r, facing, opts) {
     evadingAt: -1,
     driftAt: -1,
     order: opts.order,
-    doctrine: { roe: opts.roe ?? 'free', range: 6, withdraw: 25, speed: opts.speedSetting ?? 'standard', depth: opts.depth ?? 'shallow' },
+    doctrine: { roe: opts.roe ?? 'free', range: opts.range ?? 6, withdraw: 25, speed: opts.speedSetting ?? 'standard', depth: opts.depth ?? 'shallow' },
   };
 }
 

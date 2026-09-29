@@ -1,6 +1,6 @@
 import { SCENARIO_SETUPS, SCENARIOS } from './scenarios.js';
 import {
-  WIDTH, HEIGHT, DIRECTIONS, ALL_SIDES, CONF_RANK, MAX_LOG, MAX_FX, sidesOf, hostile, chance, contactId, believedHostile, worthClosing,
+  WIDTH, HEIGHT, DEFAULT_MAP, DIRECTIONS, ALL_SIDES, CONF_RANK, MAX_LOG, MAX_FX, sidesOf, hostile, chance, contactId, believedHostile, worthClosing,
   distance, isActive, assertCoord, nonEmptyString, addLog, reportText, addFx, publicFx, applyDamage, resolveStatus, roll, nextRandom, terrainAt, terrainAtMap, directionToward, hexDistanceRaw, turnDistance, inBounds, key, clamp, deepClone, bestContactFor, contactsForShip,
 } from './core.js';
 
@@ -26,6 +26,7 @@ const EVENT_FIELDS = new Set(['quiet', 'speed', 'passiveClass', 'depth']);
 export function createGame(scenarioId = 'nevis', seed = 1799) {
   const meta = scenarioFor(scenarioId);
   const setup = SCENARIO_SETUPS[meta.id];
+  const dimensions = setup.map || DEFAULT_MAP;
   const state = {
     version: VERSION,
     scenarioId: meta.id,
@@ -33,7 +34,7 @@ export function createGame(scenarioId = 'nevis', seed = 1799) {
     rng: normalizeSeed(seed),
     tick: 0,
     wind: setup.wind,
-    map: { width: WIDTH, height: HEIGHT, terrain: uniqueTerrain(setup.terrain) },
+    map: { ...dimensions, terrain: uniqueTerrain(setup.terrain, dimensions) },
     ships: deepClone(setup.ships),
     contacts: Object.fromEntries((setup.sides || ['blue', 'red']).map((side) => [side, []])),
     pending: [],
@@ -44,7 +45,10 @@ export function createGame(scenarioId = 'nevis', seed = 1799) {
   if (setup.sides) state.sides = [...setup.sides];
   if (setup.hostile) state.hostile = deepClone(setup.hostile);
   if (setup.entities) state.entities = [];
-  if (meta.era === 'coldwar') state.contactTracks = Object.fromEntries(state.ships.map((ship) => [ship.id, []]));
+  if (meta.era === 'coldwar') {
+    state.contactTracks = Object.fromEntries(state.ships.map((ship) => [ship.id, []]));
+    state.patrols = [];
+  }
   // Scripted events: each seed picks a tick inside the event's window, so the same
   // mission plays out differently without anything being random at run time.
   if (setup.events) state.events = setup.events.map((e) => ({ ...deepClone(e), at: pickTick(state, e), done: false }));
@@ -79,7 +83,7 @@ export function issueOrder(input, shipIds, order) {
   let state = validateState(input);
   state = cloneState(state);
   const ids = Array.isArray(shipIds) ? shipIds : [shipIds];
-  const clean = cleanOrder(order);
+  const clean = cleanOrder(order, state.map);
   if (!clean) return addLog(state, 'Invalid order rejected.', 'warn');
   if (clean.type === 'proceed' && terrainAt(state, clean.q, clean.r) === 'land') return addLog(state, 'Proceed order rejected: destination is land.', 'warn');
   const idSet = new Set(ids.filter((id) => typeof id === 'string'));
@@ -105,6 +109,7 @@ export function setDoctrine(input, shipIds, patch) {
     if (!ids.has(ship.id)) continue;
     const patch = { ...clean };
     for (const k of ['speed', 'depth']) if (ship.doctrine[k] === undefined) delete patch[k];
+    if (ship.era === 'coldwar' && (ship.type === 'carrier' || ship.type === 'asw_destroyer')) { delete patch.speed; delete patch.depth; }
     ship.doctrine = { ...ship.doctrine, ...patch };
   }
   return trimLog(addLog(state, `Doctrine updated for ${ids.size} ship(s).`, 'order', state.ships.filter(s => ids.has(s.id)).map(s => s.side)));
@@ -123,10 +128,27 @@ export function setRadar(input, shipIds, enabled) {
 export function activePing(input, shipIds) {
   let state = cloneState(validateState(input));
   const ids = new Set(Array.isArray(shipIds) ? shipIds : [shipIds]);
-  const ships = state.ships.filter((s) => ids.has(s.id) && isActive(s) && Number.isInteger(s.pingAt));
+  const ships = state.ships.filter((s) => ids.has(s.id) && isActive(s) && Number.isInteger(s.pingAt) && s.type !== 'carrier');
   if (!ships.length) return addLog(state, 'No ship with active sonar can ping.', 'warn');
   for (const ship of ships) ship.pingAt = state.tick + 1;
   return trimLog(addLog(state, `${ships.map((s) => s.name).join(', ')} ordered to ping.`, 'order', [ships[0].side]));
+}
+
+// Carrier aircraft are bounded patrol missions, not autonomous map entities. A
+// report returns to the launching carrier's picture two ticks after launch.
+export function launchPatrol(input, carrierIds, point) {
+  let state = cloneState(validateState(input));
+  const ids = new Set(Array.isArray(carrierIds) ? carrierIds : [carrierIds]);
+  if (!inBounds(point, state.map)) return addLog(state, 'Patrol launch rejected: choose a chart hex.', 'warn');
+  const carriers = state.ships.filter((s) => ids.has(s.id) && s.type === 'carrier' && isActive(s) && s.airSorties > 0
+    && s.patrolReadyAt <= state.tick && distance(s, point) <= 14);
+  if (!carriers.length) return addLog(state, 'No carrier has a ready patrol within flight range.', 'warn');
+  for (const carrier of carriers) {
+    carrier.airSorties -= 1;
+    carrier.patrolReadyAt = state.tick + 4;
+    state.patrols.push({ carrierId: carrier.id, side: carrier.side, q: point.q, r: point.r, resolveAt: state.tick + 2 });
+  }
+  return trimLog(addLog(state, `${carriers.map((s) => s.name).join(', ')} launches an air patrol toward ${point.q}, ${point.r}.`, 'order', [carriers[0].side]));
 }
 
 export function getView(input, side = 'blue', observerId = null) {
@@ -196,7 +218,7 @@ function validateState(value) {
   if (!isUint32(value.seed) || !isUint32(value.rng)) throw new Error('Invalid seed/rng');
   if (!Number.isInteger(value.tick) || value.tick < 0) throw new Error('Invalid tick');
   if (!Number.isInteger(value.wind) || value.wind < 0 || value.wind > 5) throw new Error('Invalid wind');
-  validateMap(value.map);
+  validateMap(value.map, SCENARIO_SETUPS[meta.id].map || DEFAULT_MAP);
   if (!Array.isArray(value.ships) || value.ships.length < 2) throw new Error('Invalid ships');
   const ids = new Set();
   let blue = 0;
@@ -231,20 +253,25 @@ function validateState(value) {
     for (const [side, list] of Object.entries(value.command)) if (!sidesOf(value).includes(side) || !Array.isArray(list) || !list.every((s) => sidesOf(value).includes(s) && s !== side)) throw new Error('Invalid command');
   }
   if (value.entities !== undefined) (ERA_RULES[meta.era]?.validateEntities || (() => { throw new Error('Entities are not part of this era'); }))(value.entities, ids, value);
-  validateContacts(value.contacts, ids, sidesOf(value));
+  if (value.patrols !== undefined) {
+    if (meta.era !== 'coldwar') throw new Error('Patrols are not part of this era');
+    coldwar.validatePatrols(value.patrols, value);
+  }
+  validateContacts(value.contacts, ids, sidesOf(value), sidesOf(value), value.map);
   if (value.contactTracks !== undefined) {
     if (meta.era !== 'coldwar' || !value.contactTracks || typeof value.contactTracks !== 'object' || Array.isArray(value.contactTracks)) throw new Error('Invalid contact tracks');
     const trackIds = Object.keys(value.contactTracks);
     if (trackIds.length !== ids.size || !trackIds.every((id) => ids.has(id))) throw new Error('Invalid contact tracks');
-    validateContacts(value.contactTracks, ids, sidesOf(value), trackIds);
+    validateContacts(value.contactTracks, ids, sidesOf(value), trackIds, value.map);
   }
   validatePending(value.pending, ids, value.tick, value.map, value.ships);
   validateLog(value.log);
   validateOutcome(value.outcome);
-  if (value.fx !== undefined) validateFx(value.fx);
+  if (value.fx !== undefined) validateFx(value.fx, value.map);
   const cloned = cloneState(value);
   cloned.fx = cloned.fx || [];
   cloned.log = cloned.log.slice(-MAX_LOG);
+  if (meta.era === 'coldwar') cloned.patrols = cloned.patrols || [];
   // Version-1 Cold War saves predate per-boat tracks. Re-sense from each boat's
   // current position rather than copying a side-wide report into every captain.
   if (meta.era === 'coldwar' && !cloned.contactTracks) {
@@ -254,11 +281,11 @@ function validateState(value) {
   return cloned;
 }
 
-function validateMap(map) {
-  if (!map || typeof map !== 'object' || map.width !== WIDTH || map.height !== HEIGHT || !Array.isArray(map.terrain)) throw new Error('Invalid map');
+function validateMap(map, dimensions) {
+  if (!map || typeof map !== 'object' || map.width !== dimensions.width || map.height !== dimensions.height || !Array.isArray(map.terrain)) throw new Error('Invalid map');
   const cells = new Set();
   for (const t of map.terrain) {
-    assertCoord(t);
+    assertCoord(t, map);
     if (!TERRAIN_TYPES.has(t.type)) throw new Error('Invalid terrain type');
     const cell = key(t.q, t.r);
     if (cells.has(cell)) throw new Error('Duplicate terrain cell');
@@ -272,7 +299,7 @@ function validateShip(ship, ids, era, map) {
   ids.add(ship.id);
   if (!nonEmptyString(ship.name) || !nonEmptyString(ship.className)) throw new Error('Invalid ship identity');
   if (ship.era !== era) throw new Error('Ship era does not match scenario');
-  assertCoord(ship);
+  assertCoord(ship, map);
   if (!ALL_SIDES.includes(ship.side)) throw new Error('Invalid ship side');
   if (!Number.isInteger(ship.facing) || ship.facing < 0 || ship.facing > 5) throw new Error('Invalid ship facing');
   for (const k of ['hull', 'propulsion', 'weapons', 'crew']) if (!Number.isInteger(ship[k]) || ship[k] < 0 || ship[k] > 100) throw new Error(`Invalid ${k}`);
@@ -284,7 +311,7 @@ function validateShip(ship, ids, era, map) {
   validateOrder(ship.order, map);
   validateDoctrine(ship.doctrine);
   if (ship.era === 'sail' && (!Number.isInteger(ship.guns) || ship.guns <= 0)) throw new Error('Invalid guns');
-  ERA_RULES[era]?.validateShip?.(ship);
+  ERA_RULES[era]?.validateShip?.(ship, map);
   if (ship.arriveAt !== undefined && (!Number.isInteger(ship.arriveAt) || ship.arriveAt < 0)) throw new Error('Invalid reserve arrival');
   if (ship.status === 'reserve' && ship.arriveAt === undefined) throw new Error('Invalid reserve arrival');
 }
@@ -295,11 +322,11 @@ function validateOrder(order, map = null) {
   const hasR = Object.hasOwn(order, 'r');
   if (order.type === 'proceed') {
     if (!hasQ || !hasR) throw new Error('Proceed order requires q/r');
-    assertCoord(order);
+    assertCoord(order, map);
     if (map && terrainAtMap(map, order.q, order.r) === 'land') throw new Error('Proceed order destination is land');
   } else if (order.type === 'line' || order.type === 'screen') {
     if (hasQ !== hasR) throw new Error('Formation q/r must be paired');
-    if (hasQ) assertCoord(order);
+    if (hasQ) assertCoord(order, map);
   } else if (hasQ || hasR) {
     throw new Error('Order type does not accept q/r');
   }
@@ -314,7 +341,7 @@ function validateDoctrine(doctrine) {
   if (doctrine.depth !== undefined && !DEPTHS.has(doctrine.depth)) throw new Error('Invalid doctrine depth');
 }
 
-function validateContacts(contacts, shipIds, sides, keys = sides) {
+function validateContacts(contacts, shipIds, sides, keys = sides, map = DEFAULT_MAP) {
   if (!contacts || typeof contacts !== 'object' || !keys.every((key) => Array.isArray(contacts[key]))) throw new Error('Invalid contacts');
   for (const key of keys) {
     const ids = new Set();
@@ -323,7 +350,7 @@ function validateContacts(contacts, shipIds, sides, keys = sides) {
       if (!nonEmptyString(contact.id) || ids.has(contact.id)) throw new Error('Invalid contact id');
       ids.add(contact.id);
       if (!nonEmptyString(contact.targetId) || !shipIds.has(contact.targetId)) throw new Error('Invalid contact target');
-      assertCoord(contact);
+      assertCoord(contact, map);
       if (!Object.hasOwn(CONF_RANK, contact.confidence)) throw new Error('Invalid contact confidence');
       if (!Number.isInteger(contact.lastSeen) || contact.lastSeen < 0) throw new Error('Invalid contact lastSeen');
       if (typeof contact.stale !== 'boolean') throw new Error('Invalid contact stale');
@@ -355,8 +382,8 @@ function validatePending(pending, shipIds, tick, map, ships) {
       if (!ALL_SIDES.includes(item.side)) throw new Error('Invalid torpedo side');
       const sideOf = (id) => ships.find((x) => x.id === id)?.side;
       if (sideOf(item.shipId) !== item.side || sideOf(item.targetId) === item.side) throw new Error('Invalid torpedo sides');
-      assertCoord(item);
-      assertCoord({ q: item.aimQ, r: item.aimR });
+      assertCoord(item, map);
+      assertCoord({ q: item.aimQ, r: item.aimR }, map);
       if (Object.hasOwn(item, 'order')) throw new Error('Torpedo pending cannot include order');
     } else {
       if (item.kind !== undefined) throw new Error('Invalid pending kind');
@@ -366,11 +393,11 @@ function validatePending(pending, shipIds, tick, map, ships) {
   }
 }
 
-function validateFx(fx) {
+function validateFx(fx, map) {
   if (!Array.isArray(fx) || fx.length > MAX_FX) throw new Error('Invalid fx');
   const ref = (r, own) => {
     if (r === null || r === undefined) return;
-    assertCoord(r);
+    assertCoord(r, map);
     if (own && (!nonEmptyString(r.id) || typeof r.own !== 'boolean')) throw new Error('Invalid fx ref');
   };
   for (const entry of fx) {
@@ -403,16 +430,16 @@ function validateOutcome(outcome) {
 
 
 
-function cleanOrder(order) {
+function cleanOrder(order, map) {
   if (!order || typeof order !== 'object' || !VALID_ORDERS.has(order.type)) return null;
   const clean = { type: order.type };
   if (order.type === 'proceed') {
     if (!Number.isInteger(order.q) || !Number.isInteger(order.r)) return null;
-    if (order.q < 0 || order.r < 0 || order.q >= WIDTH || order.r >= HEIGHT) return null;
+    if (!inBounds(order, map)) return null;
     clean.q = order.q; clean.r = order.r;
   } else if ((order.type === 'line' || order.type === 'screen') && order.q !== undefined && order.r !== undefined) {
     if (!Number.isInteger(order.q) || !Number.isInteger(order.r)) return null;
-    if (order.q < 0 || order.r < 0 || order.q >= WIDTH || order.r >= HEIGHT) return null;
+    if (!inBounds(order, map)) return null;
     clean.q = order.q; clean.r = order.r;
   }
   return clean;
@@ -499,7 +526,7 @@ function arriveReserves(state) {
     if (taken(ship)) {
       // Arrival hex blocked: come in on the nearest open water instead of waiting forever.
       const spot = DIRECTIONS.map(([dq, dr]) => ({ q: ship.q + dq, r: ship.r + dr }))
-        .find((c) => inBounds(c) && !taken(c) && terrainAt(state, c.q, c.r) !== 'land' && !(ship.draft === 'deep' && terrainAt(state, c.q, c.r) === 'shoal'));
+        .find((c) => inBounds(c, state.map) && !taken(c) && terrainAt(state, c.q, c.r) !== 'land' && !(ship.draft === 'deep' && terrainAt(state, c.q, c.r) === 'shoal'));
       if (!spot) continue;
       ship.q = spot.q; ship.r = spot.r;
     }
@@ -521,7 +548,7 @@ function moveShips(state, era) {
   const occupied = new Set(state.ships.filter(isActive).map((s) => key(s.q, s.r)));
   for (const ship of state.ships) {
     if (!isActive(ship)) continue;
-    if (ship.order.type === 'withdraw' && escapeEdge(ship)) {
+    if (ship.order.type === 'withdraw' && escapeEdge(state, ship)) {
       ship.status = 'escaped';
       state = addLog(state, `${ship.name} withdraws beyond the action.`, 'escape');
       occupied.delete(key(ship.q, ship.r));
@@ -534,7 +561,7 @@ function moveShips(state, era) {
     }
     if (rules?.moveShip) {
       state = rules.moveShip(state, ship, occupied, movementTarget(state, ship));
-      if (isActive(ship) && ship.order.type === 'withdraw' && escapeEdge(ship)) {
+      if (isActive(ship) && ship.order.type === 'withdraw' && escapeEdge(state, ship)) {
         ship.status = 'escaped';
         state = addLog(state, `${ship.name} withdraws beyond the action.`, 'escape');
         occupied.delete(key(ship.q, ship.r));
@@ -561,7 +588,7 @@ function moveShips(state, era) {
         state = addFx(state, { type: 'aground', targetId: ship.id });
       }
     }
-    if (ship.order.type === 'withdraw' && escapeEdge(ship)) {
+    if (ship.order.type === 'withdraw' && escapeEdge(state, ship)) {
       ship.status = 'escaped';
       state = addLog(state, `${ship.name} withdraws beyond the action.`, 'escape');
       occupied.delete(key(ship.q, ship.r));
@@ -575,7 +602,7 @@ function moveShips(state, era) {
 function movementTarget(state, ship) {
   if (ship.order.type === 'proceed') return { q: ship.order.q, r: ship.order.r };
   if (ship.order.type === 'line' || ship.order.type === 'screen') return formationTarget(state, ship, ship.order.type);
-  if (ship.order.type === 'withdraw') return withdrawTarget(ship);
+  if (ship.order.type === 'withdraw') return withdrawTarget(state, ship);
   if (ship.order.type === 'shadow') {
     const quarry = bestContactFor(state, ship.side, 99, true, ship);
     return quarry ? { q: quarry.q, r: quarry.r } : searchTarget(state, ship);
@@ -618,7 +645,7 @@ function formationTarget(state, ship, type) {
     : [scaleDir((flagship.facing + (idx % 2 ? 2 : 4)) % 6, Math.ceil(idx / 2) + 1), scaleDir((flagship.facing + 3) % 6, idx)];
   for (const [dq, dr] of offsets) {
     const c = { q: flagship.q + dq, r: flagship.r + dr };
-    if (inBounds(c) && terrainAt(state, c.q, c.r) !== 'land') return c;
+    if (inBounds(c, state.map) && terrainAt(state, c.q, c.r) !== 'land') return c;
   }
   return searchTarget(state, ship);
 }
@@ -631,24 +658,24 @@ function scaleDir(facing, n) {
 function searchTarget(state, ship) {
   // Scenario intelligence can point a captain at a search area; otherwise sweep toward the enemy's side.
   if (ship.searchAt) return { q: ship.searchAt[0], r: ship.searchAt[1] };
-  if (ship.side === 'blue') return { q: Math.min(WIDTH - 2, 12 + (state.tick % 4)), r: clamp(ship.r, 4, HEIGHT - 5) };
-  return { q: Math.max(1, 7 - (state.tick % 4)), r: clamp(ship.r, 4, HEIGHT - 5) };
+  if (ship.side === 'blue') return { q: Math.min(state.map.width - 2, Math.round(state.map.width * 0.6) + (state.tick % 4)), r: clamp(ship.r, 4, state.map.height - 5) };
+  return { q: Math.max(1, Math.round(state.map.width * 0.35) - (state.tick % 4)), r: clamp(ship.r, 4, state.map.height - 5) };
 }
 
 
-function withdrawTarget(ship) {
+function withdrawTarget(state, ship) {
   if (ship.goal) return { q: ship.goal[0][0], r: ship.goal[0][1] }; // a ship with a destination limps on toward it
-  return ship.side === 'blue' ? { q: 0, r: ship.r } : { q: WIDTH - 1, r: ship.r };
+  return ship.side === 'blue' ? { q: 0, r: ship.r } : { q: state.map.width - 1, r: ship.r };
 }
 
-function escapeEdge(ship) {
-  return (ship.side === 'blue' && ship.q === 0) || (ship.side === 'red' && ship.q === WIDTH - 1);
+function escapeEdge(state, ship) {
+  return (ship.side === 'blue' && ship.q === 0) || (ship.side === 'red' && ship.q === state.map.width - 1);
 }
 
 function bestStep(state, ship, target, occupied, era) {
   if (distance(ship, target) === 0) return null;
   const candidates = DIRECTIONS.map(([dq, dr], facing) => ({ q: ship.q + dq, r: ship.r + dr, facing }))
-    .filter((c) => inBounds(c) && terrainAt(state, c.q, c.r) !== 'land' && !occupied.has(key(c.q, c.r)))
+    .filter((c) => inBounds(c, state.map) && terrainAt(state, c.q, c.r) !== 'land' && !occupied.has(key(c.q, c.r)))
     .map((c) => ({ ...c, dist: distance(c, target), turn: turnDistance(ship.facing, c.facing) }))
     .sort((a, b) => a.dist - b.dist || a.turn - b.turn);
   const best = candidates[0];
@@ -834,15 +861,15 @@ function checkOutcome(state, meta) {
   if (protect) {
     const charges = state.ships.filter((s) => protect.includes(s.id));
     if (!charges.length) throw new Error('Scenario protects unknown ships');
-    if (charges.some((s) => !isActive(s) && s.status !== 'escaped' && s.status !== 'reserve')) return { ...state, outcome: { result: 'defeat', title: 'The Defector Is Lost', summary: `${charges.map((s) => s.name).join(', ')} did not survive.` } };
-    if (charges.every((s) => s.status === 'escaped')) return { ...state, outcome: { result: 'victory', title: 'Rendezvous Made', summary: `${charges.map((s) => s.name).join(', ')} reached the rendezvous.` } };
+    if (charges.some((s) => !isActive(s) && s.status !== 'escaped' && s.status !== 'reserve')) return { ...state, outcome: { result: 'defeat', title: meta.victory.lossTitle || 'The Defector Is Lost', summary: `${charges.map((s) => s.name).join(', ')} did not survive.` } };
+    if (charges.every((s) => s.status === 'escaped')) return { ...state, outcome: { result: 'victory', title: meta.victory.successTitle || 'Rendezvous Made', summary: `${charges.map((s) => s.name).join(', ')} reached the rendezvous.` } };
   }
   const blueActive = decisive('blue').some(alive);
   const redActive = protect ? true : decisive('red').some(alive); // with an escort goal, sinking the hunter is not the win
   if (!blueActive && !redActive) return { ...state, outcome: { result: 'draw', title: 'Mutual Destruction', summary: 'Neither squadron has ships remaining in action.' } };
   if (!redActive) return { ...state, outcome: { result: 'victory', title: 'Enemy Squadron Defeated', summary: 'Blue retains fighting power and the opposing force is out of action.' } };
   if (!blueActive) return { ...state, outcome: { result: 'defeat', title: 'Squadron Lost', summary: meta.victory ? 'The ships your orders depended on are out of action.' : 'Blue has no ships remaining in action.' } };
-  if (state.tick >= meta.maxTicks && protect) return { ...state, outcome: { result: 'draw', title: 'Still at Sea', summary: 'Time ran out before the rendezvous. The defector is still out there.' } };
+  if (state.tick >= meta.maxTicks && protect) return { ...state, outcome: { result: 'draw', title: meta.victory.timeoutTitle || 'Still at Sea', summary: meta.victory.timeoutTitle ? 'Time ran out before the escorted ship reached the rendezvous.' : 'Time ran out before the rendezvous. The defector is still out there.' } };
   if (state.tick >= meta.maxTicks) {
     // With named decisive ships, compare each side's surviving share of its own starting strength.
     const pct = (side, ids) => { const max = state.ships.filter((s) => s.side === side && ids.includes(s.id)).reduce((n, s) => n + 100 * (s.value || 1), 0); return Math.round((100 * forceScore(state, side, ids)) / max); };
@@ -939,8 +966,8 @@ function trackMotion(state, scope, enemy, contact, best, prior) {
     const h = hashString(`${state.seed}|${state.tick}|${scope}|${enemy.id}`);
     const [dq, dr] = DIRECTIONS[h % 6];
     const dist = (h >>> 3) % (unc + 1);
-    contact.q = clamp(enemy.q + dq * dist, 0, WIDTH - 1);
-    contact.r = clamp(enemy.r + dr * dist, 0, HEIGHT - 1);
+    contact.q = clamp(enemy.q + dq * dist, 0, state.map.width - 1);
+    contact.r = clamp(enemy.r + dr * dist, 0, state.map.height - 1);
   }
 }
 
@@ -967,9 +994,9 @@ function trimLog(state) { state.log = state.log.slice(-MAX_LOG); return state; }
 function signalText(ships, order) { return `${ships.map((s) => s.name).join(', ')} signaled to ${describeOrder(order)}.`; }
 function describeOrder(order) { return order.type === 'proceed' ? `proceed to ${order.q},${order.r}` : order.type; }
 function cloneState(state) { return deepClone(state); }
-function uniqueTerrain(terrain) {
+function uniqueTerrain(terrain, map) {
   const byKey = new Map();
-  for (const t of terrain) if (inBounds(t)) byKey.set(key(t.q, t.r), { q: t.q, r: t.r, type: t.type });
+  for (const t of terrain) if (inBounds(t, map)) byKey.set(key(t.q, t.r), { q: t.q, r: t.r, type: t.type });
   return [...byKey.values()].sort((a, b) => a.r - b.r || a.q - b.q);
 }
 function stableStringify(value) {

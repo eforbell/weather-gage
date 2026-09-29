@@ -1,6 +1,5 @@
-// Cold War submarine rules: acoustic signatures and passive sonar, baffles and the
-// Crazy Ivan, the thermal layer, active pings, torpedoes as moving entities with
-// seekers and arming distances, noisemaker decoys, and captain personalities.
+// Cold War undersea and escort rules: acoustic signatures, sonar, baffles,
+// the thermal layer, carrier patrol reports, torpedo entities, decoys, and captains.
 import {
   DIRECTIONS, distance, isActive, addLog, addFx, applyDamage, resolveStatus, nextRandom,
   directionToward, turnDistance, inBounds, terrainAt, clamp, CONF_RANK, hostile, markAttack, assertCoord, sidesOf, chance, seededHash, believedHostile, worthClosing, contactsForShip,
@@ -8,6 +7,8 @@ import {
 import { steamMove, headingTo, nearest } from './steam.js';
 
 const TRAITS = new Set(['steady', 'cunning', 'reckless']);
+const SUBMARINES = new Set(['ssn', 'ssbn']);
+const SURFACE_SHIPS = new Set(['asw_destroyer', 'carrier']);
 const TORPEDO_SPEED = 3; // hexes per tick
 const TORPEDO_RUN = 18;
 const SEEKER_RANGE = 3;
@@ -16,14 +17,27 @@ const MAX_ENTITIES = 40;
 
 // ---------- Validation ----------
 
-export function validateShip(ship) {
-  if (ship.type !== 'ssn' && ship.type !== 'ssbn') throw new Error('Invalid ship type');
+export function validateShip(ship, map) {
+  if (!SUBMARINES.has(ship.type) && !SURFACE_SHIPS.has(ship.type)) throw new Error('Invalid ship type');
   for (const k of ['speed', 'quiet', 'sonar', 'torpedoes', 'decoys', 'noise', 'value']) if (!Number.isInteger(ship[k]) || ship[k] < 0) throw new Error(`Invalid ${k}`);
   for (const k of ['pingAt', 'firedAt', 'ivanAt', 'decoyAt', 'evadingAt', 'driftAt']) if (!Number.isInteger(ship[k])) throw new Error(`Invalid ${k}`);
   if (!ship.captain || typeof ship.captain !== 'object' || typeof ship.captain.name !== 'string' || !TRAITS.has(ship.captain.trait)) throw new Error('Invalid captain');
   if (ship.passiveClass !== undefined && typeof ship.passiveClass !== 'string') throw new Error('Invalid passiveClass');
-  if (ship.goal !== undefined && (!Array.isArray(ship.goal) || !ship.goal.every((c) => Array.isArray(c) && c.length === 2 && inBounds({ q: c[0], r: c[1] })))) throw new Error('Invalid goal');
-  if (!ship.doctrine.speed || !ship.doctrine.depth) throw new Error('Submarine doctrine needs speed and depth');
+  if (ship.goal !== undefined && (!Array.isArray(ship.goal) || !ship.goal.every((c) => Array.isArray(c) && c.length === 2 && inBounds({ q: c[0], r: c[1] }, map)))) throw new Error('Invalid goal');
+  if (ship.searchAt !== undefined && (!Array.isArray(ship.searchAt) || ship.searchAt.length !== 2 || !inBounds({ q: ship.searchAt[0], r: ship.searchAt[1] }, map))) throw new Error('Invalid search area');
+  if (!ship.doctrine.speed || !ship.doctrine.depth) throw new Error('Cold War doctrine needs speed and depth');
+  if (SURFACE_SHIPS.has(ship.type) && (ship.doctrine.depth !== 'surface' || ship.doctrine.speed !== 'standard')) throw new Error('Surface ship doctrine must stay on the surface');
+  if (ship.type === 'carrier' && (!Number.isInteger(ship.airSorties) || ship.airSorties < 0 || !Number.isInteger(ship.patrolReadyAt) || ship.patrolReadyAt < 0)) throw new Error('Invalid carrier patrol capacity');
+  if (ship.type !== 'carrier' && (ship.airSorties !== undefined || ship.patrolReadyAt !== undefined)) throw new Error('Invalid air patrol capacity');
+}
+
+export function validatePatrols(patrols, state) {
+  if (!Array.isArray(patrols) || patrols.length > 12) throw new Error('Invalid patrols');
+  for (const patrol of patrols) {
+    const carrier = state.ships.find((s) => s.id === patrol?.carrierId && s.type === 'carrier');
+    if (!carrier || patrol.side !== carrier.side || !Number.isInteger(patrol.resolveAt) || patrol.resolveAt < state.tick) throw new Error('Invalid patrol');
+    assertCoord(patrol, state.map);
+  }
 }
 
 export function validateEntities(entities, shipIds, state) {
@@ -33,12 +47,12 @@ export function validateEntities(entities, shipIds, state) {
     if (!e || typeof e !== 'object' || typeof e.id !== 'string' || ids.has(e.id)) throw new Error('Invalid entity');
     ids.add(e.id);
     if (!sidesOf(state).includes(e.side)) throw new Error('Invalid entity side');
-    assertCoord(e);
+    assertCoord(e, state.map);
     if (e.kind === 'torpedo') {
       if (!shipIds.has(e.shooterId)) throw new Error('Invalid torpedo shooter');
       if (!Number.isInteger(e.facing) || e.facing < 0 || e.facing > 5) throw new Error('Invalid torpedo facing');
       for (const k of ['travelled', 'run', 'armAt']) if (!Number.isInteger(e[k]) || e[k] < 0) throw new Error(`Invalid torpedo ${k}`);
-      assertCoord({ q: e.aimQ, r: e.aimR });
+      assertCoord({ q: e.aimQ, r: e.aimR }, state.map);
       if (e.seeking !== null && typeof e.seeking !== 'string') throw new Error('Invalid torpedo seeker');
     } else if (e.kind === 'decoy') {
       if (!Number.isInteger(e.until)) throw new Error('Invalid decoy');
@@ -77,6 +91,11 @@ function halfHexes(ship, setting) {
 
 export function beforeTick(state) {
   for (const ship of state.ships) if (ship.era === 'coldwar') ship.noise = ship.quiet; // at rest; movement adds to it
+  state.patrols = (state.patrols || []).filter((patrol) => patrol.resolveAt >= state.tick);
+  for (const patrol of state.patrols) if (patrol.resolveAt === state.tick) {
+    const carrier = state.ships.find((s) => s.id === patrol.carrierId);
+    if (carrier && isActive(carrier)) state = addLog(state, `${carrier.name} patrol searches sector ${patrol.q}, ${patrol.r}.`, 'info', [carrier.side]);
+  }
   // Pings ordered last tick go out now.
   for (const ship of state.ships) {
     if (!isActive(ship) || ship.pingAt !== state.tick) continue;
@@ -94,6 +113,10 @@ export function detection(observer, enemy, state) {
   if (observer.pingAt === state.tick && d <= 10) return { confidence: 'identified', range: d, uncertainty: 0 };
   if (d <= 1) return { confidence: 'identified', range: d, uncertainty: 0 };
   if (enemy.doctrine.depth === 'surface' && d <= 10) return { confidence: d <= 6 ? 'identified' : 'classified', range: d, uncertainty: 0 }; // a surfaced boat is seen, not heard
+  if (observer.type === 'carrier' && (state.patrols || []).some((p) => p.carrierId === observer.id && p.resolveAt === state.tick && distance(p, enemy) <= 5
+    && (enemy.doctrine.depth !== 'deep' || chance(state, `patrol|${state.tick}|${p.carrierId}|${p.q}|${p.r}|${enemy.id}`, 0.55)))) {
+    return { confidence: 'sighted', range: d, uncertainty: 2 };
+  }
   const rel = (directionToward(observer, enemy) - observer.facing + 6) % 6;
   if (rel === 3 && observer.ivanAt !== state.tick) return null; // the baffles: deaf astern
   const layer = observer.doctrine.depth !== enemy.doctrine.depth ? 3 : 0;
@@ -190,7 +213,7 @@ export function combat(state) {
     if (!isActive(ship) || ship.doctrine.roe === 'hold' || ship.torpedoes <= 0 || ship.reloadUntil > state.tick || ship.order.type === 'withdraw' || state.entities.length >= MAX_ENTITIES) continue;
     const reckless = ship.captain.trait === 'reckless';
     const range = reckless ? ship.doctrine.range + 2 : ship.doctrine.range;
-    const target = contactsFor(state, ship, (s, c) => believedHostile(state, ship, c))
+    const target = contactsFor(state, ship, (s, c) => believedHostile(state, ship, c) && (ship.type !== 'asw_destroyer' || SUBMARINES.has(s.type)))
       .find(({ c }) => distance(ship, c) <= range && (reckless || CONF_RANK[c.confidence] >= CONF_RANK.classified));
     if (!target) continue;
     ship.torpedoes -= 1;
@@ -202,7 +225,7 @@ export function combat(state) {
       armAt: reckless ? 0 : 2, aimQ: target.c.q, aimR: target.c.r, seeking: null,
     });
     state = markAttack(state, ship.side, target.s.side);
-    state = addLog(state, `${ship.name} fires a torpedo at ${target.s.name}${reckless ? ', safeties off' : ''}.`, 'combat');
+    state = addLog(state, `${ship.name} fires ${ship.type === 'asw_destroyer' ? 'an ASW torpedo' : 'a torpedo'} at ${target.s.name}${reckless ? ', safeties off' : ''}.`, 'combat');
     state = addFx(state, { type: 'torpedo', shooterId: ship.id, targetId: target.s.id, at: { q: target.c.q, r: target.c.r } });
   }
   return state;
@@ -225,7 +248,7 @@ export function afterMove(state) {
       }
       const [dq, dr] = DIRECTIONS[t.facing];
       const next = { q: t.q + dq, r: t.r + dr };
-      if (!inBounds(next) || terrainAt(state, next.q, next.r) === 'land') { state = addLog(state, 'A torpedo runs into the seabed and is lost.', 'info', [t.side]); alive = false; break; }
+      if (!inBounds(next, state.map) || terrainAt(state, next.q, next.r) === 'land') { state = addLog(state, 'A torpedo runs into the seabed and is lost.', 'info', [t.side]); alive = false; break; }
       t.q = next.q; t.r = next.r; t.travelled += 1;
       const decoy = (state.entities || []).find((e) => e.kind === 'decoy' && e.q === t.q && e.r === t.r && t.seeking === e.id);
       if (decoy) {
