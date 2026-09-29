@@ -1,7 +1,7 @@
 # Design
 
 ## Source of truth
-- Status: Active, first playable scaffold; experimental 3D branch. Refreshed: 2026-09-29.
+- Status: Active, playable command workspace with optional 3D view. Refreshed: 2026-09-29.
 - Surfaces: briefing, tactical chart, squadron orders, contact reports, dispatch/debrief.
 - Evidence: `reference/Design Doc.dc.html` §§1–15; `reference/Frigate Duel v2.dc.html`; `reference/Admiral View.dc.html`.
 - User override: modern naval tactics are a first-class requirement, extending the source document's pre-WWII scope.
@@ -22,7 +22,7 @@ A working naval chart, not a generic dashboard. Paper, ink, restrained blue and 
 Strategy/simulation players who enjoy Fleet Command's information warfare and Civilization's readable rules. Desktop/laptop is primary; smaller screens get a stacked layout, not a separate experience.
 
 ## Information architecture
-Single tactical workspace: identity/time bar, mission ribbon, squadron roster, primary chart, command inspector, event dispatch. Briefing/help and mission debrief use dialogs. Scenario switching is explicit.
+Single tactical workspace: identity/time bar, mission ribbon, squadron roster, primary chart, command inspector, event dispatch. Action dispatch and recent log entries belong beneath the mission objective in the center column, not after the tallest sidebar. Briefing/help and mission debrief use dialogs. Scenario switching is explicit.
 
 ## Design principles
 Command rather than micro-control. Information before firepower. Show uncertainty instead of cheating. Keep the map dominant. An initial limited model is preferable to a broad fake one.
@@ -33,13 +33,13 @@ Warm paper #f2edde, ink #242b2d, muted #656b65, ocean #e2e8df, blue #285867, red
 ## Components
 Battle view is a reversible WebGL overlay on the chart viewport, not a second simulation or a targeting tool. Three.js renders procedural meshes, late-day lighting, wakes, smoke, and combat flashes from the selected ship's public player view. In surface eras, uncertain/stale contacts remain markers; unseen enemies never appear. In Cold War sorties, own-ship depth controls the camera and model elevation: surface cameras omit submerged hulls, while submerged cameras limit optical visibility to nearby friendlies on the same layer. Sonar reports have no public depth, so they remain in the chart/list rather than becoming visible 3D vessels. The roster, signal office, and clock stay usable, while precise hex plotting requires returning to the chart. The renderer is lazy-loaded and stops when hidden; a WebGL failure returns to the playable chart.
 
-Shared native buttons, selects, meters, dialog, roster entries and contact rows. SVG chart owns hex cells, contact uncertainty, ship symbols and order destinations. Tokens in `src/ui/style.css`; screen structure/rendering in `src/ui/app.js`. Selected, disabled, pending, stale, and terminal states must be distinct.
+Shared native buttons, selects, meters, dialog, roster entries and contact rows. SVG chart owns hex cells, contact uncertainty, ship symbols and order destinations. Tokens in `src/ui/style.css`; screen structure/rendering in `src/ui/app.js`. Selected, disabled, pending, stale, and terminal states must be distinct. An issued signal gets an immediate receipt beside the order buttons: recipient/scope, order, submitted tick and public delivery timing. Queued is not acknowledged. Receipts persist through ticks and selection changes, update as pending orders resolve, and reset on new/restored sorties.
 
 ## Accessibility
-Aim for WCAG 2.2 AA; not certified. Native labeled controls, visible focus, keyboard-operable roster and coordinate inputs as an alternative to map clicks. Text labels supplement color. SVG has a title/description. Only concise status messages use live regions. Respect reduced-motion settings.
+Aim for WCAG 2.2 AA; not certified. Native labeled controls, visible focus, keyboard-operable roster and coordinate inputs as an alternative to map clicks. Text labels supplement color. SVG has a title/description. Only concise status messages use live regions. Use one stable live status region for submission/rejection; the visual receipt repeats the status near the buttons without a second announcement. Preserve focus on re-rendered command buttons where possible. Respect reduced-motion settings.
 
 ## Responsive behavior
-Three columns on wide screens; command panel moves below chart on medium screens; stacked roster/chart/controls on phones. Chart preserves coordinate geometry. No hover-only controls; touch targets at least 36px, primary controls 44px.
+At ~1400×1000, dispatch heading and at least three recent log entries must be visible without page scrolling, alongside order controls. Prevent the chart from stretching to match a tall roster or inspector; bound its desktop height without cropping hex geometry. Keep recent history in a labelled, keyboard-scrollable log area. Three columns on wide screens; command panel moves below chart on medium screens; stacked roster/chart/controls on phones. Chart preserves coordinate geometry. No hover-only controls; touch targets at least 36px, primary controls 44px.
 
 ## Interaction states
 Brief visible on first visit. No loading spinner: static ESM startup. Empty contact list says no contacts. Save failures remain playable and show a message; invalid imports do not replace current state. Outcome stops clock and opens a debrief. Running clocks pause on new fresh contact, outcome, hidden tab, briefing, and save/load operations.
@@ -52,10 +52,24 @@ The fictional Northern Screen sortie extends that rule to ASW destroyers and a c
 Short dispatches. Explain game rules rather than imply real-world accuracy. Modern setting is fictional. Keep display time/ticks explicitly abstract.
 
 ## Implementation constraints
-JavaScript ES modules, SVG chart, semantic HTML/CSS, Three.js for the optional 3D camera, and Vite for development/static builds. Node's built-in test runner remains in use. Browser modules must be served over HTTP, not file URLs. Simulation cannot depend on DOM, clock, or unseeded randomness. Ship/scenario definitions are separate from rendering. Native browser storage is best-effort, with JSON export as backup. This branch deliberately changes the scaffold's dependency-free constraint; it is not merged into `main`.
+JavaScript ES modules, SVG chart, semantic HTML/CSS, Three.js for the optional 3D camera, and Vite for development/static builds. Node's built-in test runner remains in use. Browser modules must be served over HTTP, not file URLs. Simulation cannot depend on DOM, clock, or unseeded randomness. Ship/scenario definitions are separate from rendering. Native browser storage is best-effort, with JSON export as backup. The optional renderer is merged into `main`; keep it lazy and retain chart fallback.
 
 ## Open questions
 - Real-time pacing and desired mission duration after playtesting.
 - Next modern layer: missiles in flight / aircraft / submarines / electronic warfare?
 - Historical rigor versus accessible tactics; initial numbers are game abstractions.
 - Whether the 3D art direction should be handcrafted/stylized or licensed high-fidelity glTF ship assets; the procedural meshes are a technical prototype, not a Craig-ready content pass.
+
+## Command visibility acceptance (priority 1)
+- Evidence: user-provided desktop screenshot; baseline `app.js` placed dispatch after the workspace, while `.chart-wrap` flexed to sidebar height and left the objective followed by empty center space.
+- Reuse the paper/ink system; no new dashboard layer, dependency, or overlay that obscures the chart.
+- Immediate accepted/rejected submission feedback must appear without scrolling at the click location; queued timing must derive from the public pending list, not era assumptions.
+- Group and replaced orders, lost recipients, coordinate plotting and invalid destinations need honest states. Selecting another vessel must not relabel the prior receipt as that vessel's order.
+- Verify chart and 3D modes at 1400×1000, 1280×800 and phone width; keyboard actions, live status, tick delivery, reset/load and no horizontal overflow.
+- Craig's feedback is optional, not a release/merge gate. Measurable UI, simulation/fog, licensing and technical checks govern acceptance.
+
+## Motion
+Short restrained ink/color emphasis only; no layout jump or required animation. Respect reduced motion; do not expire important feedback on a timer.
+
+## Imagery
+Retain chart silhouettes and procedural ship assets; no generated bitmap treatment is needed for command feedback.

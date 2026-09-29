@@ -115,7 +115,7 @@ Positional audio for guns, hits, splashes and engines, using the existing synthe
 - The full gunfire, splash, hit and fire effect set, plus the magazine explosion.
 - The action cam and positional audio.
 
-Gate: Craig's reaction on his own machine, frame time on a mid laptop, the fog-of-war tests passing, and the presentation contract covering all Dogger Bank events.
+Gate: measured frame time on a mid laptop, the fog-of-war tests passing, and the presentation contract covering all Dogger Bank events.
 
 **M2: the other surface eras.** Nevis in late sun (sails, broadside smoke, rigging done properly), Hampton Roads (ironclads, fires on wooden ships, rams), and the modern scenario (missiles, interceptors, radar masts). Mostly models and effects on the M1 foundation.
 
@@ -150,3 +150,5 @@ These make the prototype markedly better at once and are worth doing regardless:
 - What is the art budget: commissioned hero models, licensed models, or procedural only?
 - Should the 3D view become the default for some players, with the chart as the "strategic" mode?
 - What hardware does Craig actually play on? That sets the M1 performance target.
+
+**Current user override:** Craig’s visual feedback is optional, not a merge/release gate. Retain measurable rendering, fog-of-war, licensing and performance checks.

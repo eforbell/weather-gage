@@ -98,4 +98,4 @@ Non-blocking next-pass work:
 - Strengthen Virginia's casemate slope and narrow its flat top for a more
   distinctive silhouette at the follow camera.
 
-Mid-laptop/phone frame-time measurements and Craig's visual acceptance remain open.
+Mid-laptop/phone frame-time measurements remain open. Craig's feedback is optional, not a release/merge gate (current user override).

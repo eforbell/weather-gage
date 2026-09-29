@@ -189,3 +189,42 @@ dialog.launcher{max-width:1240px;width:calc(100% - 32px)}
 .battle-foot span:first-child{color:#ffe4b3;text-transform:uppercase}
 .battle-foot span:last-child{text-align:right;color:#e3d7c7}
 @media(max-width:700px){.chart-toolbar{align-items:flex-start}.chart-toolbar .toolbar-buttons{max-width:70%}.battle-head{padding:12px 14px}.battle-head strong{font-size:18px}.battle-head #battle-position{margin-left:0}.battle-foot{padding:25px 14px 10px;display:block}.battle-foot span{display:block!important;text-align:left!important}.chart-wrap.battle-on{min-height:340px}}
+
+/* Command visibility: dispatch uses the objective's spare center-column space.
+   Keep the chart independent of the tallest sidebar; never crop SVG geometry. */
+.chart-wrap{flex:none;height:clamp(280px,calc(100dvh - 555px),470px);padding-top:12px;padding-bottom:28px}
+#chart{height:100%;min-height:0;max-height:none}
+.situation{flex:1;min-height:0;padding:12px 18px}
+.situation>.dispatch-panel{display:block;margin-top:14px;min-height:0;max-height:none;border-top:3px double var(--line)}
+.situation .dispatch-title{padding:10px 0 6px;border:0;display:flex;align-items:baseline;flex-wrap:wrap;gap:5px 12px}
+.situation .dispatch-title>.eyebrow{display:none}
+.situation .dispatch-title h2{font:18px var(--serif);margin:0;white-space:nowrap}
+.situation #notice{font-size:10px;line-height:1.5;flex:1;min-width:180px}
+.situation #log{padding:0;max-height:150px;overflow:auto;scrollbar-gutter:stable}
+.situation #log li{gap:12px;font-size:10px;padding:6px 0}
+.situation #log li.warn{color:var(--red)}
+.signal-receipt{border:1px solid var(--blue);border-left:4px solid var(--blue);background:#e2e8dc;padding:9px 10px;margin:0 0 14px}
+.signal-receipt.queued{border-color:#9b7438;background:#ede7d6}
+.signal-receipt.rejected,.signal-receipt.resolved,.signal-receipt.superseded{border-color:var(--red);background:#eee1d7}
+.signal-receipt strong{display:block;font:17px var(--serif);margin:3px 0}
+.signal-receipt p{font-size:10px;line-height:1.5;margin:0}
+.signal-receipt small{display:block;font-size:9px;line-height:1.5;color:var(--muted);margin-top:4px}
+@media(min-width:651px) and (max-width:1549px){
+  .masthead{padding:14px 22px;gap:22px}
+  .mission-bar{padding:16px 22px;gap:24px}
+  .chart-legend{padding:10px 16px;gap:12px}
+}
+@media(max-width:1150px) and (min-width:651px){
+  .signal-receipt{grid-column:1;align-self:start}
+  #inspector>fieldset{grid-row:1/9}
+}
+@media(max-width:650px){
+  .chart-wrap{height:clamp(260px,45dvh,380px);min-height:0}
+  .situation{padding:12px 16px;flex:none}
+  .situation #log{max-height:160px}
+  .situation #notice{min-width:100%;font-size:10px}
+  .signal-receipt{margin:12px 0}
+}
+#log:focus-visible{outline:2px solid var(--blue);outline-offset:3px}
+.mission-title{min-width:0}
+@media(max-width:650px){.chart-toolbar{flex-wrap:wrap}.toolbar-buttons{flex-wrap:wrap}.chart-toolbar button{min-height:36px}}
