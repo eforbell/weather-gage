@@ -1,7 +1,7 @@
 # Design
 
 ## Source of truth
-- Status: Active, first playable scaffold. Refreshed: 2026-09-26.
+- Status: Active, first playable scaffold; experimental 3D branch. Refreshed: 2026-09-29.
 - Surfaces: briefing, tactical chart, squadron orders, contact reports, dispatch/debrief.
 - Evidence: `reference/Design Doc.dc.html` §§1–15; `reference/Frigate Duel v2.dc.html`; `reference/Admiral View.dc.html`.
 - User override: modern naval tactics are a first-class requirement, extending the source document's pre-WWII scope.
@@ -16,7 +16,7 @@ A working naval chart, not a generic dashboard. Paper, ink, restrained blue and 
 - Complete a mission from brief to outcome; save and resume locally.
 - Non-goals: full historical fidelity, campaign, multiplayer, individually flown aircraft, production-scale combat.
 - Success: every scenario can be played, paused, finished, restarted, saved, and deterministically reproduced.
-- The optional **Battle view** lets a visual-first player watch the same action from an oblique, illustrated sea-level camera without replacing the chart or changing command rules.
+- The optional **3D Battle camera** lets a visual-first player orbit actual ship models and watch the same action without replacing the chart or changing command rules.
 
 ## Personas and jobs
 Strategy/simulation players who enjoy Fleet Command's information warfare and Civilization's readable rules. Desktop/laptop is primary; smaller screens get a stacked layout, not a separate experience.
@@ -31,7 +31,7 @@ Command rather than micro-control. Information before firepower. Show uncertaint
 Warm paper #f2edde, ink #242b2d, muted #656b65, ocean #e2e8df, blue #285867, red #9d463c. Serif display with monospace operational labels; system fonts only, no network font dependency. 4px spacing rhythm, squared controls, thin rules, no floating-card shadows. Hex geometry and vector ship silhouettes instead of bitmap assets. Combat is animated on the chart (ship glide, muzzle flash, shell flight, splash/hit, torpedo wakes, sinking, callout banners) because a text-only transcript made play feel like reading a simulation. Animation is presentation only, derived from per-side `fx` events, and collapses to static markers under reduced motion. Sound is synthesized, opt-in and remembered per browser: quiet era-specific ambience begins after a sound-enabled user gesture, with combat effects layered above it.
 
 ## Components
-Battle view is a reversible overlay on the chart viewport, not a second simulation or a targeting tool. Its late-day light, projected ships, wakes, smoke, and combat flashes are SVG/CSS interpretations of the selected ship's player view. Unidentified or stale contacts remain uncertain markers; unseen enemies never appear. The roster, signal office, and clock stay usable, while precise hex plotting requires returning to the chart. No WebGL, downloaded art, or new dependency is required.
+Battle view is a reversible WebGL overlay on the chart viewport, not a second simulation or a targeting tool. Three.js renders procedural meshes, late-day lighting, wakes, smoke, and combat flashes from the selected ship's public player view. Unidentified or stale contacts remain uncertain markers; unseen enemies never appear. The roster, signal office, and clock stay usable, while precise hex plotting requires returning to the chart. The renderer is lazy-loaded and stops when hidden; a WebGL failure returns to the playable chart.
 
 Shared native buttons, selects, meters, dialog, roster entries and contact rows. SVG chart owns hex cells, contact uncertainty, ship symbols and order destinations. Tokens in `src/ui/style.css`; screen structure/rendering in `src/ui/app.js`. Selected, disabled, pending, stale, and terminal states must be distinct.
 
@@ -52,9 +52,10 @@ The fictional Northern Screen sortie extends that rule to ASW destroyers and a c
 Short dispatches. Explain game rules rather than imply real-world accuracy. Modern setting is fictional. Keep display time/ticks explicitly abstract.
 
 ## Implementation constraints
-Dependency-free JavaScript ES modules, SVG chart, semantic HTML and CSS. Node's built-in test runner and static dev server; no install or bundler required. This deliberately differs from the concept's TypeScript/Pixi recommendation to keep the first repository portable and immediately runnable without adding packages. Browser modules must be served over HTTP, not file URLs. Simulation cannot depend on DOM, clock, or unseeded randomness. Ship/scenario definitions are separate from rendering. Native browser storage is best-effort, with JSON export as backup.
+JavaScript ES modules, SVG chart, semantic HTML/CSS, Three.js for the optional 3D camera, and Vite for development/static builds. Node's built-in test runner remains in use. Browser modules must be served over HTTP, not file URLs. Simulation cannot depend on DOM, clock, or unseeded randomness. Ship/scenario definitions are separate from rendering. Native browser storage is best-effort, with JSON export as backup. This branch deliberately changes the scaffold's dependency-free constraint; it is not merged into `main`.
 
 ## Open questions
 - Real-time pacing and desired mission duration after playtesting.
 - Next modern layer: missiles in flight / aircraft / submarines / electronic warfare?
 - Historical rigor versus accessible tactics; initial numbers are game abstractions.
+- Whether the 3D art direction should be handcrafted/stylized or licensed high-fidelity glTF ship assets; the procedural meshes are a technical prototype, not a Craig-ready content pass.

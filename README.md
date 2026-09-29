@@ -2,25 +2,26 @@
 
 A browser-first naval command game: issue squadron orders, work from imperfect contact reports, and let captains fight the engagement. Inspired by the supplied **Naval strategy game concept**, with modern surface warfare brought into the first playable build.
 
-**Status:** playable scaffold, not a finished naval simulator. Single player, six scenarios across sail, ironclad, WWI dreadnought, Cold War undersea/escort, and near-future missile eras. Combat and balance values are abstractions. No accounts, telemetry, external fonts, runtime dependencies, or remote services.
+**Status:** playable scaffold with an experimental Three.js battle camera on `prototype/three-battle-view`, not a finished naval simulator or a production art pass. Single player, six scenarios across sail, ironclad, WWI dreadnought, Cold War undersea/escort, and near-future missile eras. Combat and balance values are abstractions. No accounts, telemetry, external fonts, or remote services.
 
 ## Play locally
 
-Requires **Node.js 22+**. No `npm install` is needed.
+Requires **Node.js 22.12+**. This branch adds Three.js and Vite; install the pinned dependencies first.
 
 ```sh
 cd /Users/forbell/workspace/weather-gage
+npm ci
 npm run dev
 ```
 
-Open **http://127.0.0.1:4173**. Use `PORT=4174 npm run dev` if needed. The development server binds only to your computer. Static files can later be deployed to an ordinary web host; opening `index.html` with `file://` will not work with ES modules.
+Open **http://127.0.0.1:4173**. The development server binds only to your computer. Use `npm run build` to create self-contained static files in `dist/`; `npm run preview` serves that build locally. Opening `index.html` with `file://` will not work with ES modules.
 
 1. Pick a mission in the **chart room** (the **Missions** button reopens it), read the sealed orders, and return to the chart.
 2. Select a ship in **Your squadron**. Check **Entire squadron** to address the group.
 3. Issue **Engage**, **Form line**, **Screen**, **Hold**, **Proceed**, or **Withdraw**.
 4. For **Proceed**, click a sea hex or enter Q/R coordinates and choose **Plot**.
 5. **Advance tick** resolves one step; **Run** starts a pauseable clock at the chosen **Pace**. New contacts pause it automatically. Movement, gunfire, hits, torpedoes and sinkings play out on the chart; **Sound** toggles synthesized ambience and effects.
-6. Choose **Go to the battle** above the chart for an illustrated, late-day ship view. Select a ship in the roster to move the camera. Orders and the clock still work; use **Return to chart** for exact hex plotting. Unseen enemies stay unseen, and uncertain reports stay markers rather than becoming visible ships.
+6. Choose **Go to the battle · 3D** above the chart for an orbitable ship view. Drag to orbit, scroll or pinch to zoom, and select a ship in the roster to follow it. Orders and the clock still work; use **Return to chart** for exact hex plotting. Unseen enemies stay unseen, and uncertain reports remain markers rather than detailed ships. If WebGL is unavailable, the chart remains playable.
 7. Adjust engagement range, hold-fire doctrine and withdrawal threshold. In the modern scenario, decide when to use active radar.
 8. In **The Northern Screen**, select the carrier to launch a limited patrol flight toward a Q/R sector. Its report arrives two ticks later on the carrier’s picture, not on every submarine’s sonar.
 9. Review the dispatch at mission end. **New sortie** restarts; the mission selector switches eras. Both start a fresh game, so save/export first if you want to keep the current sortie.
@@ -47,9 +48,10 @@ All scenarios have fog-of-war reports, last-known contacts, doctrine, terrain, d
 ```sh
 npm test       # Node's built-in regression tests
 npm run check  # syntax/static parsing of all source, tests and scripts
+npm run build  # bundle the 3D renderer for static hosting
 ```
 
-No compiler/linter package is installed. `check` is a syntax check, not a claim of TypeScript or comprehensive lint coverage. Browser smoke evidence and known verification limits are in [docs/verification.md](docs/verification.md).
+No TypeScript compiler/linter package is installed. `check` is a syntax check, not a claim of comprehensive lint coverage. See [the 3D prototype notes](docs/3d-prototype.md) for scope, costs, and known gaps.
 
 ## Repository map
 
@@ -59,11 +61,13 @@ src/sim/core.js         Shared rule primitives: hex math, seeded RNG, damage, di
 src/sim/eras/           Era rule modules (registry): ironclad, dreadnought, coldwar, shared steam movement and route finding
 src/sim/scenarios.js    Scenario metadata, ship configurations, maps
 src/ui/app.js           Browser controls, SVG chart and dialogs
-src/ui/battle-view.js   Optional illustrated battle camera (player-view data only)
+src/ui/battle-presentation.js  Fog-safe actors from the selected ship's player view
+src/ui/battle-3d.js    Optional Three.js camera, sea, lighting, and combat effects
+src/ui/battle-models.js  Procedural 3D ship models
 src/ui/fx.js            Combat animation and synthesized sound (presentation only)
 src/ui/advisor.js       Flag lieutenant advice, tactics primer, debrief lessons
 src/ui/style.css        Paper-and-ink visual system, responsive layout
-scripts/serve.mjs       Local static development server
+scripts/serve.mjs       Legacy dependency-free server retained for server tests
 scripts/check.mjs      Dependency-free JavaScript syntax checks
 tests/                 Simulation regression tests
 reference/             Original concept/prototype exports, preserved
@@ -73,9 +77,9 @@ docs/                  Review, architecture, roadmap, validation
 
 ## Why a browser?
 
-It offers a low-friction way to play on desktop operating systems and share a static deployment, while the DOM-free simulation remains portable to a future desktop shell. This first version uses native JavaScript modules, SVG, and HTML rather than a game framework. The small board does not need a GPU renderer yet. A typed content schema and dedicated rendering engine can be introduced when justified by scale—not before.
+It offers a low-friction way to play on desktop operating systems and share a static deployment, while the DOM-free simulation remains portable to a future desktop shell. The tactical chart remains SVG; this branch adds a lazy-loaded GPU renderer only when the player enters the 3D camera.
 
-The concept recommended TypeScript and Pixi/Canvas; this build deliberately starts with dependency-free ES modules to stay immediately runnable. Browser modules require HTTP serving ([MDN modules](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Modules)); local saves are best-effort browser storage ([MDN Web Storage](https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API/Using_the_Web_Storage_API)).
+The original scaffold was dependency-free. The 3D experiment follows the [official Three.js installation approach](https://threejs.org/manual/pages/installation.html) with Vite, retaining the pure simulation and ordinary static deployment. Local saves are best-effort browser storage ([MDN Web Storage](https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API/Using_the_Web_Storage_API)).
 
 ## What's deliberately not here yet?
 
