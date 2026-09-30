@@ -165,7 +165,7 @@ function createThreeGltfLoader({ renderer, manager, ktx2Loader, meshoptDecoder =
   assertLocalPath(basisTranscoderPath, 'basisTranscoderPath');
   const localManager = createLocalAssetManager(manager);
   const loader = new GLTFLoader(localManager);
-  const ktx = ktx2Loader || (renderer ? new KTX2Loader().setTranscoderPath(basisTranscoderPath).detectSupport(renderer) : null);
+  const ktx = ktx2Loader || (renderer ? new KTX2Loader(localManager).setTranscoderPath(basisTranscoderPath).detectSupport(renderer) : null);
   if (ktx) loader.setKTX2Loader(ktx);
   if (meshoptDecoder) loader.setMeshoptDecoder(meshoptDecoder);
   return { loader, ktx2Loader: ktx, ownsKtx2Loader: !ktx2Loader && !!ktx };

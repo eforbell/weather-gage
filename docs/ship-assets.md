@@ -60,16 +60,16 @@ This token guard matters because glTF loads are asynchronous: a late HMS Lion lo
 
 ## Compression status
 
-The loader is wired for KTX2 textures and meshopt-compressed geometry through Three's pinned addons. There are no compressed ship fixtures in the repository yet, so decoding is not claimed as runtime-tested. Add a tiny licensed `.glb`/`.ktx2` fixture before making decode support part of CI.
+The loader is wired for KTX2 textures and meshopt-compressed geometry through Three's pinned addons. An original tiny GLB with an embedded BasisLZ KTX2 checker now exercises the real texture decode/upload/render path in an isolated fixture build and CI workflow. See [fixture validation](ship-fixtures.md). Meshopt geometry decoding is still not fixture-tested.
 
 ### Coordinate contract
 
 The returned actor wrapper has identity scale/orientation/waterline transform. Its authored child receives normalized `scale`, `rotationY` (radians), and `waterlineY` (source units, scaled once). The actor wrapper's negative Z is bow and Y=0 is the waterline. `size` and `funnels` are already in wrapper/world units: do not scale them again. The shorthand `length`/`width` inputs, if used instead of `size`, are source units multiplied by `scale`.
 
-Pinned Three 0.186.1 constructs its default Basis JS/WASM URLs with `new URL(..., import.meta.url)`; Vite emits both files in `dist/assets`. Do not copy an older Three decoder-path recipe without checking the pinned loader. This verifies packaging, not successful KTX2 transcoding of a model.
+Pinned Three 0.186.1 constructs its default Basis JS/WASM URLs with `new URL(..., import.meta.url)`; Vite emits both files in `dist/assets`. Do not copy an older Three decoder-path recipe without checking the pinned loader. Bundling alone proves packaging; the separate fixture verifies actual KTX2/Basis texture decoding.
 
 This foundation expects static mesh ship assets. Skinned/animated rigs, authored
-LODs, trim-texture damage layers and compressed-fixture CI are not yet supported
+LODs and trim-texture damage layers are not yet supported
 or acceptance-tested; keep using procedural models until those gates are met.
 
 

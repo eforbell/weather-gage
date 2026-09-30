@@ -251,3 +251,15 @@ test('missing unit declarations fail before any asset fetch and retain fallback'
     assert.equal(loader.calls, 0);
   } finally { console.warn = warn; manager.dispose(); }
 });
+
+test('default KTX2 texture loader shares the local dependency URL guard', async t => {
+  const { KTX2Loader } = await import('three/addons/loaders/KTX2Loader.js');
+  let loadingManager;
+  t.mock.method(KTX2Loader.prototype, 'detectSupport', function () { loadingManager = this.manager; return this; });
+  const manager = createShipAssetManager({ renderer: {} });
+  try {
+    assert.equal(loadingManager.resolveURL('/texture.ktx2'), '/texture.ktx2');
+    assert.throws(() => loadingManager.resolveURL('https://external.invalid/texture.ktx2'), /local origin/);
+    assert.throws(() => loadingManager.resolveURL('//external.invalid/texture.ktx2'), /local origin/);
+  } finally { manager.dispose(); }
+});
