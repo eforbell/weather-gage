@@ -2,8 +2,7 @@ import assert from 'node:assert/strict';
 import { readFile, readdir, mkdir, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
-import { spawn } from 'node:child_process';
-import { once } from 'node:events';
+import { startFixturePreview } from './fixture-preview.mjs';
 
 // Install the pinned test tools into a temporary prefix, not this repository.
 if (!process.env.FIXTURE_TOOLS) throw new Error('Set FIXTURE_TOOLS to a prefix containing playwright 1.58.2 and gltf-validator 2.0.0-dev.3.10 (see docs/ship-fixtures.md)');
@@ -28,20 +27,10 @@ for (const name of productionFiles.filter(name => name.endsWith('.js'))) {
 }
 await assert.rejects(readFile('dist/fixture-probe.html'), { code: 'ENOENT' });
 
-const server = spawn(process.execPath, ['node_modules/vite/bin/vite.js', 'preview', '--outDir', 'dist-fixture', '--host', '127.0.0.1', '--port', '0'], { stdio: ['ignore', 'pipe', 'pipe'] });
+const server = await startFixturePreview();
 let browser;
 try {
-  const url = await new Promise((resolveUrl, reject) => {
-    let output = '';
-    const timer = setTimeout(() => reject(new Error('Fixture preview startup timed out')), 15000);
-    server.stdout.on('data', data => {
-      output += data.toString();
-      const match = output.match(/http:\/\/127\.0\.0\.1:\d+/);
-      if (match) { clearTimeout(timer); resolveUrl(match[0]); }
-    });
-    server.on('exit', code => { clearTimeout(timer); reject(new Error(`Fixture preview exited ${code}`)); });
-    server.on('error', error => { clearTimeout(timer); reject(error); });
-  });
+  const { url } = server;
   browser = await chromium.launch({ headless: true, ...(process.env.FIXTURE_BROWSER_CHANNEL ? { channel: process.env.FIXTURE_BROWSER_CHANNEL } : {}), args: ['--enable-unsafe-swiftshader'] });
   const page = await browser.newPage();
   const errors = [], warnings = [], resources = [];
@@ -68,6 +57,5 @@ try {
   await writeFile('output/fixtures/validation.json', JSON.stringify({ result, resources, validatorIssues: report.issues, errors, warnings }, null, 2));
   console.log(JSON.stringify({ ...result, decoderResources: resources.length, validatorErrors: report.issues.numErrors, validatorWarnings: report.issues.numWarnings }));
 } finally {
-  await browser?.close();
-  if (server.exitCode === null) { const stopped = once(server, 'exit'); server.kill(); await stopped; }
+  try { await browser?.close(); } finally { await server.close(); }
 }

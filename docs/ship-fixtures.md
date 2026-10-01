@@ -30,7 +30,7 @@ The probe exercises the **real** `createShipAssetManager` with `units: 'meters'`
 no procedural fallback, 9-unit hull length, decoded 8×8 texture, shared geometry
 and separate materials, a real GPU upload/render with both checker colors, and
 local Basis JS/WASM fetches. It rejects console errors, unexpected warnings and remote dependencies. Driver performance warnings caused by the deliberate ReadPixels checks/screenshots are recorded and narrowly allowed; they are not a frame-time benchmark.
-Teardown disposes instances, cached resources, decoder workers and renderer.
+Teardown disposes instances, cached resources, decoder workers and renderer. Preview readiness uses Vite’s API and actual bound TCP address, never ANSI-colored CLI output.
 `output/fixtures/validation.json` and `codec-probe.png` record local/CI evidence.
 
 The pinned Khronos glTF Validator reports **zero errors** but cannot understand
