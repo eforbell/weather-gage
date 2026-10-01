@@ -1,0 +1,33 @@
+name: Ship asset codec fixture
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  codec:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci
+      - run: npm run check && npm test && npm run build && npm run build:fixture
+      - name: Install pinned test-only tools in temporary prefix
+        run: |
+          npm install --prefix "$RUNNER_TEMP/fixture-tools" --no-package-lock --ignore-scripts playwright@1.58.2 gltf-validator@2.0.0-dev.3.10
+          node "$RUNNER_TEMP/fixture-tools/node_modules/playwright/cli.js" install --with-deps --no-shell chromium
+      - name: Validate and decode the built fixture
+        env:
+          FIXTURE_BROWSER_CHANNEL: chromium
+        run: FIXTURE_TOOLS="$RUNNER_TEMP/fixture-tools" npm run test:fixture
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: ship-fixture-evidence
+          path: output/fixtures/
+          if-no-files-found: ignore

@@ -66,7 +66,7 @@ This is still a flat reflector, not a shared displaced-wave buoyancy model.
 `ship-assets.js` provides optional local per-era glTF loading with meshopt/KTX2
 hooks, public identified-name variants, shared geometry and procedural fallback.
 The registry remains empty. No hero art or borrowed reference images are shipped;
-compressed decode needs a small original fixture before it is an acceptance claim.
+KTX2/Basis texture decode is now covered by an original isolated fixture; see [fixture validation](ship-fixtures.md).
 See [asset contract](ship-assets.md) and [Blender/reference recommendation](ship-model-research.md).
 The chart, simulation, fog-of-war input boundary and reduced-motion path remain
 unchanged. These procedural improvements do not replace real-device frame-time measurement or hero-model provenance gates.

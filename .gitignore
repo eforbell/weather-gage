@@ -7,3 +7,5 @@ artifacts/
 .playwright-cli/
 output/
 .omc/
+
+dist-fixture/
