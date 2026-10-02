@@ -73,7 +73,7 @@ export async function inspectShipGlb(bytes, spec, specSha256 = null, kitSha256 =
   const root = gltf.scene;
   root.updateMatrixWorld(true);
 
-  let triangles = 0, drawCalls = 0, vertexColors = true;
+  let triangles = 0, drawCalls = 0, vertexColors = true, deckVertices = 0, deckFacesUp = true;
   const materials = new Set();
   root.traverse(item => {
     if (!item.isMesh) return;
@@ -82,6 +82,12 @@ export async function inspectShipGlb(bytes, spec, specSha256 = null, kitSha256 =
     const geometry = item.geometry;
     triangles += (geometry.index ? geometry.index.count : geometry.attributes.position.count) / 3;
     if (!geometry.attributes.color) vertexColors = false;
+    if (item.material.name === `${spec.id}-deck`) {
+      const normals = geometry.attributes.normal;
+      deckVertices += geometry.attributes.position.count;
+      if (!normals) deckFacesUp = false;
+      else for (let i = 0; i < normals.count; i++) if (normals.getY(i) <= 0) deckFacesUp = false;
+    }
   });
   const box = new THREE.Box3().setFromObject(root);
   const anchors = {};
@@ -105,6 +111,7 @@ export async function inspectShipGlb(bytes, spec, specSha256 = null, kitSha256 =
   check('download budget', !budget.maxBytes || bytes.byteLength <= budget.maxBytes, `${bytes.byteLength} / ${budget.maxBytes} bytes`);
   check('length matches spec (±1%)', Math.abs(box.max.z - box.min.z - L) <= L * 0.01, `${(box.max.z - box.min.z).toFixed(2)} m vs ${L} m`);
   check('keel at -draft (waterline at Y=0)', Math.abs(box.min.y + draft) <= 0.25, `min Y ${box.min.y.toFixed(2)} vs -${draft}`);
+  check('weather deck faces up', deckVertices > 0 && deckFacesUp, `${deckVertices} deck vertices, ${deckFacesUp ? 'upward' : 'inward/missing'} normals`);
   check('baked vertex colours (COLOR_0)', vertexColors, vertexColors ? 'present' : 'missing: was the build run with --no-bake?');
   let waterline = null;
   try { waterline = JSON.parse(stamp.weatherGageWaterline || 'null'); } catch { /* reported below */ }

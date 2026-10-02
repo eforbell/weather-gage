@@ -6,7 +6,7 @@ occlusion and smoke anchors. A Node report checks the result against the spec,
 and the game loads it in place of the procedural model. No one opens the
 Blender UI. An agent edits numbers, looks at the renders, and repeats.
 
-HMS Lion is the first ship built this way (`ships/hms-lion/`). Copy it.
+HMS Lion is the first ship built this way (`ships/hms-lion/`). SMS Seydlitz (`ships/sms-seydlitz/`) adds measured wing turrets and funnel uptake casings. Copy their structure, not their measurements.
 
 ```
 ships/<id>/spec.json ──► blender -b (tools/blender/build_ship.py)
@@ -47,8 +47,8 @@ A full Lion build takes about 4 s: AO bake, export and five renders.
 
 1. **Pin the ship and the date.** Find it in `src/sim/scenarios.js`. The public `name` (lower-cased) becomes the registry key, and `guns` must equal the sum of turret guns in your spec; a test enforces this. Choose the configuration for the scenario's date: Dogger Bank is January 1915.
 2. **Find a measurable reference.** The best free source is the *Jane's Fighting Ships* 1914–1919 line drawings on Wikimedia Commons: a profile and a plan, public domain in the US. Download into `ships/<id>/reference/` and record source, rights and date in `PROVENANCE.md`. Never commit or ship reference images, and never trace protected artwork (see [ship-model-research.md](ship-model-research.md)).
-3. **Calibrate the drawing.** Positions are in **source-image pixels**, not crop pixels. Crop and enlarge it (`magick ref.png -crop WxH+X+Y -resize 200% zoom.png`) and view it with the Read tool. Note, in source pixels, the bow at deck level (`bowX`), the stern (`sternX`) and the waterline (`waterlineY`). Then `px per metre = (sternX - bowX) / length`. Put these in `spec.references[]` with `crop`. If the drawing has a **plan view**, calibrate it too, as a second reference with `view: "plan"` and `centerlineY` in place of `waterlineY`. The plan overlay is the only check on half-breadths and on off-centre parts such as wing turrets.
-4. **Write `spec.json`.** Copy Lion's and replace the values. Read positions straight off the drawing: `aft = (x - bowX) / pxPerMetre` and `height = (waterlineY - y) / pxPerMetre`. Do the hull first, then turrets and funnels, then everything else.
+3. **Calibrate the drawing.** Positions are in **source-image pixels**, not crop pixels. Crop and enlarge it (`magick ref.png -crop WxH+X+Y -resize 200% zoom.png`) and view it with the Read tool. Note, in source pixels, the bow at deck level (`bowX`), the stern (`sternX`) and the waterline (`waterlineY`). Then `px per metre = abs(sternX - bowX) / length`. Bow-right references are supported: the overlay mirrors a profile and rotates a plan 180° to preserve port/starboard. Supply the actual crop dimensions for these references. Put these in `spec.references[]` with `crop`. If the drawing has a **plan view**, calibrate it too, as a second reference with `view: "plan"` and `centerlineY` in place of `waterlineY`. The plan overlay is the only check on half-breadths and on off-centre parts such as wing turrets.
+4. **Write `spec.json`.** Copy Lion's and replace the values. Read positions straight off the drawing: `aft = (x - bowX) * sign(sternX - bowX) / pxPerMetre` and `height = (waterlineY - y) / pxPerMetre`. Do the hull first, then turrets and funnels, then everything else.
 5. **Iterate fast.** Run `npm run ship:build -- <id> --no-bake` (about 2 s). The report fails on the missing bake; that is expected while iterating. Open `output/ships/<id>/overlay-*.png`, where the render sits at 55 % over the calibrated drawing, plus `quarter.png` and `game-distance.png`. Fix the spec until the overlay agrees. Work in this order: **sheer and deck breaks → turret positions and heights → funnels (position, height, size) → masts → superstructure → small detail.**
 6. **Full build.** Run `npm run ship:build -- <id>`. Every report line must be `ok`.
 7. **Register it** in `SHIP_ASSET_REGISTRY` (`src/ui/ship-assets.js`) under its era, with `url`, `specId`, `className`, `units: 'meters'`, `lengthMeters`/`beamMeters` and `length`/`width` (all equal to the spec values; tested), `waterlineY: 0`, `rotationY: 0` and `license`. Do not add `funnels`: smoke origins come from the GLB's `anchor_funnel_*` nodes.
@@ -56,11 +56,11 @@ A full Lion build takes about 4 s: AO bake, export and five renders.
 9. **Check it in the real viewport.** Run `npm run dev`, select the ship, press *Go to the battle*, zoom in, advance a few ticks, and screenshot. Check scale next to the procedural ships, the wake and foam, smoke coming from the funnel tops, and no console warnings. Stopping the asset request (or renaming the file) must leave the procedural model in place.
 10. **Commit** `spec.json`, `PROVENANCE.md`, the GLB, the registry entry, and any kit changes. Do not commit `reference/` or `output/`.
 
-### Seydlitz notes (unverified, check against references)
+### Seydlitz reference case
 
 Copy Lion's **structure** (spec layout, provenance ledger, references), not her measurements. Verify Seydlitz's January 1915 configuration independently.
 
-About 200.6 m long and 28.5 m in beam, two funnels. Ten 28 cm guns in five twin turrets: one forward, two **wing turrets en echelon** amidships, and two superfiring aft. Wing turrets use `"side"` (metres to starboard; negative for port) on a turret, which the kit already supports, and the report checks each turret's side offset. Confirm the echelon (which wing turret is further forward) against the **plan** overlay, not the profile. Her scenario `guns` is 10. Any kit change made for her rebuilds Lion too (the kit-hash gate), so review Lion's renders again.
+Implemented in `ships/sms-seydlitz/`: 200.6 m long and 28.5 m in beam, two funnels. The provenance ledger records the 1913 dockyard evidence and deliberate simplifications. Ten 28 cm guns in five twin turrets: one forward, two **wing turrets en echelon** amidships, and two superfiring aft. Wing turrets use `"side"` (metres to starboard; negative for port) on a turret, which the kit already supports, and the report checks each turret's side offset. Confirm the echelon (which wing turret is further forward) against the **plan** overlay, not the profile. Her scenario `guns` is 10. B is the forward **starboard** wing turret; C is the after **port** one. A rotated top-view reference must agree with those physical sides. Any kit change made for her rebuilds Lion too (the kit-hash gate), so review Lion's renders again.
 
 ## Spec reference
 
@@ -78,7 +78,7 @@ Conventions: `aft` is metres aft of the stem at deck level, `side` is metres to 
 | `superstructures[]` | `plan` as `[[aft, halfWidth], …]` fore to aft, mirrored. Two rows make a rectangle, more make a polygon (chamfered ends) |
 | `conningTowers[]` | Oval, `length` fore and aft × `width` |
 | `turrets[]` + `turretType` | `facing` is `fore` or `aft`; `barbette` is the height of the gunhouse floor above its base (superfiring turrets have taller ones); optional `side` for wing turrets. `turretType` sets gunhouse size, front slope and barrel dimensions |
-| `funnels[]` | Oval, `length` × `width`, `top` height. Anchors `anchor_funnel_<id>` sit 0.6 m above the top |
+| `funnels[]` | Oval, `length` × `width`, `top` height. Anchors `anchor_funnel_<id>` sit 0.6 m above the top. Optional `casing: { length, width, top }` adds a straight-sided, chamfered uptake casing under the funnel; the funnel rises from its roof |
 | `masts[]` | `type: pole` or `tripod` (with optional `legs: { footAft, footSpread, joinHeight }`), `topmastFrom`, `spottingTop`, `yards[]` |
 | `searchlightTowers[]`, `boats[]`, `hawsePipes[]`, `secondaryGuns` | Detail. `secondaryGuns.mounts[].angle` is the training angle from the bow (90 = abeam), mirrored to both sides |
 | `paint` | sRGB hex per material: `hull upper deck boot bottom dark canvas`. Exactly these seven, one draw call each |
@@ -92,6 +92,7 @@ Conventions: `aft` is metres aft of the stem at deck level, `side` is metres to 
 - **Anchors:** `anchor_funnel_<id>` (smoke), `anchor_turret_<id>` (muzzle centre, for future muzzle flashes) and `anchor_mast_<id>`. `cloneShipAsset` exposes all of them as `userData.anchors` and derives `userData.funnels`, ordered bow to stern.
 - **Waterline contour:** scene extras carry `weatherGageWaterline`, the hull's half-breadth at the design waterline from bow to stern. When the authored model replaces the procedural stand-in, waterline foam and the bow wave are rebuilt on this contour and the authored beam (`adoptAuthoredModel`). Without it, side foam would float off a hull narrower than the stand-in's.
 - **Stale-build stamps:** the GLB's scene extras carry `weatherGageSpecSha256` (the ship's `spec.json`) and `weatherGageKitSha256` (every `.py` under `tools/blender/`). If either changes without a rebuild, `npm test` fails. A kit change therefore forces every ship to be rebuilt.
+- Outward hull orientation is enforced by positive signed volume after welding, and the report checks an upward painted weather deck.
 - Budgets, length (±1 %), keel at `-draft`, turret facings and funnel anchor positions all match the spec.
 
 Builds are geometrically identical run to run, but not byte-identical: Blender's exporter varies index order. Compare builds with the report, not file hashes.
@@ -120,5 +121,5 @@ Keep the kit generic. Ship-specific numbers belong in the spec, never in Python.
 
 - **No LODs and no geometry compression.** Lion is about 1 MB raw and 22k triangles. Meshopt (`gltfpack`) would cut that several-fold, but meshopt decoding is not yet fixture-tested ([ship-fixtures.md](ship-fixtures.md#still-open)).
 - **Vertex AO only.** There is no texture bake (planking, scuttles, weathering streaks); that needs UVs and the KTX2 path.
-- **Proportions differ from the procedural kit.** Authored ships use true beam. The procedural ships are about twice as beamy for readability, so Lion looks slimmer than the procedural Orion beside her. Decide fleet-wide whether to exaggerate beam at presentation time or to slim the procedural specs; don't hack it per ship.
+- **Fleet proportions are decided:** authored GLBs keep true beam; procedural hulls/fittings use class-specific, non-exaggerated length/beam ratios. Readable presentation lengths/heights and compressed chart distances remain abstractions. See [fleet proportions](3d-visual-direction.md#fleet-proportions-2026-10-02). No per-hero width hack or double scaling.
 - No automated golden screenshots of the viewport yet (M0 in [3d-visual-direction.md](3d-visual-direction.md#milestones-and-gates)).

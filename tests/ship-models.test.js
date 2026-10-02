@@ -11,6 +11,15 @@ function bounds(geometry) {
   return geometry.boundingBox;
 }
 
+function solidModelBox(model) {
+  const box = new THREE.Box3();
+  for (const child of model.children) {
+    if (child.name === 'wake' || child.name === 'waterline-foam') continue;
+    box.expandByObject(child);
+  }
+  return box;
+}
+
 const expectedScenarioSpecs = {
   b_constellation: 'sail_frigate', b_baltimore: 'sail_frigate', r_insurgente: 'sail_frigate', r_volontaire: 'sail_frigate',
   b_virginia: 'ironclad_casemate', b_patrick_henry: 'sidewheel_gunboat', b_jamestown: 'sidewheel_gunboat',
@@ -49,6 +58,32 @@ test('every scenario ship resolves to the intended public model spec', () => {
     }
   }
   assert.deepEqual([...seen].sort(), Object.keys(expectedScenarioSpecs).sort());
+});
+
+test('procedural presentation beams follow fleet-wide class proportions', () => {
+  const ratios = Object.fromEntries(Object.values(SHIP_SPECS).map(spec => [spec.key, spec.dimensions.length / spec.dimensions.beam]));
+  assert.ok(Math.abs(ratios.battlecruiser - 7.9) < 0.08, `generic battlecruiser ratio matches authored Lion/Seydlitz treatment: ${ratios.battlecruiser}`);
+  assert.ok(Math.abs(ratios.dreadnought_battleship - 6.6) < 0.03, `dreadnought silhouette is slimmed from the old wide hull: ${ratios.dreadnought_battleship}`);
+  assert.ok(Math.abs(ratios.destroyer - 10) < 0.1, `destroyers stay long and fine: ${ratios.destroyer}`);
+  assert.ok(Math.abs(ratios.ironclad_monitor - 4.35) < 0.02, `monitors keep a beamier class-specific ratio: ${ratios.ironclad_monitor}`);
+  assert.ok(Math.abs(ratios.sidewheel_gunboat - 5.5) < 0.03, `sidewheel gunboats are not blanket-halved: ${ratios.sidewheel_gunboat}`);
+});
+
+test('slim procedural dreadnought fittings, smoke anchors, and size metadata scale with beam', () => {
+  for (const [type, key] of [['Battlecruiser', 'battlecruiser'], ['Battleship', 'dreadnought_battleship'], ['Destroyer', 'destroyer']]) {
+    const model = createActorModel({ own: true, type }, 'dreadnought');
+    const spec = SHIP_SPECS[key];
+    const box = solidModelBox(model);
+    const solidWidth = box.max.x - box.min.x;
+    assert.equal(model.userData.size.width, spec.dimensions.beam, `${key} reports the slimmed beam for effects`);
+    assert.ok(solidWidth <= spec.dimensions.beam * 1.08, `${key} fittings stay with the slimmed hull beam: ${solidWidth} vs ${spec.dimensions.beam}`);
+    disposeActorModel(model);
+  }
+
+  const battlecruiser = createActorModel({ own: true, type: 'Battlecruiser' }, 'dreadnought');
+  const spec = SHIP_SPECS.battlecruiser;
+  assert.ok(Math.abs(battlecruiser.userData.funnels[0].x - spec.funnels[0].x * spec.modelScale.beam) < 1e-9, 'funnel smoke anchor x uses the same transverse scale as the model');
+  disposeActorModel(battlecruiser);
 });
 
 test('lofted hull geometry has submerged bow/stern and sheered deck above water', () => {

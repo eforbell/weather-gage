@@ -48,6 +48,45 @@ Principles:
 ## Readability and scale
 Pick one rule and hold it: **ships are drawn about 3× their true size, and distances are compressed** so a hex reads as about 1.5 ship lengths at the default camera. That is the World-of-Warships-style compromise between true scale (ships vanish) and the current toys. Camera distances, smoke volume and splash height all scale off the same constant, `PRESENTATION_SCALE` in one place, so it can be tuned against the Craig test.
 
+## Fleet proportions (2026-10-02)
+
+**Decision: keep authored ships at real length/beam proportions and slim the
+procedural fleet.** Do not widen Lion/Seydlitz at load time. It would distort
+measured turrets, casings, boats and waterline contours and hide the mismatch
+rather than resolve it.
+
+Procedural silhouettes retain their existing readable presentation lengths and
+heights, but use class-specific hull length/beam targets in `ship-specs.js`:
+
+| Shape | Approximate L/B target |
+|---|---:|
+| Sailing frigate / wooden sailing ship | 4.7 |
+| Wooden steamer / sidewheel gunboat hull | 5.5 |
+| Casemate ironclad | 5.4 |
+| Monitor | 4.35 |
+| Dreadnought battleship | 6.6 |
+| Battlecruiser fallback | 7.9 (Lion-like; Seydlitz's real ratio is about 7.0) |
+| Period destroyer / ASW destroyer | 10 |
+| Carrier hull (not the overhanging flight deck) | 9 |
+| Modern surface combatant / submarine | 9.5 |
+
+These rounded **class-shape design targets** are not a reconstruction of every
+named scenario ship or true fleet-relative length scaling. Sail hulls were
+already broadly plausible and are not blindly halved; paddle boxes, yards,
+flight decks and submarine planes legitimately project beyond the hull.
+
+`dimensions.beam` is the rendered/effects beam. `modelScale.beam` adapts old
+hardcoded fittings to it; hull dimensions, fitted parts, funnel smoke anchors,
+waterline foam and wakes must stay coherent. Actor wrapper transforms remain
+identity; do not put a second X scale on a pitching wrapper or on an authored
+GLB. Tests enforce narrowed hull/fitting bounds and smoke/size metadata.
+
+Future hero replacements can use measured metre specs without inheriting a
+2×-wide generic silhouette. Preserve the standard scalar metre conversion,
+fog discipline and procedural fallback. Any future beam exaggeration must be
+an explicit fleet-wide revision to this policy with matching effects/tests,
+not a registry tweak for one ship.
+
 ## Technical path
 
 ### Rendering foundation (engine settings)
@@ -135,7 +174,7 @@ These make the prototype markedly better at once and are worth doing regardless:
 6. **Foam wakes and a bow wave** as textured ribbons instead of lines.
 7. **The presentation-contract test** listing every event type and entity kind, with the missing 3D handlers marked as known gaps.
 
-**Status (2026-09-29): all seven are in** on this branch, plus a frame-time HUD from M0. See [3d-prototype.md](3d-prototype.md#painted-realism-pass) for what landed, where to tune it, and the measured cost. Still open before M1: the golden screenshot set and Craig-test rubric (M0), hero models (HMS Lion is in, as of 2026-10-02, via the [ship pipeline](ship-pipeline.md); Seydlitz is next), positional audio and the action camera.
+**Status (2026-09-29): all seven are in** on this branch, plus a frame-time HUD from M0. See [3d-prototype.md](3d-prototype.md#painted-realism-pass) for what landed, where to tune it, and the measured cost. Still open before M1: the golden screenshot set and Craig-test rubric (M0), hero models (HMS Lion is in, as of 2026-10-02, via the [ship pipeline](ship-pipeline.md); SMS Seydlitz is now in as a second reference-guided hero), positional audio and the action camera.
 
 ## Risks
 - **Download size and phone GPUs.** Mitigated by lazy per-era packs, quality tiers and budgets.

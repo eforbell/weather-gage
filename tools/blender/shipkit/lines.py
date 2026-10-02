@@ -162,4 +162,11 @@ def build_hull(spec, bm):
     if degenerate:
         bmesh.ops.delete(bm, geom=degenerate, context="FACES")
     bmesh.ops.recalc_face_normals(bm, faces=bm.faces)
+    # Welding the collapsed ends can make recalculation choose a consistent
+    # inward shell. Positive signed volume fixes the outward convention for
+    # every offsets table, not just the first ship's topology.
+    if bm.calc_volume(signed=True) < 0:
+        for face in bm.faces:
+            face.normal_flip()
+        bm.normal_update()
     return lines
