@@ -3,6 +3,7 @@ import { SCENARIOS, SCENARIO_SETUPS } from '../sim/scenarios.js';
 import { createFx } from './fx.js';
 import { captureCommandReceipt, commandReceiptStatus } from './command-feedback.js';
 import { advise, primer, lesson } from './advisor.js';
+import { outcomeFor, playerSideFor, requestedSide } from './player-side.js';
 
 const $ = (selector) => document.querySelector(selector);
 const escape = (value) => String(value ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -21,11 +22,15 @@ const setPref = (k, v) => { try { localStorage.setItem(`weather-gage.${k}`, v); 
 const newSeed = () => (Math.random() * 0x100000000) >>> 0;
 
 let state = createGame('dogger', newSeed());
-let selected = state.ships.find(s => s.side === 'blue').id;
+// The commanded side: blue, unless the ?side= backdoor asks for another (player-side.js).
+const sideRequest = requestedSide();
+const sideFor = id => playerSideFor(SCENARIOS.find(s => s.id === id), SCENARIO_SETUPS[id], sideRequest);
+let side = sideFor(state.scenarioId);
+let selected = state.ships.find(s => s.side === side).id;
 let running = false;
 let timer;
 let commandReceipt = null, signalSerial = 0, receiptAnnouncement = '';
-let notice = 'Chart ready. Review your sealed orders, then issue a signal.';
+let notice = side === 'blue' ? 'Chart ready. Review your sealed orders, then issue a signal.' : `Commanding the ${side} squadron. The sealed orders are written for the other commander.`;
 let overlays = true;
 let battleOpen = false;
 let battleFxTick = -1;
@@ -40,7 +45,7 @@ let restoredSortie = false;
 const scenario = () => SCENARIOS.find(s => s.id === state.scenarioId);
 const era = () => ERA[scenario().era];
 const flagship = () => state.ships.find(s => s.id === selected);
-const recipients = () => group ? state.ships.filter(s => s.side === 'blue' && isActive(s)).map(s => s.id) : [selected];
+const recipients = () => group ? state.ships.filter(s => s.side === side && isActive(s)).map(s => s.id) : [selected];
 const sonarRecipients = () => recipients().filter(id => state.ships.find(s => s.id === id && s.type !== 'carrier'));
 const pt = ({ q, r }) => ({ x: 35 + Math.sqrt(3) * 19 * (q + r / 2), y: 34 + 28.5 * r });
 const mapSize = (map = state.map) => ({ width: map?.width ?? 20, height: map?.height ?? 14 });
@@ -190,7 +195,7 @@ function syncShips(view) {
       return g;
     });
     const active = isActive(vessel);
-    node.setAttribute('class', `vessel ${selected === vessel.id ? 'selected' : ''} ${vessel.side !== 'blue' ? 'ally' : ''} ${vessel.doctrine?.depth === 'deep' ? 'deep' : ''} ${active ? '' : `inactive ${vessel.status}`}`);
+    node.setAttribute('class', `vessel ${selected === vessel.id ? 'selected' : ''} ${vessel.side !== side ? 'ally' : ''} ${vessel.doctrine?.depth === 'deep' ? 'deep' : ''} ${active ? '' : `inactive ${vessel.status}`}`);
     node.querySelector('title').textContent = `${vessel.name} · ${statusName(vessel)} · ${vessel.q}, ${vessel.r}`;
     node.querySelector('.ship-label').textContent = vessel.name.replace(/^(USS|HMS|BNS) /, '') + (vessel.status === 'struck' ? ' ⚑' : '');
     place(node, pt(vessel));
@@ -389,7 +394,7 @@ let lastHull = {};
 function render({ preserveNotice = false } = {}) {
   const sc = scenario();
   fx.setScene(sc.era);
-  const view = getView(state, 'blue', selected);
+  const view = getView(state, side, selected);
   if (!view.ships.some(s => s.id === selected && s.status !== 'reserve')) selected = view.ships.find(s => s.status !== 'reserve')?.id;
   $('#scenario').value = state.scenarioId;
   $('#speed').value = speed;
@@ -434,19 +439,19 @@ function pause() { running = false; clearInterval(timer); }
 function startClock() { clearInterval(timer); timer = setInterval(advance, SPEEDS[speed]); }
 function advance() {
   if (state.outcome) return;
-  const known = new Set(getView(state, 'blue', selected).contacts.filter(c => !c.stale).map(c => c.id));
+  const known = new Set(getView(state, side, selected).contacts.filter(c => !c.stale).map(c => c.id));
   state = step(state);
-  const after = getView(state, 'blue', selected);
+  const after = getView(state, side, selected);
   const newContact = after.contacts.some(c => !c.stale && !known.has(c.id));
   notice = `Tick ${state.tick} resolved. Captains are following standing orders.`;
   if (newContact) fx.banner(known.size ? 'NEW CONTACT' : 'ENEMY IN SIGHT', 'alert');
   if (newContact && running) { pause(); notice = 'New contact report. Clock paused for your assessment.'; }
-  if (state.outcome) { pause(); notice = state.outcome.title; recordResult(state.scenarioId, state.outcome.result); }
+  if (state.outcome) { pause(); notice = outcomeFor(state.outcome, side).title; if (side === 'blue') recordResult(state.scenarioId, state.outcome.result); }
   document.documentElement.style.setProperty('--move', `${Math.round(SPEEDS[speed] * 0.45)}ms`);
   const view = render({ preserveNotice: newContact || Boolean(state.outcome) });
   if (battleOpen) { drawBattle(view, view.fx); battleFxTick = state.tick; }
   fx.play(view, SPEEDS[speed], { contactName: id => { const c = view.contacts.find(x => x.id === id); return c ? (c.name || c.className || 'ENEMY') : 'ENEMY'; }, shipName: id => view.ships.find(s => s.id === id)?.name || '' });
-  if (state.outcome) { const outcome = state.outcome.result; outcomeTimers.push(setTimeout(() => { fx.banner(outcome === 'victory' ? 'VICTORY' : outcome === 'defeat' ? 'DEFEAT' : 'INDECISIVE', outcome === 'defeat' ? 'alert' : 'good'); }, SPEEDS[speed] * 0.8), setTimeout(showDebrief, SPEEDS[speed] + 1400)); }
+  if (state.outcome) { const outcome = outcomeFor(state.outcome, side).result; outcomeTimers.push(setTimeout(() => { fx.banner(outcome === 'victory' ? 'VICTORY' : outcome === 'defeat' ? 'DEFEAT' : 'INDECISIVE', outcome === 'defeat' ? 'alert' : 'good'); }, SPEEDS[speed] * 0.8), setTimeout(showDebrief, SPEEDS[speed] + 1400)); }
 }
 function sendOrder(order) {
   const focusedOrder = document.activeElement?.dataset?.order;
@@ -454,9 +459,9 @@ function sendOrder(order) {
   pause();
   const ids = recipients();
   state = issueOrder(state, ids, order);
-  commandReceipt = captureCommandReceipt(getView(state, 'blue', selected), ids, order, ++signalSerial);
+  commandReceipt = captureCommandReceipt(getView(state, side, selected), ids, order, ++signalSerial);
   plotting = false;
-  notice = getView(state).log.at(-1)?.text || 'Signal submitted.';
+  notice = getView(state, side).log.at(-1)?.text || 'Signal submitted.';
   render();
   if (focusedOrder) document.querySelector(`[data-order="${focusedOrder}"]`)?.focus({ preventScroll: true });
   else if (focusedPlot) (focusedPlot === 'submit' ? document.querySelector('#plot-form button') : document.getElementById(focusedPlot))?.focus({ preventScroll: true });
@@ -466,7 +471,7 @@ function launchCarrierPatrol(q, r) {
   const carrierIds = recipients().filter(id => state.ships.find(s => s.id === id && s.type === 'carrier'));
   if (!carrierIds.length) { notice = 'Select a carrier to launch an air patrol.'; render(); return; }
   state = launchPatrol(state, carrierIds, { q, r });
-  notice = getView(state, 'blue', selected).log.at(-1)?.text || `Patrol launching for ${q}, ${r}; reports arrive after two ticks.`;
+  notice = getView(state, side, selected).log.at(-1)?.text || `Patrol launching for ${q}, ${r}; reports arrive after two ticks.`;
   render();
 }
 
@@ -483,12 +488,12 @@ function showHelp() {
   openDialog(`<h1 id="dialog-title">A commodore, not a captain.</h1><p class="dialog-lead">You set intentions. Your captains find a course, hold formation, and fight according to doctrine.</p><dl class="manual"><dt>Orders & signals</dt><dd>Engage closes to preferred range. Hold stops movement, not defensive or automatic fire. Form line follows the flagship; Screen takes a flank station. Proceed uses axial Q/R coordinates. Withdraw heads toward your friendly edge. New signals replace that ship's queued signal.</dd><dt>Doctrine</dt><dd>Weapons free permits automatic attacks on current contacts in range and arc. Hold fire forbids attacks. The hull threshold triggers autonomous withdrawal. Doctrine changes apply immediately as a prototype simplification.</dd><dt>Contacts</dt><dd>Reports develop from sighted through classified to identified. Stale markers remain at the last observed position, not the hidden ship's current position. Opponent health is never shown; smoke and fire on a contact reflect only the hits you saw land.</dd><dt>Sail</dt><dd>Wind affects movement. Guns fire to port and starboard; captains maneuver for those arcs. Damage can reduce propulsion, weapons, and morale, not just hull.</dd><dt>Ironclad</dt><dd>Steam ships ignore the wind. Iron armour shrugs off most of a wooden broadside, though gun crews, machinery and funnels still suffer. Shell sets wooden ships afire; a fire burns each turn until it is brought under control. A ship with a ram, ordered to Engage, rams wooden ships alongside: beam-on is devastating, glancing blows are not, and the ram can be lost. Deep-draught ships cannot cross shoals. Ships at anchor cannot turn, and fire from ahead or astern rakes them. Flag signals take two to three turns, longer while the flagship's guns are firing. All ships fire simultaneously each turn. Reinforcements may arrive during the action.</dd><dt>Cold War undersea</dt><dd>Nobody sees anything: you hear. A boat's noise rises with speed; a silent boat is hard to hear, a boat at flank speed is loud and half-deaf. Passive contacts give a bearing: the reported position sits inside an uncertainty ring that shrinks while you hold contact, and after three ticks the contact is classified (sometimes wrongly). Nothing is heard dead astern (the baffles) except during a Crazy Ivan. The thermal layer muffles sound between boats at different depths. One ping gives an exact fix of everything within 10 hexes and tells everyone within 20 where you are. Torpedoes run 4 hexes a tick. For their first 12 hexes a wire lets the firing boat steer them toward her latest track of the target and reject locks on friendly boats; evading or losing the boat cuts the wire. Near the target the seeker switches on and homes on the loudest boat ahead of it, friend or foe once the wire is gone. It re-attacks if it loses lock and explodes only after its arming distance. Each noisemaker may or may not fool a given seeker, and crossing the thermal layer makes a boat harder for a seeker set to the other depth. Sides have rules of engagement: firing on a side, or on a boat under its protection, makes you enemies. Scenario events can change a boat mid-mission.</dd><dt>Cold War escorts</dt><dd>In The Northern Screen, select Steadfast to launch one of four patrol flights toward a Q/R sector within 14 hexes. A flight searches within five hexes and returns after two ticks; deep submarines can evade a sweep. Its report appears only in the carrier’s picture, not every vessel’s sensors. ASW destroyers can ping, fire tube torpedoes at close range, and throw ASROC lightweight torpedoes onto a fair fix beyond tube range, out to 8 hexes. Patrols leave sonobuoy fields that keep listening for six ticks, and aircraft drop lightweight torpedoes on a good buoy fix. Firing a torpedo is dangerous: anyone who hears it running gets a rough, fixed position (a datum) for where it was fired, escorts hunt fresh datums, and a boat under attack snap-shoots back down the bearing. Lightweight torpedoes are slower, run shorter and hit softer than a submarine’s heavyweight, and search shallow. Select each ship to see its own picture.</dd><dt>Dreadnought</dt><dd>Ships keep steaming unless ordered to Hold: battleships 1 hex a tick, battlecruisers 1½, destroyers 2. Turrets bear fully abeam and half fore/aft, so the ship that crosses the enemy's T fires everything while he replies with his forward turrets. Fire control builds over successive salvos on one target (the pips) and drops in hard turns. Funnel smoke drifts downwind; firing straight downwind cuts accuracy. Destroyers carry two torpedo spreads, aimed where the target will be if she holds course. Battlecruisers are fast but thinly protected. Wireless orders arrive next tick but reveal your flagship's bearing, and are sometimes garbled. Captains avoid declared minefields.</dd><dt>Modern</dt><dd>Active radar sees farther but is detectable. Passive sensing can find emitting vessels. Finite missile magazines and defensive interceptors reward timing. Ranges and damage are game abstractions, not real weapon specifications.</dd><dt>Map & clock</dt><dd>The shaded overlay is a nominal sensor envelope; the dashed ring is the selected ship's gun range. Go to the battle opens an orbitable 3D view of the selected ship's reported picture, never hidden enemy positions. Cold War cameras use the selected ship's depth; sonar reports stay on the chart because their depth is unknown. Drag to orbit, scroll or pinch to zoom, select another ship to follow it, and return to chart to click precise hexes. Pace sets how long each tick plays out. Run pauses on new contacts. Space toggles the clock; N advances one tick outside form fields.</dd><dt>Persistence</dt><dd>Save locally uses this browser and origin. Export a JSON save for a portable backup. Import validates before replacing a game. Every new sortie uses a fresh random seed.</dd></dl>`);
 }
 function showDebrief() {
-  const out = state.outcome;
+  const out = outcomeFor(state.outcome, side);
   if (!out) return;
-  const own = getView(state).ships;
+  const own = getView(state, side).ships;
   const s = fx.stats();
   const tees = scenario().era === 'dreadnought' ? `<div><b>${s.tees}</b><span>SALVOS CROSSING THE T</span></div>` : '';
-  openDialog(`<span class="dispatch-stamp">DISPATCH HOME / ${escape(out.result).toUpperCase()}</span><h1 id="dialog-title">${escape(out.title)}</h1><p class="dialog-lead">${escape(out.summary)}</p><div class="debrief-stats"><div><b>${state.tick}</b><span>TICKS ELAPSED</span></div><div><b>${own.filter(isActive).length}/${own.length}</b><span>OPERATIONAL</span></div><div><b>${s.hits}/${s.taken}</b><span>HITS SCORED / TAKEN</span></div>${tees}</div><h3>What the Admiralty will ask</h3><p>${escape(lesson(getView(state), scenario(), s))}</p><p class="dialog-note">Sortie seed ${state.seed}. Choose <b>New sortie</b> for a fresh engagement.</p>`);
+  openDialog(`<span class="dispatch-stamp">DISPATCH HOME / ${escape(out.result).toUpperCase()}</span><h1 id="dialog-title">${escape(out.title)}</h1><p class="dialog-lead">${escape(out.summary)}</p><div class="debrief-stats"><div><b>${state.tick}</b><span>TICKS ELAPSED</span></div><div><b>${own.filter(isActive).length}/${own.length}</b><span>OPERATIONAL</span></div><div><b>${s.hits}/${s.taken}</b><span>HITS SCORED / TAKEN</span></div>${tees}</div><h3>What the Admiralty will ask</h3><p>${escape(lesson(getView(state, side), scenario(), s))}</p><p class="dialog-note">Sortie seed ${state.seed}. Choose <b>New sortie</b> for a fresh engagement.</p>`);
 }
 // ---------- Mission browser ----------
 
@@ -573,7 +578,7 @@ $('#launcher').onclick = e => {
 
 function resetVisuals() { outcomeTimers.forEach(clearTimeout); outcomeTimers = []; fx.reset(); rotations = {}; lastHull = {}; battleFxTick = -1; $('#l-ships').innerHTML = ''; $('#l-contacts').innerHTML = ''; }
 function newSortie(id) {
-  pause(); commandReceipt = null; signalSerial = 0; receiptAnnouncement = ''; state = createGame(id, newSeed()); restoredSortie = false; selected = getView(state).ships.find(s => s.status !== 'reserve').id; plotting = false; group = false;
+  pause(); commandReceipt = null; signalSerial = 0; receiptAnnouncement = ''; state = createGame(id, newSeed()); side = sideFor(id); restoredSortie = false; selected = getView(state, side).ships.find(s => s.status !== 'reserve').id; plotting = false; group = false;
   resetVisuals();
   notice = 'New sortie. Standing by for your orders.'; render(); showBriefing();
 }
@@ -603,7 +608,7 @@ $('#battle-toggle').onclick = async () => {
     }
     if (!battleOpen) return;
     battleRenderer.start();
-    const view = getView(state, 'blue', selected);
+    const view = getView(state, side, selected);
     drawBattle(view, battleFxTick !== state.tick ? view.fx : []);
     battleFxTick = state.tick;
   } catch (error) {
@@ -622,7 +627,7 @@ $('#help').onclick = showHelp;
 $('#close-dialog').onclick = $('#acknowledge').onclick = () => $('#dialog').close();
 $('#scenario').onchange = e => newSortie(e.target.value);
 $('#restart').onclick = () => newSortie(state.scenarioId);
-$('#layers').onclick = () => { overlays = !overlays; $('#layers').setAttribute('aria-pressed', overlays); drawChart(getView(state, 'blue', selected)); };
+$('#layers').onclick = () => { overlays = !overlays; $('#layers').setAttribute('aria-pressed', overlays); drawChart(getView(state, side, selected)); };
 $('#roster').onclick = e => { const card = e.target.closest('[data-select]'); if (card) { selected = card.dataset.select; plotting = false; render(); } };
 $('#chart').onclick = e => {
   const vessel = e.target.closest('[data-ship]');
@@ -633,7 +638,7 @@ $('#chart').onclick = e => {
 $('#inspector').onclick = e => {
   const order = e.target.closest('[data-order]');
   if (order) { if (order.dataset.order === 'proceed') { pause(); plotting = true; notice = 'Choose a sea hex on the chart, or enter Q/R coordinates.'; render(); } else sendOrder({ type: order.dataset.order }); }
-  if (e.target.id === 'ping') { pause(); state = activePing(state, sonarRecipients()); const last = getView(state).log.at(-1)?.text || ''; notice = /ordered to ping/.test(last) ? 'Ping ordered for next tick. Everyone within earshot will know where you are.' : last; render(); return; }
+  if (e.target.id === 'ping') { pause(); state = activePing(state, sonarRecipients()); const last = getView(state, side).log.at(-1)?.text || ''; notice = /ordered to ping/.test(last) ? 'Ping ordered for next tick. Everyone within earshot will know where you are.' : last; render(); return; }
   if (e.target.id === 'doctrine') {
     const range = Number($('#range').value), withdraw = Number($('#withdraw').value);
     if (!Number.isInteger(range) || range < 1 || range > 12 || !Number.isFinite(withdraw) || withdraw < 0 || withdraw > 90) { notice = 'Use a range of 1–12 and a withdrawal threshold of 0–90.'; $('#notice').textContent = notice; return; }
@@ -651,10 +656,11 @@ $('#inspector').onsubmit = e => {
 };
 function restore(text) {
   const loaded = deserialize(text);
-  const loadedView = getView(loaded);
+  const loadedSide = sideFor(loaded.scenarioId);
+  const loadedView = getView(loaded, loadedSide);
   if (!loadedView.ships.length) throw Error('Save contains no player squadron.');
   const loadedSelection = loadedView.ships[0].id;
-  pause(); commandReceipt = null; signalSerial = 0; receiptAnnouncement = ''; state = loaded; restoredSortie = true; selected = loadedSelection; plotting = false; resetVisuals(); notice = 'Saved sortie restored. Clock paused.'; render();
+  pause(); commandReceipt = null; signalSerial = 0; receiptAnnouncement = ''; state = loaded; side = loadedSide; restoredSortie = true; selected = loadedSelection; plotting = false; resetVisuals(); notice = 'Saved sortie restored. Clock paused.'; render();
 }
 $('#save').onclick = () => { pause(); try { localStorage.setItem(storageKey, serialize(state)); notice = 'Sortie saved in this browser. Export for a portable backup.'; } catch { notice = 'Browser storage unavailable or full. Use Export to keep your sortie.'; } render(); };
 $('#load').onclick = () => { pause(); try { const saved = localStorage.getItem(storageKey); if (!saved) throw Error('No local save found.'); restore(saved); } catch (error) { notice = `Could not load: ${error.message}`; render(); } };
