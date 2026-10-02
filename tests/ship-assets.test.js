@@ -48,7 +48,7 @@ test('default ship asset registry covers every era and only spec-built hero mode
 test('shipAssetSpecFor resolves and normalizes class/type names within an era registry', () => {
   const spec = { units: 'presentation', url: '/assets/ships/lion.glb' };
   const registry = { dreadnought: { battlecruiser: spec } };
-  assert.deepEqual(shipAssetSpecFor({ type: 'Battlecruiser' }, 'dreadnought', registry), normalizeShipAssetSpec(spec));
+  assert.deepEqual(shipAssetSpecFor({ type: 'Battlecruiser' }, 'dreadnought', registry), normalizeShipAssetSpec(spec, 'dreadnought'));
   assert.equal(shipAssetSpecFor({ type: 'Battlecruiser' }, 'sail', registry), null);
 });
 
@@ -57,9 +57,9 @@ test('ship asset lookup prefers public ship/class variant keys before generic ty
   const seydlitz = { units: 'presentation', url: '/assets/ships/seydlitz.glb' };
   const generic = { units: 'presentation', url: '/assets/ships/battlecruiser.glb' };
   const registry = { dreadnought: { lion, seydlitz, battlecruiser: generic } };
-  assert.deepEqual(shipAssetSpecFor({ own: true, name: 'Lion', type: 'Battlecruiser' }, 'dreadnought', registry), normalizeShipAssetSpec(lion));
-  assert.deepEqual(shipAssetSpecFor({ own: false, name: 'Seydlitz', type: 'Battlecruiser' }, 'dreadnought', registry), normalizeShipAssetSpec(seydlitz));
-  assert.deepEqual(shipAssetSpecFor({ own: false, type: 'Battlecruiser' }, 'dreadnought', registry), normalizeShipAssetSpec(generic));
+  assert.deepEqual(shipAssetSpecFor({ own: true, name: 'Lion', type: 'Battlecruiser' }, 'dreadnought', registry), normalizeShipAssetSpec(lion, 'dreadnought'));
+  assert.deepEqual(shipAssetSpecFor({ own: false, name: 'Seydlitz', type: 'Battlecruiser' }, 'dreadnought', registry), normalizeShipAssetSpec(seydlitz, 'dreadnought'));
+  assert.deepEqual(shipAssetSpecFor({ own: false, type: 'Battlecruiser' }, 'dreadnought', registry), normalizeShipAssetSpec(generic, 'dreadnought'));
   assert.equal(hasShipAsset({ type: 'Battlecruiser' }, 'dreadnought', { dreadnought: { battlecruiser: { units: 'presentation', url: 'https://bad.example/lion.glb' } } }), true);
 });
 
@@ -79,7 +79,7 @@ test('asset manager lazily caches glTF templates and clones per instance', async
   assert.equal(firstPart.geometry, secondPart.geometry);
   assert.notEqual(firstPart.material, secondPart.material);
   assert.equal(firstPart.geometry, source.children[0].geometry);
-  assert.deepEqual(first.userData.shipAssetSpec, normalizeShipAssetSpec(spec));
+  assert.deepEqual(first.userData.shipAssetSpec, normalizeShipAssetSpec(spec, 'dreadnought'));
 });
 
 test('normalized spec applies waterline, orientation, scale, shadows, funnels, and size metadata', () => {
@@ -270,4 +270,13 @@ test('default KTX2 texture loader shares the local dependency URL guard', async 
     assert.throws(() => loadingManager.resolveURL('https://external.invalid/texture.ktx2'), /local origin/);
     assert.throws(() => loadingManager.resolveURL('//external.invalid/texture.ktx2'), /local origin/);
   } finally { manager.dispose(); }
+});
+
+test('metre assets take their era\'s scale: a sail frigate fills a ship length like a dreadnought', async () => {
+  const { MODEL_METERS_TO_WORLD, SHIP_LENGTH, modelMetersToWorld } = await import('../src/ui/battle-presentation.js');
+  assert.equal(modelMetersToWorld('dreadnought'), MODEL_METERS_TO_WORLD);
+  const frigate = normalizeShipAssetSpec({ units: 'meters', url: '/ships/frigate.glb', length: 50, width: 12.5 }, 'sail');
+  assert.equal(frigate.scale, modelMetersToWorld('sail'));
+  assert.ok(Math.abs(frigate.size.length - SHIP_LENGTH) < 1e-9);
+  assert.deepEqual(normalizeShipAssetSpec(frigate), frigate, 'the era is remembered, so normalization stays idempotent');
 });

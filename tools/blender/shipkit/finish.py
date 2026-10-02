@@ -3,12 +3,12 @@ import bmesh
 import bpy
 
 from . import lines as hull_lines
-from .parts import MATERIALS, Kit, build_fittings
+from .parts import MATERIALS, PAINT_FALLBACK, Kit, build_fittings
 
 # Painted-realism PBR: painted steel is a dielectric (low metalness) so the sky
 # environment does the work in the game. Roughness per role.
-ROUGHNESS = {"hull": 0.55, "upper": 0.55, "deck": 0.85, "boot": 0.6, "bottom": 0.8, "dark": 0.5, "canvas": 0.9}
-METALNESS = {"hull": 0.2, "upper": 0.2, "deck": 0.0, "boot": 0.05, "bottom": 0.0, "dark": 0.3, "canvas": 0.0}
+ROUGHNESS = {"hull": 0.55, "upper": 0.55, "deck": 0.85, "boot": 0.6, "bottom": 0.8, "dark": 0.5, "canvas": 0.9, "spar": 0.7}
+METALNESS = {"hull": 0.2, "upper": 0.2, "deck": 0.0, "boot": 0.05, "bottom": 0.0, "dark": 0.3, "canvas": 0.0, "spar": 0.0}
 
 
 def _srgb_to_linear(c):
@@ -26,10 +26,15 @@ def make_materials(spec):
         mat = bpy.data.materials.new(f"{spec['id']}-{name}")
         mat.use_nodes = True
         bsdf = next(n for n in mat.node_tree.nodes if n.type == "BSDF_PRINCIPLED")
-        color = hex_to_linear(spec["paint"][name])
+        paint = spec["paint"]
+        fallback = PAINT_FALLBACK.get(name)
+        if name not in paint and fallback not in paint:
+            raise ValueError(f"spec.paint is missing '{name}'")
+        color = hex_to_linear(paint.get(name) or paint[fallback])
         bsdf.inputs["Base Color"].default_value = color
-        bsdf.inputs["Roughness"].default_value = ROUGHNESS[name]
-        bsdf.inputs["Metallic"].default_value = METALNESS[name]
+        surface = spec.get("surface", {}).get(name, {})  # e.g. wooden hulls: no metalness
+        bsdf.inputs["Roughness"].default_value = surface.get("roughness", ROUGHNESS[name])
+        bsdf.inputs["Metallic"].default_value = surface.get("metalness", METALNESS[name])
         mat.diffuse_color = color  # what Workbench previews show
         out.append(mat)
     return out
@@ -43,6 +48,9 @@ def build_hull_part(kit):
     for z in (boot_high, boot_low):
         bmesh.ops.bisect_plane(bm, geom=list(bm.verts) + list(bm.edges) + list(bm.faces), plane_co=(0, 0, z), plane_no=(0, 0, 1))
     role = bm.faces.layers.int["role"]
+    # Triangulate before painting, so a twisted quad at the stem cannot put a
+    # vertical half on the deck.
+    bmesh.ops.triangulate(bm, faces=bm.faces, quad_method="BEAUTY", ngon_method="BEAUTY")
 
     def material(face):
         if face[role] == hull_lines.ROLE_DECK:
@@ -53,7 +61,7 @@ def build_hull_part(kit):
         return "boot" if z > boot_low else "bottom"
 
     for face in bm.faces:
-        face.smooth = True
+        face.smooth = face[role] != hull_lines.ROLE_END
     for edge in bm.edges:
         faces = edge.link_faces
         if len(faces) == 2 and faces[0][role] != faces[1][role]:
@@ -109,16 +117,29 @@ def bake_ambient_occlusion(obj, samples=48, distance=9.0, floor=0.42):
     bpy.ops.object.bake(type="AO", target="VERTEX_COLORS")
     # Soften and add a little waterline grime: painted realism, not a dirt map.
     attr = mesh.color_attributes["AO"]
+    tints = mesh.attributes.get("tint")
+    tint_of_loop = {}
+    if tints is not None:
+        for poly in mesh.polygons:
+            value = tints.data[poly.index].value
+            if value:
+                rgb = hex_to_linear(f"{value - 1:06x}")[:3]
+                for loop_index in poly.loop_indices:
+                    tint_of_loop[loop_index] = rgb
     for loop in mesh.loops:
         z = mesh.vertices[loop.vertex_index].co.z
         ao = attr.data[loop.index].color[0]
         shade = floor + (1 - floor) * ao ** 0.85
         if 0.0 < z < 2.5:
             shade *= 0.88 + 0.12 * (z / 2.5)
-        attr.data[loop.index].color = (shade, shade, shade, 1.0)
+        r, g, b = tint_of_loop.get(loop.index, (1.0, 1.0, 1.0))
+        attr.data[loop.index].color = (shade * r, shade * g, shade * b, 1.0)
 
 
 def export_glb(obj, path):
+    tints = obj.data.attributes.get("tint")
+    if tints is not None:  # consumed by the bake; never exported
+        obj.data.attributes.remove(tints)
     bpy.ops.object.select_all(action="DESELECT")
     bpy.ops.export_scene.gltf(
         filepath=path,

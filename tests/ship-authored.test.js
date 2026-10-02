@@ -7,9 +7,9 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { SHIP_ASSET_REGISTRY, adoptAuthoredModel, cloneShipAsset, shipAssetSpecFor } from '../src/ui/ship-assets.js';
 import { createActorModel } from '../src/ui/battle-models.js';
-import { MODEL_METERS_TO_WORLD } from '../src/ui/battle-presentation.js';
+import { modelMetersToWorld } from '../src/ui/battle-presentation.js';
 import { SCENARIO_SETUPS } from '../src/sim/scenarios.js';
-import { inspectShipGlb, loadShipSpec, muzzleReach, shipGlbPath, shipKitSha256, shipSpecSha256, turretChecks } from '../scripts/ship-asset-report.mjs';
+import { inspectShipGlb, loadShipSpec, muzzleReach, shipGlbPath, shipGunCount, shipKitSha256, shipSpecSha256, turretChecks } from '../scripts/ship-asset-report.mjs';
 
 const registered = Object.entries(SHIP_ASSET_REGISTRY).flatMap(([era, entries]) => Object.entries(entries).map(([key, entry]) => ({ era, key, entry })));
 const scenarioShips = Object.values(SCENARIO_SETUPS).flatMap(setup => setup.ships || []);
@@ -49,6 +49,7 @@ for (const { era, key, entry } of registered) {
   test(`${key}: registry entry agrees with ships/${entry.specId}/spec.json`, async () => {
     const spec = await loadShipSpec(entry.specId);
     assert.equal(spec.era, era);
+    assert.equal(entry.era, era, 'the entry names its era, so normalizing it alone picks the right scale');
     assert.ok(spec.registryKeys.includes(key));
     assert.equal(`public/${entry.url}`, shipGlbPath(spec));
     assert.equal(entry.lengthMeters, spec.hull.length);
@@ -61,7 +62,7 @@ for (const { era, key, entry } of registered) {
     const spec = await loadShipSpec(entry.specId);
     const ships = scenarioShips.filter(ship => ship.name?.toLowerCase() === key);
     assert.ok(ships.length, `no scenario ship is named ${key}`);
-    const guns = spec.turrets.reduce((sum, turret) => sum + turret.guns, 0);
+    const guns = shipGunCount(spec);
     const counted = ships.filter(ship => Number.isFinite(ship.guns));
     assert.ok(counted.length, `no scenario entry for ${key} declares guns`);
     for (const ship of counted) assert.equal(guns, ship.guns, `${key}: spec has ${guns} guns, scenario ${ship.guns}`);
@@ -80,20 +81,25 @@ for (const { era, key, entry } of registered) {
     const gltf = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
     const normalized = shipAssetSpecFor({ name: spec.name, own: true }, era);
     assert.ok(normalized, 'public name resolves to the authored asset');
+    const scale = modelMetersToWorld(era);
+    assert.equal(normalized.scale, scale);
     const instance = cloneShipAsset(gltf.scene, normalized);
-    assert.equal(instance.userData.funnels.length, spec.funnels.length);
-    const zs = instance.userData.funnels.map(f => f.z);
+    const funnels = spec.funnels || [];
+    assert.equal((instance.userData.funnels || []).length, funnels.length, 'a ship without funnels makes no smoke');
+    const zs = (instance.userData.funnels || []).map(f => f.z);
     assert.deepEqual(zs, [...zs].sort((a, b) => a - b), 'smoke origins ordered bow to stern');
-    for (const funnel of spec.funnels) {
+    for (const funnel of funnels) {
       const point = instance.userData.anchors[`funnel_${funnel.id}`];
       assert.ok(instance.userData.funnels.includes(point), `funnel ${funnel.id} feeds the smoke list`);
-      assert.ok(Math.abs(point.z - (funnel.aft - spec.hull.length / 2) * MODEL_METERS_TO_WORLD) < 0.05, `funnel ${funnel.id} position`);
-      assert.ok(point.y > funnel.top * MODEL_METERS_TO_WORLD - 0.01, `funnel ${funnel.id} smoke starts above the top`);
+      assert.ok(Math.abs(point.z - (funnel.aft - spec.hull.length / 2) * scale) < 0.05, `funnel ${funnel.id} position`);
+      assert.ok(point.y > funnel.top * scale - 0.01, `funnel ${funnel.id} smoke starts above the top`);
     }
+    const report = await inspectShipGlb(bytes, spec);
+    const [minX, minY, minZ] = report.boundsMeters.min, [maxX, maxY, maxZ] = report.boundsMeters.max;
     const box = new THREE.Box3().setFromObject(instance);
-    assert.ok(Math.abs(box.max.z - box.min.z - spec.hull.length * MODEL_METERS_TO_WORLD) < 0.05, 'world length');
-    assert.ok(Math.abs(box.min.y + spec.hull.draft * MODEL_METERS_TO_WORLD) < 0.02, 'waterline at y=0');
-    assert.ok(Math.abs(instance.userData.size.length - spec.hull.length * MODEL_METERS_TO_WORLD) < 1e-6);
+    assert.ok(Math.abs(box.max.z - box.min.z - (maxZ - minZ) * scale) < 0.05, 'world length (overall, including any bowsprit)');
+    assert.ok(Math.abs(box.min.y + spec.hull.draft * scale) < 0.02, 'waterline at y=0');
+    assert.ok(Math.abs(instance.userData.size.length - spec.hull.length * scale) < 1e-6);
   });
 }
 
@@ -113,10 +119,11 @@ for (const { era, key, entry } of registered) {
     assert.equal(loaded.userData.waterlineFoam.parent, loaded);
     assert.ok(loaded.position.equals(stand.position) && loaded.quaternion.equals(stand.quaternion), 'pose carried over');
     loaded.position.set(0, 0, 0); loaded.quaternion.identity();
-    const hullHalf = spec.hull.beam / 2 * MODEL_METERS_TO_WORLD;
-    const foamHalf = foamHalfWidthAtMidships(loaded.userData.waterlineFoam, spec.hull.length * MODEL_METERS_TO_WORLD * 0.1);
+    const scale = modelMetersToWorld(era);
+    const hullHalf = spec.hull.beam / 2 * scale;
+    const foamHalf = foamHalfWidthAtMidships(loaded.userData.waterlineFoam, spec.hull.length * scale * 0.1);
     assert.ok(Math.abs(foamHalf - hullHalf) < hullHalf * 0.06, `foam at midships ${foamHalf.toFixed(3)} vs hull ${hullHalf.toFixed(3)}`);
-    assert.ok(Math.abs(loaded.userData.size.width - spec.hull.beam * MODEL_METERS_TO_WORLD) < 1e-6, 'wake sized from the authored beam');
+    assert.ok(Math.abs(loaded.userData.size.width - spec.hull.beam * scale) < 1e-6, 'wake sized from the authored beam');
   });
 }
 
@@ -162,9 +169,9 @@ test('Seydlitz wing turrets preserve the original echelon, side, and gun-axis he
   assert.ok(anchors.turret_B.x > 0 && anchors.turret_C.x < 0, 'physical GLB handedness agrees, not only the spec');
   // Contemporary ONI table gives the gun axes, not gunhouse roof heights.
   for (const [id, height] of Object.entries({ A: 10.3632, B: 8.1534, C: 8.1534, D: 8.4328, E: 5.9944 })) {
-    assert.ok(Math.abs(anchors[`turret_${id}`].y / MODEL_METERS_TO_WORLD - height) < 0.2, `${id} gun axis matches reference within20cm`);
+    assert.ok(Math.abs(anchors[`turret_${id}`].y / modelMetersToWorld('dreadnought') - height) < 0.2, `${id} gun axis matches reference within20cm`);
   }
-  assert.ok(anchors.turret_D.y - anchors.turret_E.y > 2 * MODEL_METERS_TO_WORLD, 'aft pair is superfiring');
+  assert.ok(anchors.turret_D.y - anchors.turret_E.y > 2 * modelMetersToWorld('dreadnought'), 'aft pair is superfiring');
 });
 
 test('asset report rejects a hull without an outward painted weather deck', async () => {

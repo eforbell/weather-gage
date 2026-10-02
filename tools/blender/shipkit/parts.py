@@ -11,7 +11,9 @@ from mathutils import Matrix, Vector
 
 from .spec import y_of
 
-MATERIALS = ("hull", "upper", "deck", "boot", "bottom", "dark", "canvas")
+MATERIALS = ("hull", "upper", "deck", "boot", "bottom", "dark", "canvas", "spar")
+# Optional paints fall back to another role, so older specs need not name them.
+PAINT_FALLBACK = {"spar": "upper"}
 EMBED = 0.4  # how far parts sink into whatever they stand on, so no gaps show
 # Gun axis height as a fraction of gunhouse height. The muzzle anchor sits at
 # length/2 - frontSlope * GUN_AXIS + barrelLength from the turret centre;
@@ -24,6 +26,9 @@ class Kit:
         self.spec = spec
         self.lines = lines
         self.bm = bmesh.new()
+        # Per-face colour (0xRRGGBB + 1; 0 = none) multiplied into the baked
+        # vertex colours: flags and other small painted detail.
+        self.tint = self.bm.faces.layers.int.new("tint")
         self.anchors = []  # (name, (x, y, z)) in Blender metres
 
     # -- coordinates -------------------------------------------------------
@@ -41,6 +46,7 @@ class Kit:
         """Copy a scratch bmesh into the ship mesh. `material` is a name or a
         function face -> name. `smooth` overrides every face's shading flag."""
         src.verts.index_update()
+        src_tint = src.faces.layers.int.get("tint")
         vmap = [self.bm.verts.new(v.co) for v in src.verts]
         for face in src.faces:
             try:
@@ -50,6 +56,8 @@ class Kit:
             name = material(face) if callable(material) else material
             new.material_index = MATERIALS.index(name)
             new.smooth = face.smooth if smooth is None else smooth
+            if src_tint is not None:
+                new[self.tint] = face[src_tint]
         for edge in src.edges:
             if not edge.smooth:
                 a, b = (vmap[v.index] for v in edge.verts)
@@ -164,6 +172,8 @@ def conning_towers(kit):
 
 
 def turrets(kit):
+    if not kit.spec.get("turrets"):
+        return
     t = kit.spec["turretType"]
     L, W, H = t["length"], t["width"], t["height"]
     for turret in kit.spec.get("turrets", []):
@@ -295,6 +305,7 @@ def secondary_guns(kit):
 
 
 def build_fittings(kit):
+    from . import sail  # sail-era fittings; each returns nothing when its key is absent
     superstructures(kit)
     conning_towers(kit)
     turrets(kit)
@@ -304,3 +315,4 @@ def build_fittings(kit):
     hawse_pipes(kit)
     boats(kit)
     secondary_guns(kit)
+    sail.build(kit)

@@ -1,0 +1,179 @@
+{
+  "schema": "weather-gage/ship-spec@1",
+  "id": "linsurgente",
+  "name": "L’Insurgente",
+  "className": "French 12-pounder frigate (40)",
+  "era": "sail",
+  "registryKeys": ["l’insurgente"],
+  "configuration": "1799 (off Nevis): open waist between a raised forecastle and quarterdeck, 13 gundeck ports a side plus 7 on the quarterdeck and forecastle (40 guns, the scenario's count), fighting sail: courses clewed up, topsails and topgallants set.",
+  "units": "meters",
+  "conventions": "aft = metres aft of the stem at deck level; side = metres to starboard (+) or port (-) of the centreline; heights = metres above the design waterline. The builder converts to Blender (bow +Y, starboard +X, up +Z), which the glTF exporter turns into the game's contract (bow -Z, up +Y, waterline at Y=0).",
+  "budget": {"tier": "hero-blockout", "maxTriangles": 40000, "maxDrawCalls": 8, "maxBytes": 2000000},
+  "hull": {
+    "length": 47.5,
+    "overallLength": 74.2,
+    "beam": 11.9,
+    "draft": 5.3,
+    "camber": 0.22,
+    "bootTopping": [-0.3, 0.22],
+    "stationSpacing": 0.8,
+    "lines": [
+      {"aft": 0.0, "halfDeck": 0.0, "halfWater": 0.0, "deck": 5.4, "keel": 1.3, "fullness": 1.6},
+      {"aft": 0.8, "halfDeck": 2.0, "halfWater": 0.9, "deck": 5.25, "keel": -2.0, "fullness": 1.6},
+      {"aft": 2.6, "halfDeck": 3.6, "halfWater": 2.6, "deck": 5.0, "keel": -4.2, "fullness": 1.8},
+      {"aft": 5.5, "halfDeck": 4.7, "halfWater": 4.4, "deck": 4.7, "keel": -5.0, "fullness": 2.0},
+      {"aft": 10.8, "halfDeck": 5.4, "halfWater": 5.6, "deck": 4.35, "keel": -5.2, "fullness": 2.2},
+      {"aft": 11.7, "halfDeck": 5.62, "halfWater": 5.7, "deck": 2.15, "keel": -5.2, "fullness": 2.2},
+      {"aft": 18.0, "halfDeck": 5.74, "halfWater": 5.92, "deck": 1.95, "keel": -5.25, "fullness": 2.3},
+      {"aft": 24.0, "halfDeck": 5.74, "halfWater": 5.95, "deck": 1.95, "keel": -5.25, "fullness": 2.3},
+      {"aft": 29.6, "halfDeck": 5.7, "halfWater": 5.8, "deck": 2.05, "keel": -5.3, "fullness": 2.1},
+      {"aft": 30.5, "halfDeck": 5.5, "halfWater": 5.75, "deck": 4.25, "keel": -5.3, "fullness": 2.1},
+      {"aft": 37.0, "halfDeck": 5.15, "halfWater": 5.0, "deck": 4.45, "keel": -5.3, "fullness": 1.7},
+      {"aft": 41.5, "halfDeck": 4.7, "halfWater": 3.6, "deck": 4.7, "keel": -5.3, "fullness": 1.3},
+      {"aft": 45.0, "halfDeck": 4.3, "halfWater": 1.8, "deck": 4.95, "keel": -4.8, "fullness": 1.12},
+      {"aft": 46.7, "halfDeck": 4.0, "halfWater": 0.7, "deck": 5.1, "keel": -0.9, "fullness": 1.1},
+      {"aft": 47.5, "halfDeck": 3.85, "halfWater": 0.35, "deck": 5.15, "keel": 1.5, "fullness": 1.1}
+    ]
+  },
+  "surface": {
+    "hull": {"metalness": 0.0, "roughness": 0.6},
+    "upper": {"metalness": 0.0, "roughness": 0.65},
+    "dark": {"metalness": 0.05, "roughness": 0.6},
+    "bottom": {"metalness": 0.35, "roughness": 0.55}
+  },
+  "curves": {
+    "gunports": [[0, 3.7], [8, 2.95], [18, 2.55], [28, 2.55], [38, 2.75], [44, 3.1], [47.5, 3.3]],
+    "sparports": [[0, 6.0], [8, 5.25], [18, 4.95], [30, 4.95], [38, 5.15], [44, 5.5], [47.5, 5.7]],
+    "rail": [[0, 6.8], [3, 6.2], [10, 5.65], [20, 5.45], [32, 5.6], [42, 6.1], [47.5, 6.6]]
+  },
+  "strakes": [
+    {"id": "gundeck-band", "line": "gunports", "from": -0.6, "to": 0.6, "fromAft": 0.8, "toAft": 47.45, "material": "upper"},
+    {"id": "main-wale", "line": "gunports", "from": -1.3, "to": -0.85, "fromAft": 1.0, "toAft": 47.45, "material": "dark", "out": 0.09},
+    {"id": "sheer-strake", "line": "rail", "from": -0.75, "to": -0.45, "fromAft": 1.2, "toAft": 47.45, "material": "upper", "out": 0.03}
+  ],
+  "bulwarks": {"rail": "rail", "fromAft": 0.6, "toAft": 47.5, "thickness": 0.35, "outer": "hull", "inner": "upper", "cap": "dark"},
+  "batteries": [
+    {
+      "id": "gundeck",
+      "count": 13,
+      "fromAft": 6.4,
+      "toAft": 41.2,
+      "line": "gunports",
+      "size": [0.8, 0.74],
+      "gun": {"length": 1.45, "radius": 0.15},
+      "lidAngle": 70,
+      "lidMaterial": "upper"
+    },
+    {
+      "id": "quarterdeck-forecastle",
+      "count": 7,
+      "positions": [4.0, 6.8, 32.2, 34.8, 37.4, 40.0, 42.6],
+      "line": "sparports",
+      "size": [0.66, 0.56],
+      "gun": {"length": 0.85, "radius": 0.15},
+      "lids": false
+    }
+  ],
+  "head": {
+    "profile": [[0.6, 5.3], [-1.4, 5.3], [-3.4, 5.9], [-4.1, 5.4], [-3.0, 4.1], [-1.4, 1.9], [-0.3, -0.5], [0.8, -1.0], [1.0, 5.3]],
+    "thickness": 0.65,
+    "material": "hull",
+    "figurehead": {"aft": -3.7, "z": 4.9, "size": [0.65, 0.9, 1.4], "material": "upper"}
+  },
+  "stern": {
+    "bands": [{"z0": 4.1, "z1": 6.1, "material": "upper"}],
+    "windows": [{"z": 4.9, "count": 5, "span": 5.4, "size": [0.6, 0.85]}],
+    "galleries": {"fromAft": 43.4, "toAft": 47.2, "z0": 3.6, "z1": 5.8, "depth": 0.7, "windows": 2},
+    "rudder": {"top": 3.5, "chord": 1.2}
+  },
+  "rig": {
+    "brace": 22,
+    "belly": 0.1,
+    "rigging": 0.085,
+    "masts": [
+      {
+        "id": "fore",
+        "aft": 10.92,
+        "rake": 2.0,
+        "sections": [{"head": 26.98, "radius": 0.46}, {"from": 24.89, "head": 39.71, "radius": 0.29}, {"from": 38.38, "head": 51.77, "radius": 0.16}],
+        "top": {"z": 25.17, "size": [3.42, 4.94]},
+        "crosstrees": [{"z": 38.48, "span": 4.18}],
+        "shrouds": {"count": 6, "aft": [-0.9, 3.2], "z": 4.5},
+        "yards": [
+          {"z": 23.75, "span": 21.85, "furled": true},
+          {"z": 35.43, "span": 17.67, "sail": {"foot": 24.7, "footSpan": 21.85}},
+          {"z": 45.22, "span": 10.92, "sail": {"foot": 38.95, "footSpan": 15.2}},
+          {"z": 49.97, "span": 7.22, "furled": true}
+        ]
+      },
+      {
+        "id": "main",
+        "aft": 24.7,
+        "rake": 3.0,
+        "sections": [{"head": 28.88, "radius": 0.53}, {"from": 26.6, "head": 43.13, "radius": 0.32}, {"from": 41.7, "head": 56.52, "radius": 0.18}],
+        "top": {"z": 26.98, "size": [3.8, 5.51]},
+        "crosstrees": [{"z": 41.8, "span": 4.56}],
+        "shrouds": {"count": 7, "aft": [-0.9, 3.8], "z": 4.5},
+        "yards": [
+          {"z": 25.46, "span": 24.22, "furled": true},
+          {"z": 38.38, "span": 19.38, "sail": {"foot": 26.41, "footSpan": 24.22}},
+          {"z": 49.02, "span": 11.97, "sail": {"foot": 42.37, "footSpan": 16.72}},
+          {"z": 54.53, "span": 7.79, "furled": true}
+        ]
+      },
+      {
+        "id": "mizzen",
+        "aft": 37.05,
+        "rake": 4.5,
+        "sections": [{"head": 21.66, "radius": 0.36}, {"from": 19.95, "head": 31.82, "radius": 0.22}, {"from": 30.78, "head": 40.38, "radius": 0.12}],
+        "top": {"z": 20.14, "size": [2.75, 3.99]},
+        "crosstrees": [{"z": 30.88, "span": 3.23}],
+        "shrouds": {"count": 5, "aft": [-0.8, 2.6], "z": 4.7, "backstays": 1},
+        "yards": [
+          {"z": 18.62, "span": 16.15},
+          {"z": 28.69, "span": 12.35, "sail": {"foot": 19.57, "footSpan": 16.15}},
+          {"z": 36.57, "span": 7.6, "sail": {"foot": 31.35, "footSpan": 10.64}}
+        ]
+      }
+    ],
+    "spars": [
+      {"id": "bowsprit", "from": [3.32, 0, 5.13], "to": [-11.4, 0, 14.44], "radius": 0.46, "endRadius": 0.3},
+      {"id": "jibboom", "from": [-8.07, 0, 12.92], "to": [-21.38, 0, 18.62], "radius": 0.24, "endRadius": 0.13},
+      {"id": "spritsail-yard", "from": [-5.7, -6.2, 11.02], "to": [-5.7, 6.2, 11.02], "radius": 0.16, "material": "dark"},
+      {"id": "gaff", "from": [37.52, 0, 20.43], "to": [47.97, 0, 23.75], "radius": 0.2, "endRadius": 0.13, "material": "dark"},
+      {"id": "boom", "from": [37.52, 0, 7.22], "to": [52.72, 0, 8.17], "radius": 0.25, "endRadius": 0.15, "material": "dark"},
+      {"id": "ensign-staff", "from": [47.69, 0, 6.27], "to": [48.83, 0, 11.02], "radius": 0.1, "endRadius": 0.06}
+    ],
+    "stays": [
+      [[11.11, 0, 25.65], [-8.55, 0, 13.68]],
+      [[11.26, 0, 39.14], [-19.95, 0, 18.05]],
+      [[11.4, 0, 49.4], [-21.28, 0, 18.62]],
+      [[25.08, 0, 27.55], [11.02, 0, 6.27]],
+      [[25.27, 0, 42.37], [11.11, 0, 26.22]],
+      [[25.46, 0, 53.67], [11.3, 0, 39.42]],
+      [[37.43, 0, 20.71], [24.98, 0, 9.03]],
+      [[37.62, 0, 31.35], [25.27, 0, 27.93]],
+      [[10.92, 0, 24.7], [3.8, 0, 7.03]],
+      [[-21.28, 0, 18.62], [-8.55, 0, 6.84]]
+    ],
+    "foreAftSails": [
+      {"id": "fore-topmast-staysail", "corners": [[10.45, 33.73], [-8.17, 13.87], [2.38, 9.31]], "belly": 0.07},
+      {"id": "jib", "corners": [[10.92, 38.57], [-18.62, 17.67], [-1.9, 12.92]], "belly": 0.07},
+      {"id": "spanker", "corners": [[37.81, 19.95], [37.81, 7.89], [51.87, 8.55], [47.5, 23.18]], "belly": 0.08}
+    ],
+    "flags": [
+      {"id": "ensign", "design": "fr-1794", "hoist": [47.88, 23.37], "size": [5.4, 3.6], "stream": 95, "wave": 0.08},
+      {"id": "jack", "design": "fr-1794", "hoist": [25.27, 56.43], "size": [2.7, 1.8], "stream": 100, "wave": 0.08}
+    ]
+  },
+  "paint": {
+    "hull": "#1f1c1a",
+    "upper": "#8e3826",
+    "deck": "#9a8667",
+    "boot": "#e5dfcf",
+    "bottom": "#98603a",
+    "dark": "#181614",
+    "canvas": "#e2dccb",
+    "spar": "#9a7a52"
+  }
+}
