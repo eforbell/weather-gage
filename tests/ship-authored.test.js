@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import { SHIP_ASSET_REGISTRY, cloneShipAsset, shipAssetSpecFor } from '../src/ui/ship-assets.js';
+import { SHIP_ASSET_REGISTRY, adoptAuthoredModel, cloneShipAsset, shipAssetSpecFor } from '../src/ui/ship-assets.js';
+import { createActorModel } from '../src/ui/battle-models.js';
 import { MODEL_METERS_TO_WORLD } from '../src/ui/battle-presentation.js';
 import { SCENARIO_SETUPS } from '../src/sim/scenarios.js';
 import { inspectShipGlb, loadShipSpec, shipGlbPath, shipKitSha256, shipSpecSha256 } from '../scripts/ship-asset-report.mjs';
@@ -15,6 +16,29 @@ const scenarioShips = Object.values(SCENARIO_SETUPS).flatMap(setup => setup.ship
 
 async function glbBytes(spec) {
   return new Uint8Array(await readFile(shipGlbPath(spec)));
+}
+
+async function loadInstance(spec, era) {
+  const bytes = await glbBytes(spec);
+  const gltf = await new GLTFLoader().parseAsync(bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength), '');
+  return cloneShipAsset(gltf.scene, shipAssetSpecFor({ name: spec.name, own: true }, era));
+}
+
+// Widest |x| of foam vertices within `band` of midships, in model units.
+function foamHalfWidthAtMidships(foam, band) {
+  let widest = 0;
+  foam.updateMatrixWorld(true);
+  foam.traverse(item => {
+    if (!item.isMesh) return;
+    const position = item.geometry.attributes.position, alpha = item.geometry.attributes.color;
+    const v = new THREE.Vector3();
+    for (let i = 0; i < position.count; i++) {
+      if (alpha.getW(i) === 0) continue; // ribbon edges fade to nothing; use the visible centre line
+      v.fromBufferAttribute(position, i).applyMatrix4(item.matrixWorld);
+      if (Math.abs(v.z) < band) widest = Math.max(widest, Math.abs(v.x));
+    }
+  });
+  return widest;
 }
 
 test('at least one authored ship is registered', () => {
@@ -75,6 +99,27 @@ for (const { era, key, entry } of registered) {
 
 // Uncertain contacts are filtered before this lookup (battle-3d.js and
 // createShipAssetManager); here: only exact registered names resolve.
+for (const { era, key, entry } of registered) {
+  test(`${key}: swapping in the authored model rebuilds waterline foam on its own hull`, async () => {
+    const spec = await loadShipSpec(entry.specId);
+    const stand = createActorModel({ id: 'x', own: true, name: spec.name, type: 'battlecruiser', className: 'Battlecruiser' }, era);
+    stand.position.set(3, 0, -2);
+    stand.rotation.y = 1.1;
+    const standFoam = stand.userData.waterlineFoam, standWake = stand.userData.wake;
+    const loaded = adoptAuthoredModel(stand, await loadInstance(spec, era));
+    assert.ok(loaded.userData.waterlineFoam && loaded.userData.wake, 'authored model gets foam and wake');
+    assert.notEqual(loaded.userData.waterlineFoam, standFoam, 'stand-in foam is not reused');
+    assert.notEqual(loaded.userData.wake, standWake, 'stand-in wake is not reused');
+    assert.equal(loaded.userData.waterlineFoam.parent, loaded);
+    assert.ok(loaded.position.equals(stand.position) && loaded.quaternion.equals(stand.quaternion), 'pose carried over');
+    loaded.position.set(0, 0, 0); loaded.quaternion.identity();
+    const hullHalf = spec.hull.beam / 2 * MODEL_METERS_TO_WORLD;
+    const foamHalf = foamHalfWidthAtMidships(loaded.userData.waterlineFoam, spec.hull.length * MODEL_METERS_TO_WORLD * 0.1);
+    assert.ok(Math.abs(foamHalf - hullHalf) < hullHalf * 0.06, `foam at midships ${foamHalf.toFixed(3)} vs hull ${hullHalf.toFixed(3)}`);
+    assert.ok(Math.abs(loaded.userData.size.width - spec.hull.beam * MODEL_METERS_TO_WORLD) < 1e-6, 'wake sized from the authored beam');
+  });
+}
+
 test('unnamed contacts and unregistered ships of the same class never resolve to an authored hull', () => {
   assert.equal(shipAssetSpecFor({ name: 'Unresolved contact', type: null }, 'dreadnought'), null);
   assert.equal(shipAssetSpecFor({ name: 'SMS Seydlitz', className: 'Battlecruiser', type: 'battlecruiser' }, 'dreadnought'), null);

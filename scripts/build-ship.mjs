@@ -54,25 +54,28 @@ if (build.status !== 0 || !reportLine) {
 const buildReport = JSON.parse(reportLine.slice('SHIP_BUILD_REPORT '.length));
 console.log(`Built ${glb} in ${buildReport.seconds}s with Blender ${buildReport.blender}.`);
 
-// Reference overlay: the calibrated drawing underneath, the render at 55% on top.
+// Reference overlays (profile and plan): the calibrated drawing underneath, the
+// render at 55% on top. Profile references give waterlineY, plan references
+// centerlineY, both in source-image pixels.
 const magick = findMagick();
 const overlays = [];
 for (const ref of spec.references || []) {
-  if (ref.view !== 'profile' || !Number.isFinite(ref.bowX)) continue;
+  const view = buildReport.views?.[ref.view];
+  const refAnchorY = ref.view === 'plan' ? ref.centerlineY : ref.waterlineY;
+  if (!view || !Number.isFinite(ref.bowX) || !Number.isFinite(refAnchorY)) continue;
   const source = `ships/${id}/${ref.file}`;
   if (!existsSync(source)) { console.warn(`Reference ${source} is not present locally (references are not committed). Download it from ${ref.url || 'the URL in PROVENANCE.md'} to get the overlay.`); continue; }
   if (!magick) { console.warn('ImageMagick not found; skipping reference overlay.'); break; }
-  const profile = buildReport.profile;
-  const scale = profile.pxPerMeter / ((ref.sternX - ref.bowX) / spec.hull.length);
+  const scale = view.pxPerMeter / ((ref.sternX - ref.bowX) / spec.hull.length);
   // Calibration is in source-image pixels; the composite is of the cropped image.
   const [cx, cy, cw, ch] = ref.crop || [0, 0, 100000, 100000];
-  const ox = Math.round(profile.bowX - (ref.bowX - cx) * scale), oy = Math.round(profile.waterlineY - (ref.waterlineY - cy) * scale);
+  const ox = Math.round(view.bowX - (ref.bowX - cx) * scale), oy = Math.round(view.anchorY - (refAnchorY - cy) * scale);
   const out = `${previews}/overlay-${ref.id}.png`;
   const result = spawnSync(magick, [
-    '-size', `${profile.width}x${profile.height}`, 'xc:white',
+    '-size', `${view.width}x${view.height}`, 'xc:white',
     '(', source, '-crop', `${cw}x${ch}+${cx}+${cy}`, '+repage', '-resize', `${(scale * 100).toFixed(3)}%`, ')',
     '-geometry', `${ox >= 0 ? '+' : '-'}${Math.abs(ox)}${oy >= 0 ? '+' : '-'}${Math.abs(oy)}`, '-composite',
-    '(', `${previews}/profile.png`, '-channel', 'A', '-evaluate', 'multiply', '0.55', '+channel', ')', '-composite',
+    '(', `${previews}/${ref.view}.png`, '-background', 'none', '-channel', 'A', '-evaluate', 'multiply', '0.55', '+channel', ')', '-composite',
     out,
   ], { encoding: 'utf8' });
   if (result.status === 0) overlays.push(out);

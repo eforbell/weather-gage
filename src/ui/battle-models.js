@@ -227,13 +227,13 @@ function foamWake(parent, width, length) {
   parent.add(group);
 }
 
-function waterlineFoam(parent, spec) {
+// sides: one [[x, z], ...] bow-to-stern station list per side of the hull.
+function waterlineFoam(parent, sides) {
   wakeMaterial.map ??= foam();
   const group = new THREE.Group();
   group.name = 'waterline-foam';
   group.userData.stationarySurfaceFoam = true;
-  for (const side of [-1, 1]) {
-    const stations = hullWaterlineStations(spec, side, 0.035);
+  for (const stations of sides) {
     ribbon(group, stations.map(([x, z], i) => {
       const t = i / (stations.length - 1);
       const taper = Math.sin(Math.PI * t) ** 0.35;
@@ -395,13 +395,36 @@ export function createActorModel(actor, era) {
   group.userData.radius = new THREE.Box3().setFromObject(group).getBoundingSphere(new THREE.Sphere()).radius || 1;
   if (size) {
     group.userData.size = size;
-    group.userData.waterlineFoam = waterlineFoam(group, shipSpecFor(actor.className || actor.type || '', era));
+    const spec = shipSpecFor(actor.className || actor.type || '', era);
+    group.userData.waterlineFoam = waterlineFoam(group, [-1, 1].map(side => hullWaterlineStations(spec, side, 0.035)));
     foamWake(group, size.width, size.length);
   }
   group.userData.wake = group.getObjectByName('wake') || null;
   group.userData.type = actor.type;
   group.userData.uncertain = actor.uncertain;
   return group;
+}
+
+// Waterline foam and bow wave/wake for an authored model, from its own hull:
+// userData.waterline ([[halfBreadth, z], ...] in model units) when the asset
+// carries one, else a fair lens from userData.size. Never reuse the procedural
+// stand-in's foam: its hull is a different width.
+export function createSurfaceEffects(model) {
+  const size = model.userData.size;
+  if (!size) return model;
+  let contour = model.userData.waterline;
+  if (!contour?.length) {
+    contour = Array.from({ length: 17 }, (_, i) => {
+      const t = i / 16;
+      return [size.width / 2 * Math.sin(Math.PI * t) ** 0.6, (t - 0.5) * size.length];
+    });
+  }
+  const eps = size.width * 0.018;
+  const sides = [-1, 1].map(side => contour.map(([half, z]) => [side * (half + (half > 0 ? eps : 0)), z]));
+  model.userData.waterlineFoam = waterlineFoam(model, sides);
+  foamWake(model, size.width, size.length);
+  model.userData.wake = model.children.find(child => child.name === 'wake') || null;
+  return model;
 }
 
 export function disposeActorModel(group) {

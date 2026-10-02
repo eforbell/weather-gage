@@ -65,6 +65,12 @@ def main():
     bpy.context.scene["weatherGageSpecSha256"] = spec_hash
     bpy.context.scene["weatherGageKitSha256"] = kit_sha256()
     obj, kit = finish.build_ship(spec)
+    # The hull's real waterline, in glTF metres ([x half-breadth, z]; bow is -Z),
+    # so the game can lay waterline foam and the bow wave on this hull rather
+    # than on the procedural stand-in's.
+    length = spec["hull"]["length"]
+    waterline = [[half, round(aft - length / 2, 3)] for half, aft in kit.lines.waterline()]
+    bpy.context.scene["weatherGageWaterline"] = json.dumps(waterline)
     if not args.no_bake:
         finish.bake_ambient_occlusion(obj)
     os.makedirs(os.path.dirname(os.path.abspath(args.out)), exist_ok=True)
@@ -85,7 +91,7 @@ def main():
     if args.blend:
         bpy.ops.wm.save_as_mainfile(filepath=os.path.abspath(args.blend))
     if args.previews:
-        report["profile"] = preview.render_previews(spec, os.path.abspath(args.previews))
+        report["views"] = preview.render_previews(spec, os.path.abspath(args.previews))
     if args.report:
         with open(args.report, "w", encoding="utf-8") as handle:
             json.dump(report, handle, indent=2)

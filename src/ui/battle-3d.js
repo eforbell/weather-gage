@@ -13,7 +13,7 @@ import { createEffects } from './battle-effects.js';
 import { lookFor } from './battle-looks.js';
 import { anchorSurfaceFoam } from './battle-waterline.js';
 import { createWaterNormals, configureSea } from './battle-sea.js';
-import { createShipAssetManager, hasShipAsset, disposeShipAssetInstance } from './ship-assets.js';
+import { adoptAuthoredModel, createShipAssetManager, hasShipAsset, disposeShipAssetInstance } from './ship-assets.js';
 
 const ORIGIN = { q: 0, r: 0 };
 const dirs = [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]];
@@ -352,7 +352,7 @@ export function createBattle3D(host, onFailure = () => {}) {
     if (!item) return;
     world.remove(item.model);
     if (item.model.userData.shipAssetInstance) {
-      // Transferred procedural foam uses shared materials, unlike glTF clones.
+      // Surface foam is procedural geometry on shared materials, unlike the glTF clone's.
       for (const key of ['wake', 'waterlineFoam']) {
         const foam = item.model.userData[key];
         if (foam) { item.model.remove(foam); disposeActorModel(foam); }
@@ -412,17 +412,7 @@ export function createBattle3D(host, onFailure = () => {}) {
               return;
             }
             const previous = pendingItem.model;
-            loaded.position.copy(previous.position);
-            loaded.rotation.order = 'YXZ';
-            loaded.quaternion.copy(previous.quaternion);
-            // Preserve surface effects from the matching procedural spec.
-            for (const key of ['wake', 'waterlineFoam']) {
-              if (previous.userData[key]) {
-                loaded.userData[key] = previous.userData[key];
-                loaded.add(previous.userData[key]);
-              }
-            }
-            loaded.userData.size ||= previous.userData.size;
+            adoptAuthoredModel(previous, loaded);
             world.remove(previous);
             disposeActorModel(previous);
             pendingItem.model = loaded;

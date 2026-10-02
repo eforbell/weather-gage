@@ -76,6 +76,27 @@ class Lines:
     def half_breadth(self, aft):
         return self.at(aft)["halfDeck"]
 
+    def waterline_half(self, aft):
+        """Half-breadth where the hull meets the design waterline (0 where the
+        hull is clear of the water, e.g. under an overhanging counter)."""
+        row = self.at(aft)
+        hd, hw, deck, keel, n = row["halfDeck"], row["halfWater"], row["deck"], row["keel"], row["fullness"]
+        if keel >= 0:
+            return 0.0
+        knuckle = max(0.0, keel + 0.35 * (deck - keel))
+        if knuckle <= 0.0:
+            return hw
+        half_knuckle = hw + (hd - hw) * (knuckle / deck)
+        depth = knuckle - keel
+        return half_knuckle * max(0.0, 1 - (knuckle / depth) ** n) ** (1 / n)
+
+    def waterline(self, samples=48):
+        """[[halfBreadth, aft], ...] bow to stern, trimmed to where the hull is wet."""
+        points = [(self.waterline_half(self.length * i / samples), self.length * i / samples) for i in range(samples + 1)]
+        wet = [i for i, (half, _) in enumerate(points) if half > 1e-3]
+        first, last = max(0, wet[0] - 1), min(len(points) - 1, wet[-1] + 1)
+        return [[round(h, 3), round(a, 3)] for h, a in points[first:last + 1]]
+
     def stations(self):
         spacing = self.spec["hull"].get("stationSpacing", 2.0)
         count = max(8, int(math.ceil(self.length / spacing)))

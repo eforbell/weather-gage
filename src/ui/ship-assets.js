@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { MODEL_METERS_TO_WORLD } from './battle-presentation.js';
-import { createActorModel, disposeActorModel } from './battle-models.js';
+import { createActorModel, createSurfaceEffects, disposeActorModel } from './battle-models.js';
 
 // Authored hero models, built headlessly from ships/<id>/spec.json by
 // `npm run ship:build -- <id>` (docs/ship-pipeline.md). Keys are lower-case
@@ -117,6 +117,25 @@ function applySpecTransform(child, spec) {
   child.position.y -= spec.waterlineY * spec.scale;
 }
 
+function parseWaterline(value) {
+  try {
+    const points = typeof value === 'string' ? JSON.parse(value) : value;
+    if (Array.isArray(points) && points.length >= 3 && points.every(p => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite))) return points;
+  } catch { /* fall through: no contour */ }
+  return null;
+}
+
+// Swap a loaded authored model in for the procedural stand-in: same pose, and
+// fresh surface foam/wake built for the authored hull (the stand-in's foam is
+// disposed with it). Returns the loaded model; the caller swaps scene membership.
+export function adoptAuthoredModel(previous, loaded) {
+  loaded.position.copy(previous.position);
+  loaded.rotation.order = 'YXZ';
+  loaded.quaternion.copy(previous.quaternion);
+  loaded.userData.size ||= previous.userData.size;
+  return createSurfaceEffects(loaded);
+}
+
 export function cloneShipAsset(source, spec = normalizeShipAssetSpec({ units: 'presentation', url: './procedural.glb' })) {
   const normalized = normalizeShipAssetSpec(spec);
   const child = (source.scene || source).clone(true);
@@ -149,6 +168,16 @@ export function cloneShipAsset(source, spec = normalizeShipAssetSpec({ units: 'p
     if (item.name?.startsWith('anchor_')) anchors[item.name.slice('anchor_'.length)] = wrapper.worldToLocal(item.getWorldPosition(new THREE.Vector3()));
   });
   wrapper.userData.anchors = anchors;
+  // The build's waterline contour ([[halfBreadth, z], ...] in source units, bow
+  // -Z) becomes wrapper units, for surface foam that hugs this hull.
+  const contour = parseWaterline(child.userData?.weatherGageWaterline);
+  if (contour) {
+    wrapper.userData.waterline = contour.map(([half, z]) => {
+      const edge = wrapper.worldToLocal(child.localToWorld(new THREE.Vector3(half, 0, z)));
+      const centre = wrapper.worldToLocal(child.localToWorld(new THREE.Vector3(0, 0, z)));
+      return [edge.distanceTo(centre), centre.z];
+    });
+  }
   if (Array.isArray(normalized.funnels)) {
     wrapper.userData.funnels = normalized.funnels.map(f => new THREE.Vector3(f.x || 0, f.y || 0, f.z || 0));
   } else {

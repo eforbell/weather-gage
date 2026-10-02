@@ -91,6 +91,7 @@ def render_previews(spec, out_dir):
         "bowX": width_px / 2 - (length / 2) * scale,
         "sternX": width_px / 2 + (length / 2) * scale,
         "waterlineY": height_px / 2 + center_z * scale,
+        "anchorY": height_px / 2 + center_z * scale,
         "width": width_px,
         "height": height_px,
     }
@@ -102,7 +103,13 @@ def render_previews(spec, out_dir):
     plan_h = beam + 2 * margin
     cam = _camera(scene, "plan", (0, 0, 500), (0, 0, 0), ortho_scale=plan_w)
     cam.rotation_euler = (0, 0, -math.pi / 2)
-    _render(scene, os.path.join(out_dir, "plan.png"), round(plan_w * PX_PER_METER / 2), round(plan_h * PX_PER_METER / 2))
+    plan_px_w, plan_px_h = round(plan_w * PX_PER_METER / 2), round(plan_h * PX_PER_METER / 2)
+    _render(scene, os.path.join(out_dir, "plan.png"), plan_px_w, plan_px_h)
+    plan_scale = plan_px_w / plan_w
+    plan_meta = {"pxPerMeter": plan_scale, "bowX": plan_px_w / 2 - (length / 2) * plan_scale, "sternX": plan_px_w / 2 + (length / 2) * plan_scale,
+                 "anchorY": plan_px_h / 2, "width": plan_px_w, "height": plan_px_h}
+    with open(os.path.join(out_dir, "plan.json"), "w", encoding="utf-8") as handle:
+        json.dump(plan_meta, handle, indent=2)
 
     # Perspective views over water, opaque background.
     water = _water(scene)
@@ -118,4 +125,4 @@ def render_previews(spec, out_dir):
     _camera(scene, "game-distance", (-520, 420, 260), (0, 0, 0), lens=50)
     _render(scene, os.path.join(out_dir, "game-distance.png"), 960, 540)
     bpy.data.objects.remove(water)
-    return meta
+    return {"profile": meta, "plan": plan_meta}

@@ -78,6 +78,11 @@ export async function inspectShipGlb(bytes, spec, specSha256 = null, kitSha256 =
   check('length matches spec (±1%)', Math.abs(box.max.z - box.min.z - L) <= L * 0.01, `${(box.max.z - box.min.z).toFixed(2)} m vs ${L} m`);
   check('keel at -draft (waterline at Y=0)', Math.abs(box.min.y + draft) <= 0.25, `min Y ${box.min.y.toFixed(2)} vs -${draft}`);
   check('baked vertex colours (COLOR_0)', vertexColors, vertexColors ? 'present' : 'missing: was the build run with --no-bake?');
+  let waterline = null;
+  try { waterline = JSON.parse(stamp.weatherGageWaterline || 'null'); } catch { /* reported below */ }
+  const widest = Array.isArray(waterline) ? Math.max(...waterline.map(([half]) => half)) : NaN;
+  check('waterline contour for surface foam', Array.isArray(waterline) && waterline.length >= 3 && Math.abs(widest * 2 - spec.hull.beam) <= spec.hull.beam * 0.05,
+    Array.isArray(waterline) ? `${waterline.length} stations, widest ${(widest * 2).toFixed(2)} m vs beam ${spec.hull.beam} m` : 'missing weatherGageWaterline');
   for (const funnel of spec.funnels || []) {
     const point = anchors[`anchor_funnel_${funnel.id}`];
     check(`smoke anchor for funnel ${funnel.id}`, point && Math.abs(point[2] - (funnel.aft - L / 2)) < 0.6 && Math.abs(point[1] - funnel.top) < 1.5, point ? point.join(', ') : 'missing');
@@ -86,6 +91,12 @@ export async function inspectShipGlb(bytes, spec, specSha256 = null, kitSha256 =
     const point = anchors[`anchor_turret_${turret.id}`];
     const pointsForward = turret.facing === 'fore' ? point?.[2] < turret.aft - L / 2 : point?.[2] > turret.aft - L / 2;
     check(`turret ${turret.id} faces ${turret.facing} (bow is -Z)`, point && pointsForward, point ? point.join(', ') : 'missing');
+    // Muzzle anchors sit on the gun axis: x is the turret's side offset, and
+    // the muzzle lies a barrel length or so beyond the turret centre.
+    const reach = point ? Math.abs(point[2] - (turret.aft - L / 2)) : NaN;
+    const expectedReach = (spec.turretType?.barrelLength ?? 0) + (spec.turretType?.length ?? 0) / 2;
+    check(`turret ${turret.id} position (aft ${turret.aft}, side ${turret.side ?? 0})`, point && Math.abs(point[0] - (turret.side ?? 0)) < 0.3 && Math.abs(reach - expectedReach) < 1.5,
+      point ? `x ${point[0]}, muzzle ${reach.toFixed(1)} m from turret centre` : 'missing');
   }
   return {
     id: spec.id, bytes: bytes.byteLength, triangles, drawCalls, materials: [...materials].sort(),

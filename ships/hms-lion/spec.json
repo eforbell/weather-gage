@@ -137,6 +137,17 @@
       "sternX": 740,
       "waterlineY": 187.5,
       "note": "Jane's Fighting Ships 1919 (1918 configuration: tripod foremast, flying-off platforms omitted). Positions measured from this drawing; the 1915 build keeps a pole foremast."
+    },
+    {
+      "id": "janes-1918-plan",
+      "file": "reference/janes1919.png",
+      "url": "https://commons.wikimedia.org/wiki/File:Lion_class_battleship_-_Jane%27s_Fighting_Ships,_1919_-_Project_Gutenberg_etext_24797.png",
+      "view": "plan",
+      "crop": [0, 225, 757, 130],
+      "bowX": 22.5,
+      "sternX": 739,
+      "centerlineY": 281.75,
+      "note": "Plan view under the profile on the same plate; checks half-breadths and centreline positions (wing turrets on later ships)."
     }
   ]
 }
