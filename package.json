@@ -16,7 +16,9 @@
     "check": "node scripts/check.mjs",
     "census:torpedoes": "node scripts/census-torpedoes.mjs",
     "build:fixture": "node scripts/build-ship-fixture.mjs",
-    "test:fixture": "node scripts/verify-ship-fixture.mjs"
+    "test:fixture": "node scripts/verify-ship-fixture.mjs",
+    "ship:build": "node scripts/build-ship.mjs",
+    "ship:report": "node scripts/ship-asset-report.mjs"
   },
   "dependencies": {
     "three": "0.186.1"

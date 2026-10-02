@@ -3,12 +3,29 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { MODEL_METERS_TO_WORLD } from './battle-presentation.js';
-import { createActorModel, disposeActorModel } from './battle-models.js';
+import { createActorModel, createSurfaceEffects, disposeActorModel } from './battle-models.js';
 
+// Authored hero models, built headlessly from ships/<id>/spec.json by
+// `npm run ship:build -- <id>` (docs/ship-pipeline.md). Keys are lower-case
+// public names; uncertain contacts never load these.
 export const SHIP_ASSET_REGISTRY = Object.freeze({
   sail: Object.freeze({}),
   ironclad: Object.freeze({}),
-  dreadnought: Object.freeze({}),
+  dreadnought: Object.freeze({
+    'hms lion': Object.freeze({
+      url: 'assets/ships/dreadnought/hms-lion.glb',
+      specId: 'hms-lion',
+      className: 'Lion-class battlecruiser',
+      units: 'meters',
+      lengthMeters: 213.4,
+      beamMeters: 27,
+      length: 213.4,
+      width: 27,
+      waterlineY: 0,
+      rotationY: 0,
+      license: 'Original model generated from ships/hms-lion/spec.json; see ships/hms-lion/PROVENANCE.md',
+    }),
+  }),
   modern: Object.freeze({}),
   coldwar: Object.freeze({}),
 });
@@ -100,6 +117,25 @@ function applySpecTransform(child, spec) {
   child.position.y -= spec.waterlineY * spec.scale;
 }
 
+function parseWaterline(value) {
+  try {
+    const points = typeof value === 'string' ? JSON.parse(value) : value;
+    if (Array.isArray(points) && points.length >= 3 && points.every(p => Array.isArray(p) && p.length === 2 && p.every(Number.isFinite))) return points;
+  } catch { /* fall through: no contour */ }
+  return null;
+}
+
+// Swap a loaded authored model in for the procedural stand-in: same pose, and
+// fresh surface foam/wake built for the authored hull (the stand-in's foam is
+// disposed with it). Returns the loaded model; the caller swaps scene membership.
+export function adoptAuthoredModel(previous, loaded) {
+  loaded.position.copy(previous.position);
+  loaded.rotation.order = 'YXZ';
+  loaded.quaternion.copy(previous.quaternion);
+  loaded.userData.size ||= previous.userData.size;
+  return createSurfaceEffects(loaded);
+}
+
 export function cloneShipAsset(source, spec = normalizeShipAssetSpec({ units: 'presentation', url: './procedural.glb' })) {
   const normalized = normalizeShipAssetSpec(spec);
   const child = (source.scene || source).clone(true);
@@ -124,8 +160,29 @@ export function cloneShipAsset(source, spec = normalizeShipAssetSpec({ units: 'p
     size: normalized.size || child.userData.size,
     dimensions: normalized.dimensions,
   };
+  // Named empties exported with the model (anchor_funnel_1, anchor_turret_A...)
+  // become wrapper-space points; funnel anchors are the smoke origins.
+  wrapper.updateMatrixWorld(true);
+  const anchors = {};
+  child.traverse(item => {
+    if (item.name?.startsWith('anchor_')) anchors[item.name.slice('anchor_'.length)] = wrapper.worldToLocal(item.getWorldPosition(new THREE.Vector3()));
+  });
+  wrapper.userData.anchors = anchors;
+  // The build's waterline contour ([[halfBreadth, z], ...] in source units, bow
+  // -Z) becomes wrapper units, for surface foam that hugs this hull.
+  const contour = parseWaterline(child.userData?.weatherGageWaterline);
+  if (contour) {
+    wrapper.userData.waterline = contour.map(([half, z]) => {
+      const edge = wrapper.worldToLocal(child.localToWorld(new THREE.Vector3(half, 0, z)));
+      const centre = wrapper.worldToLocal(child.localToWorld(new THREE.Vector3(0, 0, z)));
+      return [edge.distanceTo(centre), centre.z];
+    });
+  }
   if (Array.isArray(normalized.funnels)) {
     wrapper.userData.funnels = normalized.funnels.map(f => new THREE.Vector3(f.x || 0, f.y || 0, f.z || 0));
+  } else {
+    const funnels = Object.keys(anchors).filter(name => name.startsWith('funnel_')).map(name => anchors[name]).sort((a, b) => a.z - b.z);
+    if (funnels.length) wrapper.userData.funnels = funnels;
   }
   wrapper.userData.radius = new THREE.Box3().setFromObject(wrapper).getBoundingSphere(new THREE.Sphere()).radius || child.userData.radius || 1;
   return wrapper;

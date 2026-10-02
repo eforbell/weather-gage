@@ -1,0 +1,153 @@
+{
+  "schema": "weather-gage/ship-spec@1",
+  "id": "hms-lion",
+  "name": "HMS Lion",
+  "className": "Lion-class battlecruiser",
+  "era": "dreadnought",
+  "registryKeys": ["hms lion"],
+  "configuration": "January 1915 (Dogger Bank): after the 1912 rebuild (pole foremast ahead of the fore funnel, three funnels of equal height); before the 1916 tripod and the 1917-18 flying-off platforms.",
+  "units": "meters",
+  "conventions": "aft = metres aft of the stem at deck level; side = metres to starboard (+) or port (-) of the centreline; heights = metres above the design waterline. The builder converts to Blender (bow +Y, starboard +X, up +Z), which the glTF exporter turns into the game's contract (bow -Z, up +Y, waterline at Y=0).",
+  "budget": { "tier": "hero-blockout", "maxTriangles": 40000, "maxDrawCalls": 12, "maxBytes": 2000000 },
+
+  "hull": {
+    "length": 213.4,
+    "beam": 27.0,
+    "draft": 8.4,
+    "camber": 0.35,
+    "bootTopping": [-0.6, 0.9],
+    "stationSpacing": 1.6,
+    "lines": [
+      { "aft": 0.0,   "halfDeck": 0.0,  "halfWater": 0.0,  "deck": 9.2, "keel": 0.2,  "fullness": 1.4 },
+      { "aft": 3.0,   "halfDeck": 2.6,  "halfWater": 0.9,  "deck": 9.1, "keel": -3.0, "fullness": 1.5 },
+      { "aft": 8.0,   "halfDeck": 5.0,  "halfWater": 3.0,  "deck": 9.0, "keel": -6.0, "fullness": 1.7 },
+      { "aft": 16.0,  "halfDeck": 7.6,  "halfWater": 5.6,  "deck": 8.85, "keel": -8.0, "fullness": 2.0 },
+      { "aft": 25.0,  "halfDeck": 9.6,  "halfWater": 7.9,  "deck": 8.7, "keel": -8.4, "fullness": 2.5 },
+      { "aft": 40.0,  "halfDeck": 11.8, "halfWater": 10.6, "deck": 8.6, "keel": -8.4, "fullness": 3.3 },
+      { "aft": 60.0,  "halfDeck": 13.2, "halfWater": 12.9, "deck": 8.5, "keel": -8.4, "fullness": 4.5 },
+      { "aft": 80.0,  "halfDeck": 13.5, "halfWater": 13.5, "deck": 8.5, "keel": -8.4, "fullness": 5.5 },
+      { "aft": 140.0, "halfDeck": 13.5, "halfWater": 13.5, "deck": 8.5, "keel": -8.4, "fullness": 5.5 },
+      { "aft": 158.0, "halfDeck": 13.3, "halfWater": 13.2, "deck": 8.5, "keel": -8.4, "fullness": 5.2 },
+      { "aft": 161.0, "halfDeck": 13.2, "halfWater": 13.1, "deck": 8.5, "keel": -8.4, "fullness": 5.1 },
+      { "aft": 161.8, "halfDeck": 13.2, "halfWater": 13.0, "deck": 6.1, "keel": -8.4, "fullness": 5.1 },
+      { "aft": 175.0, "halfDeck": 12.4, "halfWater": 11.8, "deck": 6.1, "keel": -8.3, "fullness": 4.5 },
+      { "aft": 188.0, "halfDeck": 10.4, "halfWater": 9.0,  "deck": 6.2, "keel": -7.6, "fullness": 3.2 },
+      { "aft": 198.0, "halfDeck": 8.0,  "halfWater": 5.8,  "deck": 6.3, "keel": -5.5, "fullness": 2.4 },
+      { "aft": 205.0, "halfDeck": 5.6,  "halfWater": 2.6,  "deck": 6.4, "keel": -1.0, "fullness": 2.0 },
+      { "aft": 210.0, "halfDeck": 3.2,  "halfWater": 0.6,  "deck": 6.5, "keel": 1.2,  "fullness": 1.8 },
+      { "aft": 213.4, "halfDeck": 0.0,  "halfWater": 0.0,  "deck": 6.5, "keel": 2.5,  "fullness": 1.6 }
+    ]
+  },
+
+  "superstructures": [
+    { "id": "fwd-shelter-deck", "base": "deck", "top": 11.2, "plan": [[53, 5.5], [72, 12.4], [102, 12.4]] },
+    { "id": "aft-shelter-deck", "base": "deck", "top": 11.2, "plan": [[130.5, 5.0], [144, 12.4], [152, 12.4], [160, 4.5]] },
+    { "id": "bridge-tower", "base": 11.2, "top": 22.0, "plan": [[67, 2.2], [76, 2.2]] },
+    { "id": "lower-bridge", "base": 11.2, "top": 15.6, "plan": [[62, 3.6], [79, 3.6]] },
+    { "id": "bridge-platform", "base": 22.0, "top": 22.8, "plan": [[64, 2.5], [65.5, 7.5], [73, 7.5], [74, 2.5]] },
+    { "id": "chart-house", "base": 23.0, "top": 25.6, "plan": [[66.5, 2.6], [71.5, 2.6]] },
+    { "id": "f2-uptake-house", "base": 11.2, "top": 16.0, "plan": [[98, 3.0], [104, 3.0]] },
+    { "id": "f3-casing", "base": 11.2, "top": 16.0, "plan": [[130.0, 3.2], [134.5, 3.2]] },
+    { "id": "aft-house", "base": 11.2, "top": 13.4, "plan": [[160, 2.0], [164.5, 2.0]] }
+  ],
+
+  "conningTowers": [
+    { "id": "fwd-ct", "aft": 63.7, "base": 11.2, "top": 16.2, "length": 4.6, "width": 7.2 }
+  ],
+
+  "turrets": [
+    { "id": "A", "aft": 35.5, "base": "deck", "barbette": 1.2, "facing": "fore", "guns": 2 },
+    { "id": "B", "aft": 53.4, "base": "deck", "barbette": 4.4, "facing": "fore", "guns": 2 },
+    { "id": "Q", "aft": 113.0, "base": "deck", "barbette": 1.2, "facing": "aft", "guns": 2 },
+    { "id": "X", "aft": 174.5, "base": "deck", "barbette": 1.2, "facing": "aft", "guns": 2 }
+  ],
+  "turretType": {
+    "barbetteRadius": 5.2,
+    "length": 11.0,
+    "width": 9.0,
+    "height": 3.2,
+    "frontSlope": 1.4,
+    "gunSpacing": 2.7,
+    "barrelLength": 12.0,
+    "barrelRadius": 0.34,
+    "muzzleRadius": 0.26
+  },
+
+  "funnels": [
+    { "id": "1", "aft": 83.3, "base": 11.2, "top": 28.0, "length": 5.6, "width": 5.6 },
+    { "id": "2", "aft": 96.3, "base": 11.2, "top": 28.0, "length": 8.4, "width": 6.7 },
+    { "id": "3", "aft": 135.4, "base": 11.2, "top": 27.6, "length": 6.6, "width": 5.4 }
+  ],
+
+  "masts": [
+    { "id": "fore", "type": "pole", "aft": 77.6, "base": 11.2, "top": 55.0, "radius": 0.65, "topmastFrom": 38.0, "spottingTop": { "height": 33.0, "size": [4.0, 4.4, 2.6] }, "yards": [{ "height": 30.0, "span": 14.0 }] },
+    { "id": "main", "type": "pole", "aft": 141.5, "base": 11.2, "top": 51.0, "radius": 0.55, "topmastFrom": 34.0, "yards": [{ "height": 29.5, "span": 12.0 }] }
+  ],
+
+  "searchlightTowers": [
+    { "id": "aft-sl", "aft": 156.5, "base": 11.2, "top": 15.2, "radius": 1.6 }
+  ],
+
+  "hawsePipes": [
+    { "aft": 5.5, "height": 6.6 },
+    { "aft": 9.0, "height": 6.3 }
+  ],
+
+  "boats": [
+    { "aft": 88.5, "side": 7.4, "base": 11.2, "length": 10.5, "beam": 2.8 },
+    { "aft": 88.5, "side": -7.4, "base": 11.2, "length": 10.5, "beam": 2.8 },
+    { "aft": 102.0, "side": 8.6, "base": 11.2, "length": 9.0, "beam": 2.5 },
+    { "aft": 102.0, "side": -8.6, "base": 11.2, "length": 9.0, "beam": 2.5 },
+    { "aft": 101.0, "side": 0.0, "base": 16.0, "length": 8.0, "beam": 2.6 }
+  ],
+
+  "secondaryGuns": {
+    "barrelLength": 5.2,
+    "radius": 0.12,
+    "mounts": [
+      { "aft": 57.0, "height": 10.0, "angle": 50 },
+      { "aft": 60.0, "height": 12.4, "angle": 35 },
+      { "aft": 66.0, "height": 10.0, "angle": 90 },
+      { "aft": 73.0, "height": 10.0, "angle": 90 },
+      { "aft": 79.0, "height": 10.0, "angle": 100 },
+      { "aft": 143.0, "height": 10.0, "angle": 80 },
+      { "aft": 148.0, "height": 10.0, "angle": 100 },
+      { "aft": 155.0, "height": 10.0, "angle": 130 }
+    ]
+  },
+
+  "paint": {
+    "hull": "#6f777b",
+    "upper": "#7a8285",
+    "deck": "#8d7a5f",
+    "boot": "#1b1d1f",
+    "bottom": "#4a2b26",
+    "dark": "#26292b",
+    "canvas": "#b3ab98"
+  },
+
+  "references": [
+    {
+      "id": "janes-1918-profile",
+      "file": "reference/janes1919.png",
+      "url": "https://commons.wikimedia.org/wiki/File:Lion_class_battleship_-_Jane%27s_Fighting_Ships,_1919_-_Project_Gutenberg_etext_24797.png",
+      "view": "profile",
+      "crop": [0, 0, 757, 225],
+      "bowX": 26,
+      "sternX": 740,
+      "waterlineY": 187.5,
+      "note": "Jane's Fighting Ships 1919 (1918 configuration: tripod foremast, flying-off platforms omitted). Positions measured from this drawing; the 1915 build keeps a pole foremast."
+    },
+    {
+      "id": "janes-1918-plan",
+      "file": "reference/janes1919.png",
+      "url": "https://commons.wikimedia.org/wiki/File:Lion_class_battleship_-_Jane%27s_Fighting_Ships,_1919_-_Project_Gutenberg_etext_24797.png",
+      "view": "plan",
+      "crop": [0, 225, 757, 130],
+      "bowX": 22.5,
+      "sternX": 739,
+      "centerlineY": 281.75,
+      "note": "Plan view under the profile on the same plate; checks half-breadths and centreline positions (wing turrets on later ships)."
+    }
+  ]
+}
