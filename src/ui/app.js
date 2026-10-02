@@ -607,7 +607,7 @@ $('#battle-toggle').onclick = async () => {
         });
     }
     if (!battleOpen) return;
-    battleRenderer.start();
+    battleRenderer.start({ establish: true });
     const view = getView(state, side, selected);
     drawBattle(view, battleFxTick !== state.tick ? view.fx : []);
     battleFxTick = state.tick;

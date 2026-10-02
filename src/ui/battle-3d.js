@@ -12,6 +12,7 @@ import { createActorModel, disposeActorModel, animateWakes } from './battle-mode
 import { createEffects } from './battle-effects.js';
 import { lookFor } from './battle-looks.js';
 import { anchorSurfaceFoam } from './battle-waterline.js';
+import { createCameraDirector } from './battle-camera.js';
 import { createWaterNormals, configureSea } from './battle-sea.js';
 import { adoptAuthoredModel, createShipAssetManager, hasShipAsset, disposeShipAssetInstance } from './ship-assets.js';
 
@@ -124,6 +125,9 @@ export function createBattle3D(host, onFailure = () => {}) {
   controls.enableDamping = !reduced.matches;
   controls.dampingFactor = 0.06;
   controls.enablePan = false;
+  controls.autoRotateSpeed = 0.35;
+  const director = createCameraDirector({ reduced: reduced.matches, hex: HEX });
+  controls.addEventListener('start', () => director.userInput()); // the player's hand always wins
 
   const composer = new EffectComposer(renderer, new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 }));
   composer.addPass(new RenderPass(scene, camera));
@@ -133,7 +137,8 @@ export function createBattle3D(host, onFailure = () => {}) {
   composer.addPass(grade);
   composer.addPass(new OutputPass());
 
-  const effects = createEffects(world);
+  // Guns, hits and explosions shake the camera by how close they are to its subject.
+  const effects = createEffects(world, { onImpulse: (point, strength) => director.impulse(strength, world.localToWorld(point.clone()).distanceTo(controls.target)) });
   const models = new Map();
   const shipAssets = createShipAssetManager({ renderer });
   let lastFrame = 0, frame = 0, active = false, disposed = false, era = '', lookId = '', underseaMode = null, cameraDepth = 0, focusId = null;
@@ -246,8 +251,9 @@ export function createBattle3D(host, onFailure = () => {}) {
       controls.maxDistance = HEX * 7;
       controls.minPolarAngle = 0.15;
       controls.maxPolarAngle = Math.PI / 2 - 0.04;
-      camera.position.copy(best);
-      controls.target.copy(target);
+      const glide = director.begin(camera.position, controls.target, best, target);
+      camera.position.copy(glide ? glide.position : best);
+      controls.target.copy(glide ? glide.target : target);
     }
     controls.update();
     renderOnce();
@@ -331,13 +337,25 @@ export function createBattle3D(host, onFailure = () => {}) {
     sky.material.uniforms.time.value = seconds;
     if (!underseaMode) effects.shipSmoke(models.values(), dt);
     effects.update(dt, camera);
-    controls.update();
+    const glide = director.step(dt);
+    if (glide) { camera.position.copy(glide.position); controls.target.copy(glide.target); }
+    controls.autoRotate = director.drifting && !underseaMode;
+    controls.update(dt);
+    const shake = director.shake(seconds);
+    if (shake) camera.position.add(shake);
     renderOnce();
+    if (shake) camera.position.sub(shake);
     measure(now, interval, performance.now() - started);
   }
-  function start() {
+  // establish: open with the sweeping establishing shot (the battle view was
+  // just opened, not merely un-hidden with the tab).
+  function start({ establish = false } = {}) {
     if (disposed || active) return;
     active = true;
+    if (establish) {
+      director.establishNext();
+      if (models.has(focusId)) frameCamera();
+    }
     lastFrame = 0;
     stats.since = 0;
     resize();
