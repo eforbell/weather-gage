@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createGame, getView } from '../src/sim/engine.js';
+import { createGame, getView, step } from '../src/sim/engine.js';
 import { battleActors } from '../src/ui/battle-presentation.js';
 
 test('3D actors contain only player-view ships and reports', () => {
@@ -91,4 +91,18 @@ test('friendly actor class identity comes only from the public view', () => {
     assert.equal(actor.className, ship.className);
     assert.equal(actor.type, ship.type);
   }
+});
+
+test('ships at anchor are marked so they leave no wake, own or identified enemy', () => {
+  const state = createGame('hampton', 7);
+  const union = getView(state, 'red');
+  const anchored = battleActors(union, union.ships[0].id).actors.filter(a => a.anchored).map(a => a.name);
+  assert.deepEqual(anchored.sort(), ['USS Congress', 'USS Cumberland']);
+  const confederate = getView(step(state), 'blue');
+  const cumberland = confederate.contacts.find(c => c.name === 'USS Cumberland');
+  assert.equal(cumberland?.anchored, true, 'an identified ship at anchor is reported as such');
+  assert.ok(confederate.contacts.filter(c => c.confidence !== 'identified').every(c => !('anchored' in c)), 'unidentified reports do not reveal it');
+  const actor = battleActors(confederate, confederate.ships[0].id).actors.find(a => a.name === 'USS Cumberland');
+  assert.equal(actor.anchored, true);
+  assert.equal(battleActors(confederate, confederate.ships[0].id).actors.find(a => a.name === 'CSS Virginia').anchored, false);
 });

@@ -64,7 +64,13 @@ for (const { era, key, entry } of registered) {
     assert.ok(ships.length, `no scenario ship is named ${key}`);
     const guns = shipGunCount(spec);
     const counted = ships.filter(ship => Number.isFinite(ship.guns));
-    assert.ok(counted.length, `no scenario entry for ${key} declares guns`);
+    // Eras that rate firepower abstractly (the ironclad era's `battery`) give
+    // no gun count; the spec then states the historical armament it models.
+    if (!counted.length) {
+      assert.ok(Number.isInteger(spec.guns), `no scenario entry for ${key} declares guns, so the spec must state \`guns\``);
+      assert.equal(guns, spec.guns, `${key}: model carries ${guns} guns, spec states ${spec.guns}`);
+      return;
+    }
     for (const ship of counted) assert.equal(guns, ship.guns, `${key}: spec has ${guns} guns, scenario ${ship.guns}`);
   });
 
