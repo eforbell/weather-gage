@@ -9,3 +9,8 @@ output/
 .omc/
 
 dist-fixture/
+
+# Ship reference images: private authoring inputs, never shipped (docs/ship-pipeline.md)
+ships/*/reference/
+.playwright-mcp/
+__pycache__/

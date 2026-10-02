@@ -33,8 +33,16 @@ function firstMesh(root) {
   return found;
 }
 
-test('default ship asset registry is intentionally empty by era', () => {
-  for (const era of ['sail', 'ironclad', 'dreadnought', 'modern', 'coldwar']) assert.deepEqual(SHIP_ASSET_REGISTRY[era], {});
+test('default ship asset registry covers every era and only spec-built hero models', () => {
+  for (const era of ['sail', 'ironclad', 'dreadnought', 'modern', 'coldwar']) assert.ok(SHIP_ASSET_REGISTRY[era]);
+  for (const [era, entries] of Object.entries(SHIP_ASSET_REGISTRY)) {
+    for (const [key, entry] of Object.entries(entries)) {
+      assert.equal(key, key.toLowerCase(), `${key} must be lower-case`);
+      assert.ok(entry.specId, `${key} must name the spec it was built from`);
+      assert.equal(entry.units, 'meters');
+      assert.match(entry.url, new RegExp(`^assets/ships/${era}/${entry.specId}\\.glb$`));
+    }
+  }
 });
 
 test('shipAssetSpecFor resolves and normalizes class/type names within an era registry', () => {

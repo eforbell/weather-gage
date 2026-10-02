@@ -4,7 +4,7 @@
 
 ## What exists now
 
-- `SHIP_ASSET_REGISTRY` is present but empty for every simulation era (`sail`, `ironclad`, `dreadnought`, `modern`, `coldwar`). This is deliberate: no speculative model paths or unlicensed assets are registered yet.
+- `SHIP_ASSET_REGISTRY` has a pack per simulation era (`sail`, `ironclad`, `dreadnought`, `modern`, `coldwar`). The only entry is `dreadnought['hms lion']`, an original model generated from `ships/hms-lion/spec.json` by the headless Blender pipeline. See [ship-pipeline.md](ship-pipeline.md) to add more; every entry must name its `specId` and is tested against that spec.
 - `createShipAssetManager()` builds a lazy glTF loader using the pinned Three.js addons already in `node_modules`: `GLTFLoader`, `KTX2Loader`, and `MeshoptDecoder`.
 - The manager accepts injected loaders for tests and future integration, caches each glTF template by URL, and returns a cloned scene per ship instance.
 - Each clone shares template geometry but receives its own material objects so per-ship damage, paint, decals, or disposal will not mutate another ship. Geometry and texture objects remain shared with the cached template and are disposed only when the manager is disposed.
@@ -56,7 +56,7 @@ const token = shipAssets.beginSceneLoad();
 
 When adding an actor, keep the procedural model immediately unless `hasShipAsset(actor, era)` returns true. For registered public/known actors, await `createModel(actor, era, token)`. If it returns `null`, the result was stale because the view was disposed or a newer refresh began; skip attaching it. If it returns a procedural fallback, keep the current procedural model. Dispose live authored instances with `disposeShipAssetInstance(model)` and dispose the manager when the 3D view is torn down so KTX2 workers, cached template geometry/materials, and shared textures are released.
 
-This token guard matters because glTF loads are asynchronous: a late HMS Lion load must not attach itself to a disposed scene, the wrong era, or a ship that has already left the player-visible view. Authored instances expose `userData.shipAssetSpec`, `shipClass`, `dimensions`, `size`, `radius`, and any spec-provided `funnels` as `THREE.Vector3` points for smoke. The current battle view uses an item-identity guard instead of advancing generation on every sync; a tick must not cancel valid loads for ships still visible. It transfers the procedural wake/waterline foam before disposing the previous model so visual continuity is preserved. Foam uses shared procedural materials and is detached/disposed separately before disposing authored instance materials.
+This token guard matters because glTF loads are asynchronous: a late HMS Lion load must not attach itself to a disposed scene, the wrong era, or a ship that has already left the player-visible view. Authored instances expose `userData.shipAssetSpec`, `shipClass`, `dimensions`, `size`, `radius`, `anchors` (every `anchor_*` node in the GLB, in wrapper space) and `funnels` as `THREE.Vector3` points for smoke. `funnels` come from a spec-provided list if there is one, otherwise from the GLB's `anchor_funnel_*` nodes. The current battle view uses an item-identity guard instead of advancing generation on every sync; a tick must not cancel valid loads for ships still visible. It transfers the procedural wake/waterline foam before disposing the previous model so visual continuity is preserved. Foam uses shared procedural materials and is detached/disposed separately before disposing authored instance materials.
 
 ## Compression status
 

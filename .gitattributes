@@ -1,0 +1,4 @@
+# Spec hashes are stamped into GLBs; keep bytes identical across platforms.
+ships/*/spec.json text eol=lf
+tools/blender/**/*.py text eol=lf
+*.glb binary

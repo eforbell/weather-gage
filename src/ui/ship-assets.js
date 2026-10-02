@@ -5,10 +5,27 @@ import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { MODEL_METERS_TO_WORLD } from './battle-presentation.js';
 import { createActorModel, disposeActorModel } from './battle-models.js';
 
+// Authored hero models, built headlessly from ships/<id>/spec.json by
+// `npm run ship:build -- <id>` (docs/ship-pipeline.md). Keys are lower-case
+// public names; uncertain contacts never load these.
 export const SHIP_ASSET_REGISTRY = Object.freeze({
   sail: Object.freeze({}),
   ironclad: Object.freeze({}),
-  dreadnought: Object.freeze({}),
+  dreadnought: Object.freeze({
+    'hms lion': Object.freeze({
+      url: 'assets/ships/dreadnought/hms-lion.glb',
+      specId: 'hms-lion',
+      className: 'Lion-class battlecruiser',
+      units: 'meters',
+      lengthMeters: 213.4,
+      beamMeters: 27,
+      length: 213.4,
+      width: 27,
+      waterlineY: 0,
+      rotationY: 0,
+      license: 'Original model generated from ships/hms-lion/spec.json; see ships/hms-lion/PROVENANCE.md',
+    }),
+  }),
   modern: Object.freeze({}),
   coldwar: Object.freeze({}),
 });
@@ -124,8 +141,19 @@ export function cloneShipAsset(source, spec = normalizeShipAssetSpec({ units: 'p
     size: normalized.size || child.userData.size,
     dimensions: normalized.dimensions,
   };
+  // Named empties exported with the model (anchor_funnel_1, anchor_turret_A...)
+  // become wrapper-space points; funnel anchors are the smoke origins.
+  wrapper.updateMatrixWorld(true);
+  const anchors = {};
+  child.traverse(item => {
+    if (item.name?.startsWith('anchor_')) anchors[item.name.slice('anchor_'.length)] = wrapper.worldToLocal(item.getWorldPosition(new THREE.Vector3()));
+  });
+  wrapper.userData.anchors = anchors;
   if (Array.isArray(normalized.funnels)) {
     wrapper.userData.funnels = normalized.funnels.map(f => new THREE.Vector3(f.x || 0, f.y || 0, f.z || 0));
+  } else {
+    const funnels = Object.keys(anchors).filter(name => name.startsWith('funnel_')).map(name => anchors[name]).sort((a, b) => a.z - b.z);
+    if (funnels.length) wrapper.userData.funnels = funnels;
   }
   wrapper.userData.radius = new THREE.Box3().setFromObject(wrapper).getBoundingSphere(new THREE.Sphere()).radius || child.userData.radius || 1;
   return wrapper;

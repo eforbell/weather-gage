@@ -36,7 +36,8 @@ test('fixture requires genuinely Basis-compressed KTX2, not a PNG fallback', () 
 });
 
 test('test geometry and texture do not enter the default game registry', () => {
-  assert.ok(Object.values(SHIP_ASSET_REGISTRY).every(pack => Object.keys(pack).length === 0));
+  const urls = Object.values(SHIP_ASSET_REGISTRY).flatMap(pack => Object.values(pack).map(entry => entry.url));
+  assert.ok(urls.every(url => !/fixture|ship-loader|mini-basis/.test(url)), urls.join(', '));
   assert.equal(config.build, undefined, 'normal build stays the ordinary game build');
 });
 
