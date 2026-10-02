@@ -207,6 +207,16 @@ def funnels(kit):
         y = y_of(kit.spec, funnel["aft"])
         z0 = kit.base_height(funnel["base"], [funnel["aft"]])
         rx, ry, top = funnel["width"] / 2, funnel["length"] / 2, funnel["top"]
+        casing = funnel.get("casing")
+        if casing:
+            # A straight-sided uptake casing (a chamfered deckhouse) under the
+            # funnel, as on German capital ships; the funnel rises from its roof.
+            # Funnels without one keep their original geometry.
+            cw, cl, chamfer = casing["width"] / 2, casing["length"] / 2, min(casing["width"], casing["length"]) * 0.18
+            outline = [(cw - chamfer, cl), (-cw + chamfer, cl), (-cw, cl - chamfer), (-cw, -cl + chamfer),
+                       (-cw + chamfer, -cl), (cw - chamfer, -cl), (cw, -cl + chamfer), (cw, cl - chamfer)]
+            kit.merge(translate(prism(outline, z0, casing["top"], bevel=0.15), (0, y, 0)), "upper")
+            z0 = casing["top"] - 0.05
         kit.merge(translate(cylinder(1.0, z0, top - 0.9, 28, scale_xy=(rx, ry), cap=False), (0, y, 0)), "upper")
         kit.merge(translate(cylinder(1.0, top - 0.9, top, 28, scale_xy=(rx + 0.08, ry + 0.08), cap=False), (0, y, 0)), "dark")
         kit.merge(translate(cylinder(1.0, top - 1.6, top - 1.4, 28, scale_xy=(rx - 0.05, ry - 0.05)), (0, y, 0)), "dark")

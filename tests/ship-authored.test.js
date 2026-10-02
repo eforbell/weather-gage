@@ -146,5 +146,39 @@ test('turret placement checks use the builder\'s muzzle formula for any turret s
 
 test('unnamed contacts and unregistered ships of the same class never resolve to an authored hull', () => {
   assert.equal(shipAssetSpecFor({ name: 'Unresolved contact', type: null }, 'dreadnought'), null);
-  assert.equal(shipAssetSpecFor({ name: 'SMS Seydlitz', className: 'Battlecruiser', type: 'battlecruiser' }, 'dreadnought'), null);
+  assert.equal(shipAssetSpecFor({ name: 'HMS Princess Royal', className: 'Battlecruiser', type: 'battlecruiser' }, 'dreadnought'), null);
+});
+
+
+test('Seydlitz wing turrets preserve the original echelon, side, and gun-axis heights', async () => {
+  const spec = await loadShipSpec('sms-seydlitz');
+  const instance = await loadInstance(spec, 'dreadnought');
+  const anchors = instance.userData.anchors;
+  assert.equal(spec.turrets.length, 5);
+  assert.equal(spec.turrets.reduce((sum, turret) => sum + turret.guns, 0), 10);
+  assert.equal(spec.funnels.length, 2);
+  const B = spec.turrets.find(t => t.id === 'B'), C = spec.turrets.find(t => t.id === 'C');
+  assert.ok(B.aft < C.aft && B.side > 0 && C.side < 0, 'starboard wing turret is forward of port wing turret');
+  assert.ok(anchors.turret_B.x > 0 && anchors.turret_C.x < 0, 'physical GLB handedness agrees, not only the spec');
+  // Contemporary ONI table gives the gun axes, not gunhouse roof heights.
+  for (const [id, height] of Object.entries({ A: 10.3632, B: 8.1534, C: 8.1534, D: 8.4328, E: 5.9944 })) {
+    assert.ok(Math.abs(anchors[`turret_${id}`].y / MODEL_METERS_TO_WORLD - height) < 0.2, `${id} gun axis matches reference within20cm`);
+  }
+  assert.ok(anchors.turret_D.y - anchors.turret_E.y > 2 * MODEL_METERS_TO_WORLD, 'aft pair is superfiring');
+});
+
+test('asset report rejects a hull without an outward painted weather deck', async () => {
+  const spec = await loadShipSpec('hms-lion');
+  const bytes = await glbBytes(spec);
+  const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+  const jsonLength = view.getUint32(12, true);
+  const json = JSON.parse(new TextDecoder().decode(bytes.subarray(20, 20 + jsonLength)));
+  json.materials.find(m => m.name === 'hms-lion-deck').name = 'hms-lion-inward-deck';
+  const text = Buffer.from(JSON.stringify(json));
+  const padded = Buffer.alloc(Math.ceil(text.length / 4) * 4, 0x20); text.copy(padded);
+  const bin = Buffer.from(bytes.subarray(20 + jsonLength));
+  const header = Buffer.from(bytes.subarray(0, 20));
+  header.writeUInt32LE(20 + padded.length + bin.length, 8); header.writeUInt32LE(padded.length, 12);
+  const report = await inspectShipGlb(new Uint8Array(Buffer.concat([header, padded, bin])), spec);
+  assert.equal(report.checks.find(c => c.name === 'weather deck faces up').ok, false);
 });

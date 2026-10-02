@@ -6,6 +6,7 @@
 //
 // Blender is found from $BLENDER, then PATH, then the macOS app bundle.
 import { spawnSync } from 'node:child_process';
+import { referencePlacement } from './ship-reference-overlay.mjs';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { formatReport, inspectShipGlb, khronosValidate, loadShipSpec, shipGlbPath, shipKitSha256, shipSpecPath, shipSpecSha256 } from './ship-asset-report.mjs';
@@ -61,19 +62,18 @@ const magick = findMagick();
 const overlays = [];
 for (const ref of spec.references || []) {
   const view = buildReport.views?.[ref.view];
-  const refAnchorY = ref.view === 'plan' ? ref.centerlineY : ref.waterlineY;
-  if (!view || !Number.isFinite(ref.bowX) || !Number.isFinite(refAnchorY)) continue;
+  const placement = referencePlacement(ref, view, spec.hull.length);
+  if (!placement) continue;
   const source = `ships/${id}/${ref.file}`;
   if (!existsSync(source)) { console.warn(`Reference ${source} is not present locally (references are not committed). Download it from ${ref.url || 'the URL in PROVENANCE.md'} to get the overlay.`); continue; }
   if (!magick) { console.warn('ImageMagick not found; skipping reference overlay.'); break; }
-  const scale = view.pxPerMeter / ((ref.sternX - ref.bowX) / spec.hull.length);
+  const { scale, flop, flip, x: ox, y: oy } = placement;
   // Calibration is in source-image pixels; the composite is of the cropped image.
   const [cx, cy, cw, ch] = ref.crop || [0, 0, 100000, 100000];
-  const ox = Math.round(view.bowX - (ref.bowX - cx) * scale), oy = Math.round(view.anchorY - (refAnchorY - cy) * scale);
   const out = `${previews}/overlay-${ref.id}.png`;
   const result = spawnSync(magick, [
     '-size', `${view.width}x${view.height}`, 'xc:white',
-    '(', source, '-crop', `${cw}x${ch}+${cx}+${cy}`, '+repage', '-resize', `${(scale * 100).toFixed(3)}%`, ')',
+    '(', source, '-crop', `${cw}x${ch}+${cx}+${cy}`, '+repage', ...(flop ? ['-flop'] : []), ...(flip ? ['-flip'] : []), '-resize', `${(scale * 100).toFixed(3)}%`, ')',
     '-geometry', `${ox >= 0 ? '+' : '-'}${Math.abs(ox)}${oy >= 0 ? '+' : '-'}${Math.abs(oy)}`, '-composite',
     '(', `${previews}/${ref.view}.png`, '-background', 'none', '-channel', 'A', '-evaluate', 'multiply', '0.55', '+channel', ')', '-composite',
     out,

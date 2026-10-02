@@ -41,6 +41,7 @@ function line(parent, points, material = rigging) {
 
 const materials = { steel, darkSteel, subSteel, paleSteel, deck, wood, ochre, canvas, glass, boot, glow, rigging };
 function materialFor(spec, role, fallback = steel) { return materials[spec.paint?.[role]] || fallback; }
+function beamFitScale(spec) { return spec.modelScale?.beam ?? 1; }
 
 function hull(parent, spec) {
   const body = mesh(parent, createLoftedHullGeometry(spec), materialFor(spec, 'hull'));
@@ -72,42 +73,44 @@ function slopedBoxGeometry(bottomW, topW, h, l) {
 }
 
 function casemate(parent, spec, deckY) {
-  const c = spec.casemate;
+  const c = spec.casemate, scale = beamFitScale(spec);
   mesh(parent, slopedBoxGeometry(c.width, c.width * (1 - c.slope), c.height, c.length), materialFor(spec, 'upper', darkSteel), 0, deckY + 0.035, c.z || 0).name = 'sloped-casemate';
   markPart(parent, 'sloped-casemate');
   const gunY = deckY + c.height * 0.48;
   for (const side of [-1, 1]) for (const z of spec.broadsideGuns || []) {
-    const gun = cylinder(parent, 0.045, 0.045, 0.58, side * (c.width * 0.52), gunY, z, darkSteel, 7);
+    const gun = cylinder(parent, 0.045 * scale, 0.045 * scale, 0.58 * scale, side * (c.width * 0.52), gunY, z, darkSteel, 7);
     gun.rotation.z = Math.PI / 2;
     markPart(parent, 'casemate-broadside-guns');
   }
 }
 
 function monitorTurret(parent, spec, deckY) {
-  const t = spec.monitorTurret;
+  const t = spec.monitorTurret, scale = beamFitScale(spec);
   cylinder(parent, t.radius, t.radius, t.height, 0, deckY + t.height / 2 + 0.025, t.z, darkSteel, 18).name = 'round-monitor-turret';
   markPart(parent, 'round-monitor-turret');
   const offsets = t.barrels === 1 ? [0] : [-t.radius * 0.22, t.radius * 0.22];
   for (const dx of offsets) {
-    const gun = cylinder(parent, 0.055, 0.055, 0.9, dx, deckY + t.height * 0.55, t.z - t.radius - 0.25, darkSteel, 8);
+    const gun = cylinder(parent, 0.055 * scale, 0.055 * scale, 0.9 * scale, dx, deckY + t.height * 0.55, t.z - t.radius - 0.25 * scale, darkSteel, 8);
     gun.rotation.x = Math.PI / 2;
   }
-  box(parent, 0.34, 0.28, 0.32, 0, deckY + 0.17, t.z - 1.05, materialFor(spec, 'upper', darkSteel)).name = 'monitor-pilot-house';
+  box(parent, 0.34 * scale, 0.28, 0.32 * scale, 0, deckY + 0.17, t.z - 1.05, materialFor(spec, 'upper', darkSteel)).name = 'monitor-pilot-house';
   markPart(parent, 'monitor-pilot-house');
 }
 
 function exposedDeckGuns(parent, spec, deckY) {
+  const scale = beamFitScale(spec);
   for (const g of spec.exposedGuns || []) {
     const dir = g.facing === 'aft' ? 1 : -1;
-    const gun = cylinder(parent, 0.045, 0.045, 0.78, 0, deckY + 0.18, g.z + dir * 0.32, darkSteel, 7);
+    const gun = cylinder(parent, 0.045 * scale, 0.045 * scale, 0.78 * scale, 0, deckY + 0.18, g.z + dir * 0.32, darkSteel, 7);
     gun.rotation.x = Math.PI / 2;
-    box(parent, 0.24, 0.12, 0.18, 0, deckY + 0.08, g.z, materialFor(spec, 'upper', wood));
+    box(parent, 0.24 * scale, 0.12, 0.18 * scale, 0, deckY + 0.08, g.z, materialFor(spec, 'upper', wood));
   }
   if (spec.exposedGuns?.length) markPart(parent, 'exposed-deck-guns');
 }
 
-function turret(parent, x, z, large = false, barrels = 2, deckY = 0.55, facing = z < 0 ? 'fore' : 'aft') {
-  const w = large ? 1.08 : 0.66, h = large ? 0.32 : 0.24, l = large ? 0.78 : 0.48;
+function turret(parent, spec, x, z, large = false, barrels = 2, deckY = 0.55, facing = z < 0 ? 'fore' : 'aft') {
+  const scale = beamFitScale(spec);
+  const w = (large ? 1.08 : 0.66) * scale, h = large ? 0.32 : 0.24, l = (large ? 0.78 : 0.48) * Math.sqrt(scale);
   const geometry = new THREE.BoxGeometry(w, h, l);
   const pos = geometry.getAttribute('position');
   const dir = facing === 'aft' ? 1 : -1;
@@ -119,20 +122,22 @@ function turret(parent, x, z, large = false, barrels = 2, deckY = 0.55, facing =
   mesh(parent, geometry, paleSteel, x, deckY + h / 2 + 0.025, z);
   const offsets = barrels === 1 ? [0] : [-w * 0.18, w * 0.18];
   for (const dx of offsets) {
-    const gun = cylinder(parent, large ? 0.075 : 0.05, large ? 0.075 : 0.05, large ? 1.45 : 0.9, x + dx, deckY + h * 0.6 + 0.025, z + dir * (large ? 0.78 : 0.48), darkSteel, 7);
+    const gun = cylinder(parent, (large ? 0.075 : 0.05) * scale, (large ? 0.075 : 0.05) * scale, large ? 1.45 : 0.9, x + dx, deckY + h * 0.6 + 0.025, z + dir * (large ? 0.78 : 0.48), darkSteel, 7);
     gun.rotation.x = Math.PI / 2;
   }
 }
 
-function mast(parent, y, z, deckY = 0.55) {
-  cylinder(parent, 0.025, 0.055, y, 0, deckY + y / 2, z, darkSteel, 7);
-  box(parent, 1.1, 0.045, 0.05, 0, deckY + y * 0.74, z, darkSteel);
-  for (const x of [-0.54, 0.54]) line(parent, [[x, deckY + y * 0.74, z], [0, deckY + 0.12, z + (x < 0 ? -0.4 : 0.4)]], rigging);
+function mast(parent, spec, y, z, deckY = 0.55) {
+  const scale = beamFitScale(spec);
+  cylinder(parent, 0.025 * scale, 0.055 * scale, y, 0, deckY + y / 2, z, darkSteel, 7);
+  box(parent, 1.1 * scale, 0.045, 0.05 * scale, 0, deckY + y * 0.74, z, darkSteel);
+  for (const x of [-0.54 * scale, 0.54 * scale]) line(parent, [[x, deckY + y * 0.74, z], [0, deckY + 0.12, z + (x < 0 ? -0.4 : 0.4)]], rigging);
 }
 
-function funnel(parent, x, z, tall = 1.1, deckY = 0.55) {
-  cylinder(parent, 0.28, 0.36, tall, x, deckY + tall / 2, z, darkSteel, 10);
-  cylinder(parent, 0.3, 0.3, 0.1, x, deckY + tall + 0.05, z, paleSteel, 10);
+function funnel(parent, spec, x, z, tall = 1.1, deckY = 0.55) {
+  const scale = beamFitScale(spec);
+  cylinder(parent, 0.28 * scale, 0.36 * scale, tall, x, deckY + tall / 2, z, darkSteel, 10);
+  cylinder(parent, 0.3 * scale, 0.3 * scale, 0.1, x, deckY + tall + 0.05, z, paleSteel, 10);
   (parent.userData.funnels ||= []).push(new THREE.Vector3(x, deckY + tall + 0.1, z));
 }
 
@@ -246,22 +251,24 @@ function waterlineFoam(parent, sides) {
   return group;
 }
 
-function aircraft(parent, x, z) {
-  box(parent, 0.08, 0.045, 0.55, x, 0.86, z, paleSteel);
-  box(parent, 0.56, 0.035, 0.09, x, 0.87, z - 0.05, paleSteel);
-  box(parent, 0.21, 0.035, 0.06, x, 0.88, z + 0.19, paleSteel);
+function aircraft(parent, spec, x, z) {
+  const scale = beamFitScale(spec);
+  box(parent, 0.08 * scale, 0.045, 0.55 * scale, x, 0.86, z, paleSteel);
+  box(parent, 0.56 * scale, 0.035, 0.09 * scale, x, 0.87, z - 0.05, paleSteel);
+  box(parent, 0.21 * scale, 0.035, 0.06 * scale, x, 0.88, z + 0.19, paleSteel);
 }
 
 function carrier(parent, spec) {
   hull(parent, spec);
   const { length, beam, freeboard } = spec.dimensions;
+  const scale = beamFitScale(spec);
   const deckY = freeboard + 0.045;
-  box(parent, beam * 1.24, 0.23, length * 1.03, -0.22, deckY + 0.18, 0, materialFor(spec, 'deck', deck));
+  box(parent, beam * 1.24, 0.23, length * 1.03, -0.22 * scale, deckY + 0.18, 0, materialFor(spec, 'deck', deck));
   for (let z = -length * 0.42; z <= length * 0.43; z += 1.2) box(parent, 0.055, 0.014, 0.58, -beam * 0.19, deckY + 0.31, z, glow);
-  box(parent, 0.85, 0.7, 1.65, spec.island?.x ?? 1.15, deckY + 0.45, spec.island?.z ?? -0.45, paleSteel);
-  box(parent, 0.92, 0.2, 0.48, spec.island?.x ?? 1.15, deckY + 0.9, (spec.island?.z ?? -0.45) - 0.5, glass);
-  for (const m of spec.masts || []) mast(parent, m.height, m.z, deckY);
-  for (const [x, z] of [[-1.1, -2.8], [0.3, 1.6], [-1.0, 2.8]]) aircraft(parent, x, z);
+  box(parent, 0.85 * scale, 0.7, 1.65 * scale, spec.island?.x ?? beam * 0.4, deckY + 0.45, spec.island?.z ?? -0.45, paleSteel);
+  box(parent, 0.92 * scale, 0.2, 0.48 * scale, spec.island?.x ?? beam * 0.4, deckY + 0.9, (spec.island?.z ?? -0.45) - 0.5, glass);
+  for (const m of spec.masts || []) mast(parent, spec, m.height, m.z, deckY);
+  for (const [x, z] of [[-1.1, -2.8], [0.3, 1.6], [-1.0, 2.8]]) aircraft(parent, spec, x * scale, z);
   return hullDimensions(spec);
 }
 
@@ -278,10 +285,10 @@ function surfaceShip(parent, spec) {
   if (spec.gunStyle === 'casemate') casemate(parent, spec, deckY);
   else if (spec.gunStyle === 'monitor-turret') monitorTurret(parent, spec, deckY);
   else if (spec.gunStyle === 'exposed') exposedDeckGuns(parent, spec, deckY);
-  else for (const t of spec.turrets || []) turret(parent, t.x || 0, t.z, t.size === 'large', t.barrels || 1, deckY, t.facing);
+  else for (const t of spec.turrets || []) turret(parent, spec, (t.x || 0) * beamFitScale(spec), t.z, t.size === 'large', t.barrels || 1, deckY, t.facing);
   if (spec.gunStyle) groupGunStyle(parent, spec.gunStyle);
-  for (const f of spec.funnels || []) funnel(parent, f.x || 0, f.z, f.height || 1, deckY + (spec.gunStyle === 'casemate' ? spec.casemate.height + 0.035 : 0));
-  for (const m of spec.masts || []) mast(parent, m.height, m.z, deckY);
+  for (const f of spec.funnels || []) funnel(parent, spec, (f.x || 0) * beamFitScale(spec), f.z, f.height || 1, deckY + (spec.gunStyle === 'casemate' ? spec.casemate.height + 0.035 : 0));
+  for (const m of spec.masts || []) mast(parent, spec, m.height, m.z, deckY);
   if (spec.paddleBoxes) for (const side of [-1, 1]) box(parent, beam * 0.28, 0.56, 1.28, side * beam * 0.58, deckY + 0.05, 0.25, materialFor(spec, 'upper', paleSteel));
   return hullDimensions(spec);
 }
@@ -301,33 +308,36 @@ function billowedSail(width, height) {
 function sailingShip(parent, spec) {
   hull(parent, spec);
   const { beam, freeboard } = spec.dimensions;
+  const scale = beamFitScale(spec);
   const deckY = freeboard + 0.045;
   box(parent, beam * 0.92, 0.13, 5.6, 0, deckY + 0.08, 0.1, materialFor(spec, 'deck', ochre));
   for (const m of spec.masts || []) {
-    cylinder(parent, 0.035, 0.085, m.height, 0, deckY + m.height / 2, m.z, wood, 8);
+    cylinder(parent, 0.035 * scale, 0.085 * scale, m.height, 0, deckY + m.height / 2, m.z, wood, 8);
     for (let tier = 0; tier < (spec.sails?.tiers || 3); tier++) {
       const y = deckY + 1.3 + tier * 1.08;
-      const width = (spec.sails?.width || 2.4) * (1 - tier * 0.14);
+      const width = (spec.sails?.width || 2.4) * (1 - tier * 0.14) * scale;
       const height = (spec.sails?.height || 0.95) * (1 - tier * 0.08);
-      box(parent, width * 1.32, 0.045, 0.05, 0, y + height * 0.55, m.z, wood);
+      box(parent, width * 1.32, 0.045, 0.05 * scale, 0, y + height * 0.55, m.z, wood);
       const sail = mesh(parent, billowedSail(width, height), canvas, 0, y, m.z + 0.08);
       sail.rotation.y = m.z > 0 ? 0.18 : -0.13;
     }
-    line(parent, [[-1.35, deckY + m.height * 0.86, m.z], [-1.25, deckY + 1.55, m.z], [0, deckY + 0.12, m.z]], rigging);
-    line(parent, [[1.35, deckY + m.height * 0.86, m.z], [1.25, deckY + 1.55, m.z], [0, deckY + 0.12, m.z]], rigging);
+    line(parent, [[-1.35 * scale, deckY + m.height * 0.86, m.z], [-1.25 * scale, deckY + 1.55, m.z], [0, deckY + 0.12, m.z]], rigging);
+    line(parent, [[1.35 * scale, deckY + m.height * 0.86, m.z], [1.25 * scale, deckY + 1.55, m.z], [0, deckY + 0.12, m.z]], rigging);
   }
   for (const side of [-1, 1]) for (let z = -3; z <= 3; z += 0.74) {
-    cylinder(parent, 0.085, 0.085, 0.09, side * beam * 0.47, deckY - 0.25, z, darkSteel, 7).rotation.z = Math.PI / 2;
+    cylinder(parent, 0.085 * scale, 0.085 * scale, 0.09 * scale, side * beam * 0.47, deckY - 0.25, z, darkSteel, 7).rotation.z = Math.PI / 2;
   }
   return hullDimensions(spec);
 }
 
-function submarine(parent) {
+function submarine(parent, spec) {
+  const { length, beam } = spec.dimensions;
+  const scale = beamFitScale(spec);
   const body = mesh(parent, new THREE.SphereGeometry(1, 18, 10), subSteel, 0, -0.16, 0);
-  body.scale.set(0.68, 0.57, 4.2);
-  box(parent, 0.55, 0.8, 1.15, 0, 0.55, -0.3, subSteel);
-  box(parent, 2.1, 0.05, 0.46, 0, -0.19, 2.7, subSteel);
-  box(parent, 0.06, 1.1, 0.8, 0, 0.2, 3.7, subSteel);
+  body.scale.set(beam / 2, 0.57, length / 2);
+  box(parent, 0.55 * scale, 0.8, 1.15 * scale, 0, 0.55, -0.3, subSteel);
+  box(parent, beam * 1.55, 0.05, 0.46 * scale, 0, -0.19, length * 0.32, subSteel);
+  box(parent, 0.06 * scale, 1.1, 0.8 * scale, 0, 0.2, length * 0.44, subSteel);
 }
 
 function reportMarker(parent, stale, uncertainty) {
@@ -384,7 +394,7 @@ export function createActorModel(actor, era) {
   else {
     const type = actor.className || actor.type || '';
     const spec = shipSpecFor(type, era);
-    if (spec.key === 'submarine') submarine(group);
+    if (spec.key === 'submarine') submarine(group, spec);
     else if (spec.key === 'carrier') size = carrier(group, spec);
     else if (spec.key === 'sail_frigate' || spec.key === 'wooden_sail_ship') size = sailingShip(group, spec); // no funnel, so no coal smoke
     else size = surfaceShip(group, spec);
