@@ -38,6 +38,34 @@ function parseGlbJson(bytes) {
   return JSON.parse(new TextDecoder().decode(bytes.subarray(20, 20 + length)));
 }
 
+// Must match the turret builder (GUN_AXIS in tools/blender/shipkit/parts.py):
+// the barrels leave the sloped front plate at the gun axis, so the muzzle is
+// half a gunhouse, less the slope's set-back at that height, plus a barrel.
+const GUN_AXIS = 0.42;
+export function muzzleReach(turretType = {}) {
+  return (turretType.length ?? 0) / 2 - (turretType.frontSlope ?? 0) * GUN_AXIS + (turretType.barrelLength ?? 0);
+}
+
+// Facing and placement of every turret from its muzzle anchor ([x, y, z] in
+// glTF metres, bow -Z). Returns check records like inspectShipGlb's.
+export function turretChecks(spec, anchors) {
+  const L = spec.hull.length, out = [];
+  const expected = muzzleReach(spec.turretType);
+  for (const turret of spec.turrets || []) {
+    const point = anchors[`anchor_turret_${turret.id}`];
+    const centreZ = turret.aft - L / 2, side = turret.side ?? 0;
+    const sign = turret.facing === 'fore' ? -1 : 1;
+    out.push({ name: `turret ${turret.id} faces ${turret.facing} (bow is -Z)`, ok: Boolean(point && Math.sign(point[2] - centreZ) === sign), detail: point ? point.join(', ') : 'missing' });
+    const reach = point ? sign * (point[2] - centreZ) : NaN;
+    out.push({
+      name: `turret ${turret.id} position (aft ${turret.aft}, side ${side})`,
+      ok: Boolean(point && Math.abs(point[0] - side) < 0.15 && Math.abs(reach - expected) < 0.15),
+      detail: point ? `x ${point[0]} vs ${side}; muzzle ${reach.toFixed(2)} m from turret centre vs ${expected.toFixed(2)}` : 'missing',
+    });
+  }
+  return out;
+}
+
 export async function inspectShipGlb(bytes, spec, specSha256 = null, kitSha256 = null) {
   const json = parseGlbJson(bytes);
   const buffer = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
@@ -87,17 +115,7 @@ export async function inspectShipGlb(bytes, spec, specSha256 = null, kitSha256 =
     const point = anchors[`anchor_funnel_${funnel.id}`];
     check(`smoke anchor for funnel ${funnel.id}`, point && Math.abs(point[2] - (funnel.aft - L / 2)) < 0.6 && Math.abs(point[1] - funnel.top) < 1.5, point ? point.join(', ') : 'missing');
   }
-  for (const turret of spec.turrets || []) {
-    const point = anchors[`anchor_turret_${turret.id}`];
-    const pointsForward = turret.facing === 'fore' ? point?.[2] < turret.aft - L / 2 : point?.[2] > turret.aft - L / 2;
-    check(`turret ${turret.id} faces ${turret.facing} (bow is -Z)`, point && pointsForward, point ? point.join(', ') : 'missing');
-    // Muzzle anchors sit on the gun axis: x is the turret's side offset, and
-    // the muzzle lies a barrel length or so beyond the turret centre.
-    const reach = point ? Math.abs(point[2] - (turret.aft - L / 2)) : NaN;
-    const expectedReach = (spec.turretType?.barrelLength ?? 0) + (spec.turretType?.length ?? 0) / 2;
-    check(`turret ${turret.id} position (aft ${turret.aft}, side ${turret.side ?? 0})`, point && Math.abs(point[0] - (turret.side ?? 0)) < 0.3 && Math.abs(reach - expectedReach) < 1.5,
-      point ? `x ${point[0]}, muzzle ${reach.toFixed(1)} m from turret centre` : 'missing');
-  }
+  checks.push(...turretChecks(spec, anchors));
   return {
     id: spec.id, bytes: bytes.byteLength, triangles, drawCalls, materials: [...materials].sort(),
     boundsMeters: { min: box.min.toArray().map(v => +v.toFixed(2)), max: box.max.toArray().map(v => +v.toFixed(2)) },

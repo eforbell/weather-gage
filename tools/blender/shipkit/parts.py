@@ -13,6 +13,10 @@ from .spec import y_of
 
 MATERIALS = ("hull", "upper", "deck", "boot", "bottom", "dark", "canvas")
 EMBED = 0.4  # how far parts sink into whatever they stand on, so no gaps show
+# Gun axis height as a fraction of gunhouse height. The muzzle anchor sits at
+# length/2 - frontSlope * GUN_AXIS + barrelLength from the turret centre;
+# muzzleReach() in scripts/ship-asset-report.mjs must use the same formula.
+GUN_AXIS = 0.42
 
 
 class Kit:
@@ -186,8 +190,8 @@ def turrets(kit):
         for f in house.faces:
             f.smooth = False
         put(house, "upper")
-        gun_z = house0 + H * 0.42
-        face_y = L / 2 - t["frontSlope"] * 0.42
+        gun_z = house0 + H * GUN_AXIS
+        face_y = L / 2 - t["frontSlope"] * GUN_AXIS
         for side in (-1, 1):
             x = side * t["gunSpacing"] / 2
             put(rod((x, face_y - 1.5, gun_z), (x, face_y + t["barrelLength"], gun_z), t["barrelRadius"], t["muzzleRadius"], 12), "dark")

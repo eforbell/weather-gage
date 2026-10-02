@@ -9,7 +9,7 @@ import { SHIP_ASSET_REGISTRY, adoptAuthoredModel, cloneShipAsset, shipAssetSpecF
 import { createActorModel } from '../src/ui/battle-models.js';
 import { MODEL_METERS_TO_WORLD } from '../src/ui/battle-presentation.js';
 import { SCENARIO_SETUPS } from '../src/sim/scenarios.js';
-import { inspectShipGlb, loadShipSpec, shipGlbPath, shipKitSha256, shipSpecSha256 } from '../scripts/ship-asset-report.mjs';
+import { inspectShipGlb, loadShipSpec, muzzleReach, shipGlbPath, shipKitSha256, shipSpecSha256, turretChecks } from '../scripts/ship-asset-report.mjs';
 
 const registered = Object.entries(SHIP_ASSET_REGISTRY).flatMap(([era, entries]) => Object.entries(entries).map(([key, entry]) => ({ era, key, entry })));
 const scenarioShips = Object.values(SCENARIO_SETUPS).flatMap(setup => setup.ships || []);
@@ -119,6 +119,30 @@ for (const { era, key, entry } of registered) {
     assert.ok(Math.abs(loaded.userData.size.width - spec.hull.beam * MODEL_METERS_TO_WORLD) < 1e-6, 'wake sized from the authored beam');
   });
 }
+
+// The turret checks must follow the builder's geometry for any turret shape,
+// not only Lion's: a steep front plate (frontSlope 4) once failed every check.
+test('turret placement checks use the builder\'s muzzle formula for any turret shape', () => {
+  const turretType = { length: 11, frontSlope: 4, barrelLength: 12 };
+  assert.ok(Math.abs(muzzleReach(turretType) - 15.82) < 1e-9);
+  const spec = { hull: { length: 200 }, turretType, turrets: [
+    { id: 'A', aft: 40, facing: 'fore' },
+    { id: 'P', aft: 90, side: -6, facing: 'fore' },
+    { id: 'D', aft: 160, facing: 'aft' },
+  ] };
+  // Anchors where the builder puts them (glTF metres, bow -Z, centre at L/2).
+  const anchors = {
+    anchor_turret_A: [0, 11, 40 - 100 - 15.82],
+    anchor_turret_P: [-6, 11, 90 - 100 - 15.82],
+    anchor_turret_D: [0, 11, 160 - 100 + 15.82],
+  };
+  assert.deepEqual(turretChecks(spec, anchors).filter(c => !c.ok).map(c => c.name), []);
+  // A turret 1 m out of place, a wing turret on the wrong side, a reversed turret.
+  const wrong = { ...anchors, anchor_turret_A: [0, 11, 40 - 100 - 16.82], anchor_turret_P: [6, 11, 90 - 100 - 15.82], anchor_turret_D: [0, 11, 160 - 100 - 15.82] };
+  assert.deepEqual(turretChecks(spec, wrong).filter(c => !c.ok).map(c => c.name), [
+    'turret A position (aft 40, side 0)', 'turret P position (aft 90, side -6)', 'turret D faces aft (bow is -Z)', 'turret D position (aft 160, side 0)',
+  ]);
+});
 
 test('unnamed contacts and unregistered ships of the same class never resolve to an authored hull', () => {
   assert.equal(shipAssetSpecFor({ name: 'Unresolved contact', type: null }, 'dreadnought'), null);
