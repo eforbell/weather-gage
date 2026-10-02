@@ -4,7 +4,7 @@
 
 ## What exists now
 
-- `SHIP_ASSET_REGISTRY` has a pack per simulation era (`sail`, `ironclad`, `dreadnought`, `modern`, `coldwar`). The authored entries are `dreadnought['hms lion']` and `dreadnought['sms seydlitz']`, original models generated from their metre specs in `ships/` by the headless Blender pipeline. They retain measured beam; procedural fallbacks follow the [fleet proportion policy](3d-visual-direction.md#fleet-proportions-2026-10-02). See [ship-pipeline.md](ship-pipeline.md) to add more; every entry must name its `specId` and is tested against that spec.
+- `SHIP_ASSET_REGISTRY` has a pack per simulation era (`sail`, `ironclad`, `dreadnought`, `modern`, `coldwar`). The authored entries are `dreadnought['hms lion']`, `dreadnought['sms seydlitz']` and the four Nevis frigates under `sail` (USS Constellation, USS Baltimore, L’Insurgente, Volontaire), original models generated from their metre specs in `ships/` by the headless Blender pipeline. They retain measured beam; procedural fallbacks follow the [fleet proportion policy](3d-visual-direction.md#fleet-proportions-2026-10-02). See [ship-pipeline.md](ship-pipeline.md) to add more; every entry must name its `specId` and is tested against that spec.
 - `createShipAssetManager()` builds a lazy glTF loader using the pinned Three.js addons already in `node_modules`: `GLTFLoader`, `KTX2Loader`, and `MeshoptDecoder`.
 - The manager accepts injected loaders for tests and future integration, caches each glTF template by URL, and returns a cloned scene per ship instance.
 - Each clone shares template geometry but receives its own material objects so per-ship damage, paint, decals, or disposal will not mutate another ship. Geometry and texture objects remain shared with the cached template and are disposed only when the manager is disposed.
@@ -26,7 +26,7 @@ const registry = {
       // presentation units used by wake/foam handoff and camera metadata
       size: { length: 9.4, width: 1.9 },
       // transform from DCC coordinates into the battle view's waterline/orientation
-      units: 'meters', // normalization applies MODEL_METERS_TO_WORLD once
+      units: 'meters', // normalization applies modelMetersToWorld(era) once
       waterlineY: 0,
       rotationY: 0,
       funnels: [{ x: 0, y: 1.7, z: -0.8 }],
@@ -76,7 +76,7 @@ or acceptance-tested; keep using procedural models until those gates are met.
 ### Enforced units
 
 Registry entries must explicitly declare `units`. For `meters`, normalization
-uses `MODEL_METERS_TO_WORLD` automatically and rejects conflicting manual scales.
+uses `modelMetersToWorld(era)` (the entry's `era`) automatically and rejects conflicting manual scales.
 For `presentation`, scale defaults to 1; any explicit scale must be finite and
 positive. Re-normalizing a spec is idempotent, so the metre conversion cannot be
 applied twice. `length`/`width` and `waterlineY` remain source units; `size` and

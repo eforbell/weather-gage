@@ -9,6 +9,15 @@ export const SHIP_LENGTH = HEX / 1.5;
 export const PRESENTATION_SCALE = 3;
 export const WORLD_UNITS_PER_METER = SHIP_LENGTH / (210 * PRESENTATION_SCALE);
 export const MODEL_METERS_TO_WORLD = WORLD_UNITS_PER_METER * PRESENTATION_SCALE;
+// Each era's chart scale differs (a sail hex is 400 yards), so each era sizes
+// its authored ships so that its own representative ship fills SHIP_LENGTH: a
+// 50 m frigate at Nevis reads like a 210 m battlecruiser at the Dogger Bank.
+// One uniform factor per era; ships within an era keep their true relative size.
+export const ERA_REFERENCE_METERS = Object.freeze({ sail: 50 });
+export function modelMetersToWorld(era) {
+  const reference = ERA_REFERENCE_METERS[era];
+  return reference ? SHIP_LENGTH / reference : MODEL_METERS_TO_WORLD;
+}
 export const hexToWorld = ({ q, r }, focus) => ({
   x: ((q - focus.q) + (r - focus.r) / 2) * HEX,
   z: (r - focus.r) * HEX * Math.sqrt(3) / 2,

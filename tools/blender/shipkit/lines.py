@@ -19,7 +19,7 @@ DECK_POINTS = 9
 FLARE_POWER = 1.6
 
 # Face roles, later turned into materials.
-ROLE_SIDE, ROLE_DECK = 0, 1
+ROLE_SIDE, ROLE_DECK, ROLE_END = 0, 1, 2
 
 
 def _monotone_slopes(xs, ys):
@@ -75,6 +75,22 @@ class Lines:
 
     def half_breadth(self, aft):
         return self.at(aft)["halfDeck"]
+
+    def side_half(self, aft, z):
+        """Half-breadth of the hull side at height z (above the knuckle; above
+        the deck the side carries on at the deck-edge slope, for bulwarks)."""
+        row = self.at(aft)
+        hd, hw, deck, keel, n = row["halfDeck"], row["halfWater"], row["deck"], row["keel"], row["fullness"]
+        knuckle = max(0.0, keel + 0.35 * (deck - keel))
+        half_knuckle = hw if knuckle <= 0.0 else hw + (hd - hw) * (knuckle / deck)
+        span = max(deck - knuckle, 1e-6)
+        if z >= deck:
+            return max(0.0, hd + (z - deck) * (hd - half_knuckle) * FLARE_POWER / span)
+        if z >= knuckle:
+            return half_knuckle + (hd - half_knuckle) * ((z - knuckle) / span) ** FLARE_POWER
+        depth = max(knuckle - keel, 1e-6)
+        s = min(1.0, max(0.0, (knuckle - z) / depth))
+        return half_knuckle * max(0.0, 1 - s ** n) ** (1 / n)
 
     def waterline_half(self, aft):
         """Half-breadth where the hull meets the design waterline (0 where the
@@ -155,8 +171,12 @@ def build_hull(spec, bm):
             except ValueError:
                 continue
             face[role] = ROLE_DECK if first_deck <= e < last_deck else ROLE_SIDE
-    # The stem and the stern collapse to a line; welding removes the
-    # zero-width faces and closes the hull.
+    # An end with breadth (a transom stern) is closed with a flat face; ends
+    # that collapse to a line (a stem) are closed by welding below.
+    for ring, aft in ((rings[0], lines.xs[0]), (rings[-1], lines.xs[-1])):
+        if lines.at(aft)["halfDeck"] > 0.05:
+            face = bm.faces.new(ring)
+            face[role] = ROLE_END
     bmesh.ops.remove_doubles(bm, verts=bm.verts, dist=1e-4)
     degenerate = [f for f in bm.faces if f.calc_area() < 1e-7]
     if degenerate:

@@ -46,6 +46,14 @@ export function muzzleReach(turretType = {}) {
   return (turretType.length ?? 0) / 2 - (turretType.frontSlope ?? 0) * GUN_AXIS + (turretType.barrelLength ?? 0);
 }
 
+// Guns the model carries, to match the scenario's `guns`: turret guns plus
+// broadside batteries (a battery's count is per side).
+export function shipGunCount(spec) {
+  const turrets = (spec.turrets || []).reduce((sum, turret) => sum + turret.guns, 0);
+  const broadside = (spec.batteries || []).reduce((sum, battery) => sum + 2 * (battery.positions?.length ?? battery.count), 0);
+  return turrets + broadside;
+}
+
 // Facing and placement of every turret from its muzzle anchor ([x, y, z] in
 // glTF metres, bow -Z). Returns check records like inspectShipGlb's.
 export function turretChecks(spec, anchors) {
@@ -74,6 +82,7 @@ export async function inspectShipGlb(bytes, spec, specSha256 = null, kitSha256 =
   root.updateMatrixWorld(true);
 
   let triangles = 0, drawCalls = 0, vertexColors = true, deckVertices = 0, deckFacesUp = true;
+  const deckBox = new THREE.Box3();
   const materials = new Set();
   root.traverse(item => {
     if (!item.isMesh) return;
@@ -85,6 +94,7 @@ export async function inspectShipGlb(bytes, spec, specSha256 = null, kitSha256 =
     if (item.material.name === `${spec.id}-deck`) {
       const normals = geometry.attributes.normal;
       deckVertices += geometry.attributes.position.count;
+      deckBox.union(new THREE.Box3().setFromObject(item));
       if (!normals) deckFacesUp = false;
       else for (let i = 0; i < normals.count; i++) if (normals.getY(i) <= 0) deckFacesUp = false;
     }
@@ -109,7 +119,13 @@ export async function inspectShipGlb(bytes, spec, specSha256 = null, kitSha256 =
   check('triangle budget', !budget.maxTriangles || triangles <= budget.maxTriangles, `${triangles} / ${budget.maxTriangles}`);
   check('draw-call budget', !budget.maxDrawCalls || drawCalls <= budget.maxDrawCalls, `${drawCalls} / ${budget.maxDrawCalls}`);
   check('download budget', !budget.maxBytes || bytes.byteLength <= budget.maxBytes, `${bytes.byteLength} / ${budget.maxBytes} bytes`);
-  check('length matches spec (±1%)', Math.abs(box.max.z - box.min.z - L) <= L * 0.01, `${(box.max.z - box.min.z).toFixed(2)} m vs ${L} m`);
+  // The weather deck runs stem to stern; bowsprits, heads and rudders may reach past it.
+  const deckLength = deckBox.isEmpty() ? NaN : deckBox.max.z - deckBox.min.z;
+  check('hull length matches spec (weather deck, ±1%)', Math.abs(deckLength - L) <= L * 0.01, `${deckLength.toFixed(2)} m vs ${L} m`);
+  // Overall length, bowsprit to rudder: hull.overallLength when the ship has
+  // projections, else the hull length itself. Catches a stray spar or head.
+  const overall = box.max.z - box.min.z, expectedOverall = spec.hull.overallLength ?? L;
+  check('overall length matches spec (±1%)', Math.abs(overall - expectedOverall) <= expectedOverall * 0.01, `${overall.toFixed(2)} m vs ${expectedOverall} m`);
   check('keel at -draft (waterline at Y=0)', Math.abs(box.min.y + draft) <= 0.25, `min Y ${box.min.y.toFixed(2)} vs -${draft}`);
   check('weather deck faces up', deckVertices > 0 && deckFacesUp, `${deckVertices} deck vertices, ${deckFacesUp ? 'upward' : 'inward/missing'} normals`);
   check('baked vertex colours (COLOR_0)', vertexColors, vertexColors ? 'present' : 'missing: was the build run with --no-bake?');

@@ -75,6 +75,10 @@ named scenario ship or true fleet-relative length scaling. Sail hulls were
 already broadly plausible and are not blindly halved; paddle boxes, yards,
 flight decks and submarine planes legitimately project beyond the hull.
 
+Authored metre assets are scaled per era by `modelMetersToWorld(era)`: a 50 m
+frigate at Nevis fills the same `SHIP_LENGTH` a 210 m battlecruiser does at the
+Dogger Bank. This is one uniform factor per era, not a width hack.
+
 `dimensions.beam` is the rendered/effects beam. `modelScale.beam` adapts old
 hardcoded fittings to it; hull dimensions, fitted parts, funnel smoke anchors,
 waterline foam and wakes must stay coherent. Actor wrapper transforms remain

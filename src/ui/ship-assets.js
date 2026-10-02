@@ -2,18 +2,76 @@ import * as THREE from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { KTX2Loader } from 'three/addons/loaders/KTX2Loader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { MODEL_METERS_TO_WORLD } from './battle-presentation.js';
+import { modelMetersToWorld } from './battle-presentation.js';
 import { createActorModel, createSurfaceEffects, disposeActorModel } from './battle-models.js';
 
 // Authored hero models, built headlessly from ships/<id>/spec.json by
 // `npm run ship:build -- <id>` (docs/ship-pipeline.md). Keys are lower-case
 // public names; uncertain contacts never load these.
 export const SHIP_ASSET_REGISTRY = Object.freeze({
-  sail: Object.freeze({}),
+  sail: Object.freeze({
+    'uss constellation': Object.freeze({
+      url: 'assets/ships/sail/uss-constellation.glb',
+      era: 'sail',
+      specId: 'uss-constellation',
+      className: 'Humphreys heavy frigate (38)',
+      units: 'meters',
+      lengthMeters: 50,
+      beamMeters: 12.5,
+      length: 50,
+      width: 12.5,
+      waterlineY: 0,
+      rotationY: 0,
+      license: 'Original model generated from ships/uss-constellation/spec.json; see ships/uss-constellation/PROVENANCE.md',
+    }),
+    'uss baltimore': Object.freeze({
+      url: 'assets/ships/sail/uss-baltimore.glb',
+      era: 'sail',
+      specId: 'uss-baltimore',
+      className: 'American frigate (32)',
+      units: 'meters',
+      lengthMeters: 42,
+      beamMeters: 10.5,
+      length: 42,
+      width: 10.5,
+      waterlineY: 0,
+      rotationY: 0,
+      license: 'Original model generated from ships/uss-baltimore/spec.json; see ships/uss-baltimore/PROVENANCE.md',
+    }),
+    'l’insurgente': Object.freeze({
+      url: 'assets/ships/sail/linsurgente.glb',
+      era: 'sail',
+      specId: 'linsurgente',
+      className: 'French 12-pounder frigate (40)',
+      units: 'meters',
+      lengthMeters: 47.5,
+      beamMeters: 11.9,
+      length: 47.5,
+      width: 11.9,
+      waterlineY: 0,
+      rotationY: 0,
+      license: 'Original model generated from ships/linsurgente/spec.json; see ships/linsurgente/PROVENANCE.md',
+    }),
+    'volontaire': Object.freeze({
+      url: 'assets/ships/sail/volontaire.glb',
+      era: 'sail',
+      specId: 'volontaire',
+      className: 'French frigate (32)',
+      units: 'meters',
+      lengthMeters: 45,
+      beamMeters: 11.27,
+      length: 45,
+      width: 11.27,
+      waterlineY: 0,
+      rotationY: 0,
+      license: 'Original model generated from ships/volontaire/spec.json; see ships/volontaire/PROVENANCE.md',
+    }),
+  }),
   ironclad: Object.freeze({}),
   dreadnought: Object.freeze({
     'hms lion': Object.freeze({
       url: 'assets/ships/dreadnought/hms-lion.glb',
+      era: 'dreadnought',
       specId: 'hms-lion',
       className: 'Lion-class battlecruiser',
       units: 'meters',
@@ -27,6 +85,7 @@ export const SHIP_ASSET_REGISTRY = Object.freeze({
     }),
     'sms seydlitz': Object.freeze({
       url: 'assets/ships/dreadnought/sms-seydlitz.glb',
+      era: 'dreadnought',
       specId: 'sms-seydlitz',
       className: 'Seydlitz-class battlecruiser',
       units: 'meters',
@@ -85,11 +144,13 @@ function actorKeys(actor) {
   return [...new Set([publicName, className, type].filter(Boolean))];
 }
 
-export function normalizeShipAssetSpec(spec) {
+// `era` picks the metre-to-world factor for metre assets (modelMetersToWorld);
+// a normalized spec remembers it, so normalizing again is a no-op.
+export function normalizeShipAssetSpec(spec, era = spec?.era) {
   if (!spec) return null;
   assertLocalPath(spec.url, 'ship asset url');
   if (!['meters', 'presentation'].includes(spec.units)) throw new Error('ship asset units must be meters or presentation');
-  const scale = spec.units === 'meters' ? MODEL_METERS_TO_WORLD : (spec.scale === undefined ? 1 : spec.scale);
+  const scale = spec.units === 'meters' ? modelMetersToWorld(era) : (spec.scale === undefined ? 1 : spec.scale);
   if (!Number.isFinite(scale) || scale <= 0) throw new Error('ship asset scale must be positive and finite');
   if (spec.units === 'meters' && spec.scale !== undefined && spec.scale !== scale) {
     throw new Error('meter asset scale must use the shared conversion; omit scale');
@@ -97,6 +158,7 @@ export function normalizeShipAssetSpec(spec) {
   const size = spec.size || (Number.isFinite(spec.length) && Number.isFinite(spec.width) ? { length: spec.length * scale, width: spec.width * scale } : null);
   return Object.freeze({
     ...spec,
+    ...(era ? { era } : {}),
     scale,
     waterlineY: Number.isFinite(spec.waterlineY) ? spec.waterlineY : 0,
     rotationY: Number.isFinite(spec.rotationY) ? spec.rotationY : 0,
@@ -110,7 +172,7 @@ export function normalizeShipAssetSpec(spec) {
 
 export function shipAssetSpecFor(actor, era, registry = SHIP_ASSET_REGISTRY) {
   const eraRegistry = registry?.[era] || {};
-  for (const key of actorKeys(actor)) if (eraRegistry[key]) return normalizeShipAssetSpec(eraRegistry[key]);
+  for (const key of actorKeys(actor)) if (eraRegistry[key]) return normalizeShipAssetSpec(eraRegistry[key], era);
   return null;
 }
 
