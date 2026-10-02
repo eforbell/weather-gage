@@ -54,11 +54,12 @@ function gunfire(e, c, fx) {
       const at = muzzle.clone().addScaledVector(side, along);
       fx.later(k * (e.type === 'broadside' ? 0.05 : 0.03), () => { fx.flash(at, size); fx.gunSmoke(at, dir, size); });
     }
+    fx.later(0, () => fx.impulse(muzzle, e.type === 'broadside' ? 0.3 : heavy ? 0.35 : 0.12));
   }
   if (!T) return;
   const land = () => {
     if (e.hits) {
-      for (let k = 0; k < Math.min(e.hits, 3); k++) fx.later(k * 0.09, () => fx.fireball(up(around(T, L * 0.25), 0.6), heavy ? 1.1 : 0.7));
+      for (let k = 0; k < Math.min(e.hits, 3); k++) fx.later(k * 0.09, () => { fx.fireball(up(around(T, L * 0.25), 0.6), heavy ? 1.1 : 0.7); fx.impulse(T, heavy ? 0.45 : 0.25); });
       return;
     }
     const over = Math.random() < 0.5 ? 1 : -1;
@@ -75,6 +76,7 @@ function impact(e, c, fx) {
   const T = c.pos(e.to);
   if (!T) return;
   fx.later({ 'missile-hit': 1.5, 'torpedo-hit': 0.6, mine: 0.3 }[e.type], () => {
+    fx.impulse(T, 0.6);
     if (e.type === 'missile-hit') fx.fireball(up(T, 0.8), 1.4);
     else { fx.splash(T, L * 0.9, 1.6); fx.fireball(up(T, 0.3), 0.9); }
     fx.emitter(T, 12, 'fire');
@@ -109,6 +111,7 @@ const HANDLERS = {
     if (!T) return;
     for (let k = 0; k < 3; k++) fx.later(k * 0.08, () => fx.splash(around(T, L * 0.3), L * 0.25, 0.7));
     fx.fireball(up(T, 0.4), e.heavy ? 0.8 : 0.4);
+    fx.impulse(T, e.heavy ? 0.6 : 0.35);
   },
   fire(e, c, fx) { const T = c.pos(e.to); if (T) fx.later(1, () => fx.emitter(T, 16, 'fire')); },
   ping(e, c, fx) {
@@ -136,7 +139,7 @@ const HANDLERS = {
   sunk(e, c, fx) {
     const T = c.pos(e.to);
     if (!T) return;
-    fx.later(1.2, () => { fx.fireball(up(T, 0.5), 1.4); fx.ring(T, HEX * 0.6, 3, new THREE.Color(0.6, 0.65, 0.65)); fx.emitter(T, 25, 'pyre'); });
+    fx.later(1.2, () => { fx.impulse(T, 0.6); fx.fireball(up(T, 0.5), 1.4); fx.ring(T, HEX * 0.6, 3, new THREE.Color(0.6, 0.65, 0.65)); fx.emitter(T, 25, 'pyre'); });
     fx.later(1.36, () => fx.fireball(up(around(T, L * 0.3), 0.4), 1.1));
   },
   magazine(e, c, fx) {
@@ -145,6 +148,7 @@ const HANDLERS = {
     fx.later(1.2, () => {
       fx.flash(up(T, 2), 4);
       fx.boom();
+      fx.impulse(T, 1);
       for (let i = 0; i < 45; i++) fx.light({ x: T.x + rand(-1, 1), y: T.y + 0.5, z: T.z + rand(-1, 1), vx: rand(-2, 2), vy: rand(5, 16), vz: rand(-2, 2), drag: 1.1, lift: -3, life: rand(1, 2), size: [1.5, 4.5], color: [9, 4, 1.3], fade: 0.01 });
       for (let i = 0; i < 40; i++) fx.light({ x: T.x, y: T.y + 1, z: T.z, vx: rand(-6, 6), vy: rand(8, 18), vz: rand(-6, 6), lift: -12, drag: 0.1, life: rand(2, 3), size: [0.25, 0.15], color: [6, 2.5, 0.8], fade: 0.01 });
       for (let i = 0; i < 90; i++) fx.smoke({ x: T.x + rand(-1, 1), y: T.y + 1, z: T.z + rand(-1, 1), vx: rand(-3, 3), vy: rand(8, 20), vz: rand(-3, 3), drag: 0.8, lift: -0.4, wind: 0.6, life: rand(16, 24), size: [3, rand(10, 15)], color: [0.13, 0.12, 0.11], alpha: 0.85 });
@@ -158,7 +162,8 @@ const HANDLERS = {
 
 export const FX_HANDLED = Object.keys(HANDLERS);
 
-export function createEffects(scene) {
+// onImpulse(point, strength): a gun, hit or explosion the camera should feel.
+export function createEffects(scene, { onImpulse = null } = {}) {
   const puff = puffTexture(), glow = glowTexture();
   const smoke = createParticles(scene, { max: 5000, texture: puff, renderOrder: 2 });
   const light = createParticles(scene, { max: 1500, additive: true, texture: glow, renderOrder: 3 });
@@ -306,6 +311,7 @@ export function createEffects(scene) {
     smoke: smoke.emit, light: light.emit,
     run: (from, to, seconds) => runners.push({ p: from.clone(), to: to.clone(), start: now, seconds }),
     boom: () => { flashLight.intensity = 3000; },
+    impulse: (point, strength) => onImpulse?.(point, strength),
     get era() { return era; },
     get surfaceY() { return surfaceY; },
   };
