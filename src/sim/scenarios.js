@@ -118,6 +118,22 @@ export const SCENARIOS = [
       { label: 'HENDERSON FIELD', cells: [[22, 15], [23, 15]] },
     ],
   },
+  {
+    id: 'line',
+    title: 'The Line of Battle',
+    subtitle: 'Ships of the line in the Atlantic, 1794',
+    era: 'sail',
+    briefing:
+      'Three British seventy-fours have the weather gage of a French division of three. Each of them carries two full gun decks: seventy-four guns, more than a frigate’s whole broadside on one side. Bear down in line, break theirs if you can, and fight it out yardarm to yardarm.',
+    objective: 'Disable or force the French ships of the line to strike while keeping your own fighting. At the time limit, surviving fighting strength decides.',
+    maxTicks: 64,
+    year: 1794,
+    difficulty: 2,
+    teaches: 'The line of battle, concentrating on part of the enemy line, the weather gage',
+    hexScale: '1 hex ≈ 400 yards',
+    tickLabel: 'turn',
+    region: ' / NORTH ATLANTIC',
+  },
 ];
 
 // Scenarios still in the dockyard: the engine and the tests run them, the
@@ -201,6 +217,18 @@ export const SCENARIO_SETUPS = {
       raider(ww2Ship('r_kinugasa', 'red', 'Kinugasa', 'Heavy cruiser', 'cruiser', 25, 0, 2, { guns: 6, gunRange: 12, calibre: 'medium', torpedoes: 1, torpedo: 'type93', japanese: true })),
       ww2Ship('r_fubuki', 'red', 'Fubuki', 'Destroyer', 'destroyer', 22, 1, 2, { guns: 6, gunRange: 6, calibre: 'light', torpedoes: 2, torpedo: 'type93', japanese: true }),
       ww2Ship('r_hatsuyuki', 'red', 'Hatsuyuki', 'Destroyer', 'destroyer', 25, 1, 2, { guns: 6, gunRange: 6, calibre: 'light', torpedoes: 2, torpedo: 'type93', japanese: true }),
+    ],
+  },
+  line: {
+    wind: 3, // from the west: the British, to the west, have the weather gage
+    terrain: [],
+    ships: [
+      sailShip('b_bellerophon', 'blue', 'HMS Bellerophon', 'Ship of the line', 4, 4, 1, 74),
+      sailShip('b_marlborough', 'blue', 'HMS Marlborough', 'Ship of the line', 3, 6, 1, 74),
+      sailShip('b_russell', 'blue', 'HMS Russell', 'Ship of the line', 2, 8, 1, 74),
+      { ...sailShip('r_vengeur', 'red', 'Le Vengeur du Peuple', 'Ship of the line', 14, 3, 1, 74), crew: 95 }, // the Revolution's navy had lost much of its officer corps and trained gunners
+      { ...sailShip('r_achille', 'red', 'L’Achille', 'Ship of the line', 13, 5, 1, 74), crew: 95 },
+      { ...sailShip('r_northumberland', 'red', 'Le Northumberland', 'Ship of the line', 12, 7, 1, 74), crew: 95 },
     ],
   },
   defector: {

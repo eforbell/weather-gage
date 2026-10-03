@@ -443,7 +443,20 @@ FLAG_DESIGNS.update({"us-1795": (_us_1795, 13), "us-1861": (_us_1795, 13), "fr-1
 
 
 def flag(kit, spec, nu=12):
-    design, nv = FLAG_DESIGNS[spec["design"]]
+    """A flag from a named design, or from a `pattern` in the spec: rows of
+    colour keys, top to bottom, hoist to fly ({"rows": ["rrbb", ...], "colors": {"r": "#hex"}})."""
+    pattern = spec.get("pattern")
+    if pattern:
+        cells = pattern["rows"]
+        cols, rows_n = len(cells[0]), len(cells)
+        if any(len(row) != cols for row in cells):
+            raise ValueError("flag pattern rows must all be the same length")
+        # The mesh stays fine enough to ripple however coarse the pattern is;
+        # cell edges still fall on face edges.
+        nu, nv = cols * math.ceil(12 / cols), rows_n * math.ceil(8 / rows_n)
+        design = lambda u, v: pattern["colors"][cells[min(rows_n - 1, int(v * rows_n))][min(cols - 1, int(u * cols))]]
+    else:
+        design, nv = FLAG_DESIGNS[spec["design"]]
     width, height = spec["size"]
     hoist = point(kit, [spec["hoist"][0], 0.0, spec["hoist"][1]])
     stream = math.radians(spec.get("stream", 60.0))  # from dead aft toward port

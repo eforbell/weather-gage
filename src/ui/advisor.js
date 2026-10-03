@@ -8,8 +8,8 @@ const PRIMERS = {
   sail: [
     ['The weather gage', 'The squadron upwind chooses when and how close to fight. A ship downwind must tack slowly to close, and cannot easily escape an attack.'],
     ['Broadsides, not bows', 'Guns fire to port and starboard. A ship pointing at you can barely reply; turn to show your side before you arrive.'],
-    ['Concentrate', 'Two frigates on one enemy end the fight before his consort can help. Form line keeps your ships together.'],
-    ['Know when to go', 'A frigate that strikes her colours is a prize for the enemy. Withdraw a mauled ship early; she still counts at the end.'],
+    ['Concentrate', 'Two ships on one enemy end the fight before her consorts can help. Form line keeps your ships together.'],
+    ['Know when to go', 'A ship that strikes her colours is a prize for the enemy. Withdraw a mauled ship early; she still counts at the end.'],
   ],
   ironclad: [
     ['Iron against wood', 'Virginia’s armour turns their broadsides aside, and her shells set wooden ships afire. Close in without fear of their guns, but not of their numbers.'],
@@ -72,8 +72,8 @@ export function advise(view, sc) {
 
   if (sc.era === 'sail') {
     const hurt = own.find(s => s.hull < 45 && s.order.type !== 'withdraw');
-    if (hurt) return `${hurt.name} is badly mauled. Withdraw her before she strikes — a damaged frigate that escapes still counts.`;
-    if (own.length > 1 && distance(own[0], own[1]) > 4) return 'Your frigates are fighting apart. Form line so both broadsides fall on the same target.';
+    if (hurt) return `${hurt.name} is badly mauled. Withdraw her before she strikes — a damaged ship that escapes still counts.`;
+    if (own.length > 1 && distance(own[0], own[1]) > 4) return 'Your ships are fighting apart. Form line so your broadsides fall on the same target.';
     if (turn(bearing, view.wind) <= 1) return 'The enemy lies upwind and holds the weather gage. Let him come down to you in line, broadsides ready, rather than beating up against the wind.';
     if (turn(bearing, (view.wind + 3) % 6) <= 1) return 'You hold the weather gage: you decide when to close. Bear down together and open fire at close range.';
     return 'Neither side holds the weather gage yet. The first to get upwind of the other chooses the terms of the fight.';
@@ -183,7 +183,7 @@ export function lesson(view, sc, stats) {
     return 'Neither through nor beaten off. Close sooner: radar-directed fire needs the enemy inside about twelve miles.';
   }
   if (sc.era === 'sail') {
-    if (stats.hits < stats.taken) return 'The enemy delivered more broadsides than you. Concentrate both frigates on one opponent, and use the wind to choose the moment you close.';
+    if (stats.hits < stats.taken) return 'The enemy delivered more broadsides than you. Concentrate your ships on one opponent, and use the wind to choose the moment you close.';
     return result === 'victory' ? 'Well handled. Position before exchange won the day.' : 'The exchange was even. Holding the weather gage and forming line would let you choose the fight.';
   }
   return result === 'victory' ? 'The missile exchange went your way. Emission control and salvo timing decided it.' : 'Review when radar was on: the side that is seen first usually loses the missile exchange.';
