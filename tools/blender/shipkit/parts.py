@@ -202,7 +202,10 @@ def turrets(kit):
         put(house, "upper")
         gun_z = house0 + H * GUN_AXIS
         face_y = L / 2 - t["frontSlope"] * GUN_AXIS
-        for side in (-1, 1):
+        guns = turret.get("guns", 2)
+        if guns not in (1, 2):
+            raise ValueError(f"Turret {turret['id']} requires one or two guns, got {guns}")
+        for side in ((0,) if guns == 1 else (-1, 1)):
             x = side * t["gunSpacing"] / 2
             put(rod((x, face_y - 1.5, gun_z), (x, face_y + t["barrelLength"], gun_z), t["barrelRadius"], t["muzzleRadius"], 12), "dark")
             put(rod((x, face_y - 0.4, gun_z), (x, face_y + 0.9, gun_z), 0.72, 0.6, 12), "canvas")

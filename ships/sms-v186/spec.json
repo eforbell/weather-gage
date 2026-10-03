@@ -1,0 +1,387 @@
+{
+  "schema": "weather-gage/ship-spec@1",
+  "id": "sms-v186",
+  "name": "SMS V186",
+  "className": "S-138-class large torpedo boat",
+  "era": "dreadnought",
+  "registryKeys": [
+    "sms v186"
+  ],
+  "configuration": "January 1915 German screen: older S-138-class large torpedo boat with two funnels and three light gun positions for the scenario abstraction.",
+  "units": "meters",
+  "conventions": "aft = metres aft of the stem at deck level; side = metres to starboard (+) or port (-) of the centreline; heights = metres above the design waterline. The builder converts to Blender and the glTF exporter emits the game contract: bow -Z, up +Y, waterline at Y=0.",
+  "budget": {
+    "tier": "fleet-blockout",
+    "maxTriangles": 40000,
+    "maxDrawCalls": 12,
+    "maxBytes": 2000000
+  },
+  "hull": {
+    "length": 73.9,
+    "beam": 7.9,
+    "draft": 3.1,
+    "camber": 0.12,
+    "bootTopping": [
+      -0.25,
+      0.38
+    ],
+    "stationSpacing": 0.8,
+    "lines": [
+      {
+        "aft": 0,
+        "halfDeck": 0,
+        "halfWater": 0,
+        "deck": 4.4,
+        "keel": 0.15,
+        "fullness": 1.2
+      },
+      {
+        "aft": 2.59,
+        "halfDeck": 0.71,
+        "halfWater": 0.32,
+        "deck": 4.3,
+        "keel": -1.08,
+        "fullness": 1.4
+      },
+      {
+        "aft": 5.91,
+        "halfDeck": 1.5,
+        "halfWater": 0.95,
+        "deck": 4.12,
+        "keel": -2.33,
+        "fullness": 1.6
+      },
+      {
+        "aft": 11.82,
+        "halfDeck": 2.69,
+        "halfWater": 2.29,
+        "deck": 3.9,
+        "keel": -3.1,
+        "fullness": 2.2
+      },
+      {
+        "aft": 19.95,
+        "halfDeck": 3.48,
+        "halfWater": 3.24,
+        "deck": 3.75,
+        "keel": -3.1,
+        "fullness": 3.2
+      },
+      {
+        "aft": 21.43,
+        "halfDeck": 3.56,
+        "halfWater": 3.4,
+        "deck": 3.4,
+        "keel": -3.1,
+        "fullness": 3.4
+      },
+      {
+        "aft": 31.04,
+        "halfDeck": 3.83,
+        "halfWater": 3.87,
+        "deck": 3.4,
+        "keel": -3.1,
+        "fullness": 4.6
+      },
+      {
+        "aft": 48.77,
+        "halfDeck": 3.75,
+        "halfWater": 3.87,
+        "deck": 3.4,
+        "keel": -3.1,
+        "fullness": 4.5
+      },
+      {
+        "aft": 59.12,
+        "halfDeck": 3.24,
+        "halfWater": 3.08,
+        "deck": 3.4,
+        "keel": -2.85,
+        "fullness": 3.2
+      },
+      {
+        "aft": 67.25,
+        "halfDeck": 2.17,
+        "halfWater": 1.66,
+        "deck": 3.45,
+        "keel": -2.02,
+        "fullness": 2
+      },
+      {
+        "aft": 72.42,
+        "halfDeck": 0.87,
+        "halfWater": 0.2,
+        "deck": 3.5,
+        "keel": -0.46,
+        "fullness": 1.4
+      },
+      {
+        "aft": 73.9,
+        "halfDeck": 0,
+        "halfWater": 0,
+        "deck": 3.5,
+        "keel": 0.7,
+        "fullness": 1.2
+      }
+    ]
+  },
+  "superstructures": [
+    {
+      "id": "bridge",
+      "base": "deck",
+      "top": 7.7,
+      "plan": [
+        [
+          24,
+          1.55
+        ],
+        [
+          32,
+          1.8
+        ]
+      ]
+    },
+    {
+      "id": "aft-deckhouse",
+      "base": "deck",
+      "top": 5.5,
+      "plan": [
+        [
+          42.862,
+          1.2
+        ],
+        [
+          53.208000000000006,
+          1.3
+        ]
+      ]
+    }
+  ],
+  "conningTowers": [
+    {
+      "id": "wheelhouse",
+      "aft": 28,
+      "base": "deck",
+      "top": 8.9,
+      "length": 2.6,
+      "width": 3
+    }
+  ],
+  "turrets": [
+    {
+      "id": "A",
+      "aft": 10.5,
+      "base": "deck",
+      "barbette": 0.35,
+      "facing": "fore",
+      "guns": 1
+    },
+    {
+      "id": "X",
+      "aft": 66.8,
+      "base": "deck",
+      "barbette": 0.35,
+      "facing": "aft",
+      "guns": 2
+    }
+  ],
+  "turretType": {
+    "barbetteRadius": 1.0,
+    "length": 2.4,
+    "width": 1.9,
+    "height": 0.9,
+    "frontSlope": 0.2,
+    "gunSpacing": 0.55,
+    "barrelLength": 3.0,
+    "barrelRadius": 0.12,
+    "muzzleRadius": 0.09
+  },
+  "funnels": [
+    {
+      "id": "1",
+      "aft": 28,
+      "base": "deck",
+      "top": 12.2,
+      "length": 2.8,
+      "width": 2.1
+    },
+    {
+      "id": "2",
+      "aft": 43,
+      "base": "deck",
+      "top": 12.2,
+      "length": 3.5,
+      "width": 2.1
+    }
+  ],
+  "masts": [
+    {
+      "id": "fore",
+      "type": "pole",
+      "aft": 33,
+      "base": "deck",
+      "top": 21,
+      "radius": 0.18,
+      "topmastFrom": 14,
+      "yards": [
+        {
+          "height": 12.5,
+          "span": 5.5
+        }
+      ]
+    },
+    {
+      "id": "main",
+      "type": "pole",
+      "aft": 51.730000000000004,
+      "base": "deck",
+      "top": 16,
+      "radius": 0.14,
+      "topmastFrom": 12,
+      "yards": [
+        {
+          "height": 10,
+          "span": 4.5
+        }
+      ]
+    }
+  ],
+  "searchlightTowers": [
+    {
+      "id": "aft-sl",
+      "aft": 39.906000000000006,
+      "base": "deck",
+      "top": 6.4,
+      "radius": 0.55
+    }
+  ],
+  "hawsePipes": [
+    {
+      "aft": 2.8,
+      "height": 3.1
+    }
+  ],
+  "boats": [
+    {
+      "aft": 36.95,
+      "side": 2.1330000000000005,
+      "base": "deck",
+      "length": 4.6,
+      "beam": 1.2
+    },
+    {
+      "aft": 36.95,
+      "side": -2.1330000000000005,
+      "base": "deck",
+      "length": 4.6,
+      "beam": 1.2
+    }
+  ],
+  "paint": {
+    "hull": "#6c7577",
+    "upper": "#858d8f",
+    "deck": "#81725c",
+    "boot": "#191b1d",
+    "bottom": "#432d28",
+    "dark": "#202427",
+    "canvas": "#afa793"
+  },
+  "references": [],
+  "guns": 3,
+  "rig": {
+    "masts": [],
+    "stays": [],
+    "spars": [
+      {
+        "from": [
+          20.0,
+          -1.05,
+          4.65
+        ],
+        "to": [
+          23.0,
+          -1.05,
+          4.65
+        ],
+        "radius": 0.18,
+        "endRadius": 0.16,
+        "material": "dark"
+      },
+      {
+        "from": [
+          20.0,
+          1.05,
+          4.65
+        ],
+        "to": [
+          23.0,
+          1.05,
+          4.65
+        ],
+        "radius": 0.18,
+        "endRadius": 0.16,
+        "material": "dark"
+      },
+      {
+        "from": [
+          46.0,
+          -0.75,
+          4.55
+        ],
+        "to": [
+          49.0,
+          -0.75,
+          4.55
+        ],
+        "radius": 0.18,
+        "endRadius": 0.16,
+        "material": "dark"
+      },
+      {
+        "from": [
+          46.0,
+          0.75,
+          4.55
+        ],
+        "to": [
+          49.0,
+          0.75,
+          4.55
+        ],
+        "radius": 0.18,
+        "endRadius": 0.16,
+        "material": "dark"
+      },
+      {
+        "from": [
+          58.0,
+          -0.75,
+          4.45
+        ],
+        "to": [
+          61.0,
+          -0.75,
+          4.45
+        ],
+        "radius": 0.18,
+        "endRadius": 0.16,
+        "material": "dark"
+      },
+      {
+        "from": [
+          58.0,
+          0.75,
+          4.45
+        ],
+        "to": [
+          61.0,
+          0.75,
+          4.45
+        ],
+        "radius": 0.18,
+        "endRadius": 0.16,
+        "material": "dark"
+      }
+    ]
+  }
+}
