@@ -189,25 +189,35 @@ def turrets(kit):
             bmesh.ops.transform(bm, matrix=place, verts=bm.verts)
             kit.merge(bm, material)
 
-        put(cylinder(t["barbetteRadius"], deck, house0 + 0.1, 28), "upper")
-        outline = [(W / 2 - 0.5, L / 2), (-W / 2 + 0.5, L / 2), (-W / 2, L / 2 - 1.2), (-W / 2, -L / 2 + 1.5), (-W / 2 + 1.5, -L / 2),
-                   (W / 2 - 1.5, -L / 2), (W / 2, -L / 2 + 1.5), (W / 2, L / 2 - 1.2)]
-        house = prism(outline, house0, house1, bevel=0.0)
-        for v in house.verts:  # sloped front plate
-            if v.co.z > house1 - 1e-4 and v.co.y > L / 2 - 1.3:
-                v.co.y -= t["frontSlope"]
-        _bevel(house, 0.14)
-        for f in house.faces:
-            f.smooth = False
-        put(house, "upper")
+        round_house = t.get("shape") == "cylinder"  # a Monitor-style revolving turret, no barbette
+        if not round_house:
+            put(cylinder(t["barbetteRadius"], deck, house0 + 0.1, 28), "upper")
+            outline = [(W / 2 - 0.5, L / 2), (-W / 2 + 0.5, L / 2), (-W / 2, L / 2 - 1.2), (-W / 2, -L / 2 + 1.5), (-W / 2 + 1.5, -L / 2),
+                       (W / 2 - 1.5, -L / 2), (W / 2, -L / 2 + 1.5), (W / 2, L / 2 - 1.2)]
+            house = prism(outline, house0, house1, bevel=0.0)
+            for v in house.verts:  # sloped front plate
+                if v.co.z > house1 - 1e-4 and v.co.y > L / 2 - 1.3:
+                    v.co.y -= t["frontSlope"]
+            _bevel(house, 0.14)
+            for f in house.faces:
+                f.smooth = False
+            put(house, "upper")
+        else:
+            put(cylinder(L / 2, house0, house1, 40), "upper")
+            put(cylinder(L / 2 - 0.3, house1 - 0.02, house1 + 0.1, 40), "dark")  # roof grating
         gun_z = house0 + H * GUN_AXIS
         face_y = L / 2 - t["frontSlope"] * GUN_AXIS
         for side in (-1, 1):
             x = side * t["gunSpacing"] / 2
             put(rod((x, face_y - 1.5, gun_z), (x, face_y + t["barrelLength"], gun_z), t["barrelRadius"], t["muzzleRadius"], 12), "dark")
+            if round_house:
+                wall = math.sqrt(max(0.0, (L / 2) ** 2 - x ** 2))
+                put(box((x, wall - 0.08, gun_z), (t["barrelRadius"] * 3.2, 0.3, t["barrelRadius"] * 3.2), 0.03), "dark")  # gunport
+                continue
             put(rod((x, face_y - 0.4, gun_z), (x, face_y + 0.9, gun_z), 0.72, 0.6, 12), "canvas")
             put(box((side * (W / 2 - 1.5), L / 2 - t["frontSlope"] - 0.9, house1 + 0.2), (1.1, 1.3, 0.6)), "upper")
-        put(rod((-W / 2 - 0.5, -L / 2 + 1.9, house1 + 0.05), (W / 2 + 0.5, -L / 2 + 1.9, house1 + 0.05), 0.5, None, 12), "upper")
+        if not round_house:
+            put(rod((-W / 2 - 0.5, -L / 2 + 1.9, house1 + 0.05), (W / 2 + 0.5, -L / 2 + 1.9, house1 + 0.05), 0.5, None, 12), "upper")
         muzzle = place @ Vector((0, face_y + t["barrelLength"], gun_z))
         kit.anchor(f"anchor_turret_{turret['id']}", muzzle)
 
@@ -227,7 +237,7 @@ def funnels(kit):
                        (-cw + chamfer, -cl), (cw - chamfer, -cl), (cw, -cl + chamfer), (cw, cl - chamfer)]
             kit.merge(translate(prism(outline, z0, casing["top"], bevel=0.15), (0, y, 0)), "upper")
             z0 = casing["top"] - 0.05
-        kit.merge(translate(cylinder(1.0, z0, top - 0.9, 28, scale_xy=(rx, ry), cap=False), (0, y, 0)), "upper")
+        kit.merge(translate(cylinder(1.0, z0, top - 0.9, 28, scale_xy=(rx, ry), cap=False), (0, y, 0)), funnel.get("material", "upper"))
         kit.merge(translate(cylinder(1.0, top - 0.9, top, 28, scale_xy=(rx + 0.08, ry + 0.08), cap=False), (0, y, 0)), "dark")
         kit.merge(translate(cylinder(1.0, top - 1.6, top - 1.4, 28, scale_xy=(rx - 0.05, ry - 0.05)), (0, y, 0)), "dark")
         for side in (-1, 1):
@@ -305,7 +315,7 @@ def secondary_guns(kit):
 
 
 def build_fittings(kit):
-    from . import sail  # sail-era fittings; each returns nothing when its key is absent
+    from . import sail, steam  # era fittings; each returns nothing when its key is absent
     superstructures(kit)
     conning_towers(kit)
     turrets(kit)
@@ -316,3 +326,4 @@ def build_fittings(kit):
     boats(kit)
     secondary_guns(kit)
     sail.build(kit)
+    steam.build(kit)

@@ -1,0 +1,108 @@
+{
+  "schema": "weather-gage/ship-spec@1",
+  "units": "meters",
+  "conventions": "aft = metres aft of the stem at deck level; side = metres to starboard (+) or port (-) of the centreline; heights = metres above the design waterline. The builder converts to Blender (bow +Y, starboard +X, up +Z), which the glTF exporter turns into the game's contract (bow -Z, up +Y, waterline at Y=0).",
+  "budget": {"tier": "hero-blockout", "maxTriangles": 40000, "maxDrawCalls": 8, "maxBytes": 2000000},
+  "id": "css-patrick-henry",
+  "name": "CSS Patrick Henry",
+  "className": "Side-wheel gunboat (ex-Yorktown)",
+  "era": "ironclad",
+  "registryKeys": ["css patrick henry"],
+  "guns": 12,
+  "configuration": "March 1862 (Hampton Roads): a converted coastal passenger steamer, side wheels under white paddle boxes, a walking-beam engine, one tall funnel, brigantine rig with sails furled, two pivot guns and ten broadside guns on deck (12).",
+  "hull": {
+    "length": 76.0,
+    "overallLength": 84.45,
+    "beam": 10.4,
+    "draft": 4.0,
+    "camber": 0.18,
+    "bootTopping": [-0.25, 0.25],
+    "stationSpacing": 1.0,
+    "lines": [
+      {"aft": 0.0, "halfDeck": 0.0, "halfWater": 0.0, "deck": 3.6, "keel": 0.8, "fullness": 1.5},
+      {"aft": 1.2, "halfDeck": 1.4, "halfWater": 0.5, "deck": 3.55, "keel": -2.0, "fullness": 1.4},
+      {"aft": 5.0, "halfDeck": 3.4, "halfWater": 2.4, "deck": 3.4, "keel": -3.6, "fullness": 1.6},
+      {"aft": 14.0, "halfDeck": 4.9, "halfWater": 4.6, "deck": 3.15, "keel": -4.0, "fullness": 2.0},
+      {"aft": 26.0, "halfDeck": 5.15, "halfWater": 5.2, "deck": 3.0, "keel": -4.0, "fullness": 2.4},
+      {"aft": 52.0, "halfDeck": 5.15, "halfWater": 5.2, "deck": 3.0, "keel": -4.0, "fullness": 2.4},
+      {"aft": 62.0, "halfDeck": 4.9, "halfWater": 4.5, "deck": 3.0, "keel": -4.0, "fullness": 2.0},
+      {"aft": 70.0, "halfDeck": 4.0, "halfWater": 2.6, "deck": 3.1, "keel": -3.6, "fullness": 1.5},
+      {"aft": 74.5, "halfDeck": 2.9, "halfWater": 0.8, "deck": 3.2, "keel": -1.0, "fullness": 1.2},
+      {"aft": 76.0, "halfDeck": 2.3, "halfWater": 0.3, "deck": 3.25, "keel": 1.0, "fullness": 1.1}
+    ]
+  },
+  "surface": {"hull": {"metalness": 0.0, "roughness": 0.6}, "upper": {"metalness": 0.0, "roughness": 0.65}, "dark": {"metalness": 0.05, "roughness": 0.6}},
+  "curves": {"rail": [[0, 4.8], [10, 4.2], [38, 4.0], [66, 4.15], [76, 4.4]]},
+  "strakes": [{"id": "sheer-stripe", "line": "rail", "from": -1.75, "to": -1.5, "fromAft": 1.0, "toAft": 75.9, "material": "upper", "out": 0.05}],
+  "bulwarks": {"rail": "rail", "fromAft": 0.6, "toAft": 76.0, "thickness": 0.25, "outer": "hull", "inner": "upper", "cap": "dark"},
+  "superstructures": [
+    {"id": "saloon", "base": "deck", "top": 5.2, "plan": [[45.0, 2.4], [46.0, 3.0], [63.0, 3.0], [64.0, 2.4]]},
+    {"id": "pilothouse", "base": "deck", "top": 5.6, "plan": [[11.0, 1.3], [13.6, 1.3]]}
+  ],
+  "paddleBoxes": {"aft": 38.0, "radius": 4.6, "axle": 2.6, "width": 2.4, "material": "upper", "guard": 7.0},
+  "walkingBeam": {"aft": 40.0, "top": 10.5, "length": 8.0},
+  "funnels": [{"id": "1", "aft": 32.5, "base": "deck", "top": 13.5, "length": 1.8, "width": 1.8, "material": "dark"}],
+  "deckGuns": [
+    {"aft": 7.5, "side": 0, "train": 0, "length": 3.2, "radius": 0.24},
+    {"aft": 69.0, "side": 0, "train": 180, "length": 3.0, "radius": 0.22},
+    {"aft": 19.0, "side": -3.7, "train": -90, "length": 2.4, "radius": 0.17},
+    {"aft": 19.0, "side": 3.7, "train": 90, "length": 2.4, "radius": 0.17},
+    {"aft": 25.0, "side": -3.7, "train": -90, "length": 2.4, "radius": 0.17},
+    {"aft": 25.0, "side": 3.7, "train": 90, "length": 2.4, "radius": 0.17},
+    {"aft": 49.0, "side": -3.7, "train": -90, "length": 2.4, "radius": 0.17},
+    {"aft": 49.0, "side": 3.7, "train": 90, "length": 2.4, "radius": 0.17},
+    {"aft": 55.0, "side": -3.7, "train": -90, "length": 2.4, "radius": 0.17},
+    {"aft": 55.0, "side": 3.7, "train": 90, "length": 2.4, "radius": 0.17},
+    {"aft": 61.0, "side": -3.7, "train": -90, "length": 2.4, "radius": 0.17},
+    {"aft": 61.0, "side": 3.7, "train": 90, "length": 2.4, "radius": 0.17}
+  ],
+  "stern": {"windows": [{"z": 2.5, "count": 4, "span": 3.0, "size": [0.45, 0.6]}], "rudder": {"top": 2.0, "chord": 1.4}},
+  "rig": {
+    "brace": 0,
+    "rigging": 0.07,
+    "masts": [
+      {
+        "id": "fore",
+        "aft": 16.0,
+        "rake": 4.0,
+        "sections": [{"head": 19.0, "radius": 0.36}, {"from": 17.4, "head": 28.0, "radius": 0.2}],
+        "top": {"z": 17.6, "size": [2.2, 3.4]},
+        "shrouds": {"count": 3, "aft": [-0.6, 1.6], "z": 3.6, "out": 0.6, "backstays": 1},
+        "crosstrees": [{"z": 26.5, "span": 2.6}],
+        "yards": [{"z": 16.2, "span": 15.0, "furled": true}, {"z": 23.5, "span": 11.0, "furled": true}]
+      },
+      {
+        "id": "main",
+        "aft": 56.0,
+        "rake": 5.0,
+        "sections": [{"head": 19.5, "radius": 0.34}, {"from": 18.0, "head": 27.0, "radius": 0.18}],
+        "top": {"z": 18.2, "size": [2.0, 3.0]},
+        "shrouds": {"count": 3, "aft": [-0.6, 1.6], "z": 3.6, "out": 0.6, "backstays": 1},
+        "crosstrees": [{"z": 25.6, "span": 2.4}],
+        "yards": []
+      }
+    ],
+    "spars": [
+      {"id": "bowsprit", "from": [2.0, 0, 3.9], "to": [-7.0, 0, 6.8], "radius": 0.3, "endRadius": 0.18},
+      {"id": "gaff", "from": [57.1, 0, 17.0], "to": [64.0, 0, 19.0], "radius": 0.15, "endRadius": 0.1, "material": "dark"},
+      {"id": "boom", "from": [57.1, 0, 5.6], "to": [71.0, 0, 6.0], "radius": 0.18, "endRadius": 0.12, "material": "dark"},
+      {"id": "ensign-staff", "from": [75.6, 0, 3.6], "to": [76.4, 0, 9.0], "radius": 0.09, "endRadius": 0.06}
+    ],
+    "stays": [[[16.2, 0, 18.4], [-5.5, 0, 6.4]], [[16.6, 0, 27.0], [-6.8, 0, 6.8]], [[56.2, 0, 19.0], [16.5, 0, 17.8]], [[56.6, 0, 26.5], [16.8, 0, 26.6]]],
+    "foreAftSails": [],
+    "flags": [
+      {"id": "ensign", "design": "csa-1861", "hoist": [76.4, 8.9], "size": [3.4, 2.2], "stream": 100, "wave": 0.08},
+      {"id": "jack", "design": "csa-1861", "hoist": [56.8, 26.9], "size": [2.0, 1.3], "stream": 100, "wave": 0.08}
+    ]
+  },
+  "paint": {
+    "hull": "#202020",
+    "upper": "#d6d0c0",
+    "deck": "#9c8a6c",
+    "boot": "#cfc9b9",
+    "bottom": "#7a3f2c",
+    "dark": "#141414",
+    "canvas": "#e3dcc9",
+    "spar": "#a6865c"
+  }
+}

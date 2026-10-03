@@ -1,0 +1,69 @@
+{
+  "schema": "weather-gage/ship-spec@1",
+  "units": "meters",
+  "conventions": "aft = metres aft of the stem at deck level; side = metres to starboard (+) or port (-) of the centreline; heights = metres above the design waterline. The builder converts to Blender (bow +Y, starboard +X, up +Z), which the glTF exporter turns into the game's contract (bow -Z, up +Y, waterline at Y=0).",
+  "budget": {"tier": "hero-blockout", "maxTriangles": 40000, "maxDrawCalls": 8, "maxBytes": 2000000},
+  "id": "css-virginia",
+  "name": "CSS Virginia",
+  "className": "Casemate ironclad (ex-Merrimack)",
+  "era": "ironclad",
+  "registryKeys": ["css virginia"],
+  "guns": 10,
+  "configuration": "8 March 1862 (Hampton Roads): the burned-out Merrimack cut down to her berth deck, the ends awash, a 54 m sloped iron casemate with four gunports a side and a pivot port at each end (10 guns), one funnel, the conical pilothouse forward and the ram.",
+  "hull": {
+    "length": 83.8,
+    "overallLength": 86.96,
+    "beam": 15.6,
+    "draft": 6.7,
+    "camber": 0.12,
+    "bootTopping": [-0.3, 0.25],
+    "stationSpacing": 1.0,
+    "lines": [
+      {"aft": 0.0, "halfDeck": 0.0, "halfWater": 0.0, "deck": 0.6, "keel": 0.0, "fullness": 1.6},
+      {"aft": 1.0, "halfDeck": 1.6, "halfWater": 1.2, "deck": 0.55, "keel": -3.0, "fullness": 1.6},
+      {"aft": 4.0, "halfDeck": 4.2, "halfWater": 3.6, "deck": 0.5, "keel": -5.8, "fullness": 1.9},
+      {"aft": 10.0, "halfDeck": 6.6, "halfWater": 6.3, "deck": 0.45, "keel": -6.6, "fullness": 2.2},
+      {"aft": 20.0, "halfDeck": 7.7, "halfWater": 7.8, "deck": 0.45, "keel": -6.7, "fullness": 2.5},
+      {"aft": 55.0, "halfDeck": 7.7, "halfWater": 7.8, "deck": 0.45, "keel": -6.7, "fullness": 2.5},
+      {"aft": 66.0, "halfDeck": 7.3, "halfWater": 7.2, "deck": 0.45, "keel": -6.7, "fullness": 2.2},
+      {"aft": 74.0, "halfDeck": 6.0, "halfWater": 5.0, "deck": 0.47, "keel": -6.7, "fullness": 1.6},
+      {"aft": 80.0, "halfDeck": 4.6, "halfWater": 2.4, "deck": 0.5, "keel": -6.0, "fullness": 1.2},
+      {"aft": 83.0, "halfDeck": 3.6, "halfWater": 0.6, "deck": 0.55, "keel": -1.0, "fullness": 1.1},
+      {"aft": 83.8, "halfDeck": 3.2, "halfWater": 0.3, "deck": 0.55, "keel": 0.2, "fullness": 1.1}
+    ]
+  },
+  "surface": {"hull": {"metalness": 0.3, "roughness": 0.55}, "upper": {"metalness": 0.35, "roughness": 0.5}, "deck": {"metalness": 0.1, "roughness": 0.8}},
+  "casemate": {
+    "fromAft": 15.0,
+    "toAft": 69.0,
+    "base": -0.5,
+    "top": 3.2,
+    "halfWidth": 7.9,
+    "roofHalfWidth": 3.0,
+    "endLength": 6.0,
+    "material": "upper",
+    "roof": "dark",
+    "ports": {"side": [27.0, 35.5, 47.5, 56.0], "bow": 1, "stern": 1, "z": 1.4, "size": [0.95, 0.85], "gun": {"length": 1.1, "radius": 0.24}}
+  },
+  "conningTowers": [{"id": "pilothouse", "aft": 24.0, "base": 3.2, "top": 4.4, "length": 2.6, "width": 2.6}],
+  "funnels": [{"id": "1", "aft": 43.0, "base": 3.2, "top": 9.5, "length": 2.0, "width": 2.0}],
+  "head": {"profile": [[0.6, -0.3], [-1.6, -0.9], [0.6, -1.7]], "thickness": 0.6, "material": "dark"},
+  "stern": {"rudder": {"top": 0.3, "chord": 1.6}},
+  "rig": {
+    "spars": [
+      {"id": "ensign-staff", "from": [66.5, 0, 3.1], "to": [66.5, 0, 10.0], "radius": 0.11, "endRadius": 0.07},
+      {"id": "jack-staff", "from": [17.5, 0, 3.1], "to": [17.5, 0, 6.5], "radius": 0.08, "endRadius": 0.05}
+    ],
+    "flags": [{"id": "ensign", "design": "csa-1861", "hoist": [66.5, 9.9], "size": [3.6, 2.4], "stream": 100, "wave": 0.08}]
+  },
+  "paint": {
+    "hull": "#2a2a2a",
+    "upper": "#5a5f63",
+    "deck": "#5c574e",
+    "boot": "#1d1d1d",
+    "bottom": "#5a3a2c",
+    "dark": "#151515",
+    "canvas": "#d9d2bf",
+    "spar": "#a6865c"
+  }
+}
