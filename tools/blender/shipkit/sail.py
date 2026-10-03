@@ -443,7 +443,15 @@ FLAG_DESIGNS.update({"us-1795": (_us_1795, 13), "us-1861": (_us_1795, 13), "fr-1
 
 
 def flag(kit, spec, nu=12):
-    design, nv = FLAG_DESIGNS[spec["design"]]
+    """A flag from a named design, or from a `pattern` in the spec: rows of
+    colour keys, top to bottom, hoist to fly ({"rows": ["rrbb", ...], "colors": {"r": "#hex"}})."""
+    pattern = spec.get("pattern")
+    if pattern:
+        cells = pattern["rows"]
+        nu, nv = len(cells[0]), len(cells)
+        design = lambda u, v: pattern["colors"][cells[min(nv - 1, int(v * nv))][min(nu - 1, int(u * nu))]]
+    else:
+        design, nv = FLAG_DESIGNS[spec["design"]]
     width, height = spec["size"]
     hoist = point(kit, [spec["hoist"][0], 0.0, spec["hoist"][1]])
     stream = math.radians(spec.get("stream", 60.0))  # from dead aft toward port
