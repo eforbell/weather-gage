@@ -826,6 +826,7 @@ function scanContacts(state, side, observers, previous, scope) {
       } else if (best.uncertainty !== undefined) trackMotion(state, scope, enemy, contact, best, prior.get(enemy.id));
       if (best.submerged !== undefined) contact.submerged = best.submerged; // sonar can tell a hull under water from one on it
       if (CONF_RANK[contact.confidence] >= 3) { contact.name = enemy.name; if (sidesOf(state).length > 2) contact.side = enemy.side; }
+      if (CONF_RANK[contact.confidence] >= 3 && enemy.speed === 0) contact.anchored = true; // a ship at anchor is plain to see once identified
       if (CONF_RANK[contact.confidence] >= 2) contact.className = contact.uncertainty && enemy.passiveClass ? enemy.passiveClass : enemy.className;
       contacts.push(contact);
     } else {
@@ -989,6 +990,7 @@ function publicContact(c) {
   if (c.name) out.name = c.name;
   if (c.className) out.className = c.className;
   if (typeof c.emitter === 'boolean') out.emitter = c.emitter;
+  if (c.anchored && !c.stale) out.anchored = true;
   return out;
 }
 

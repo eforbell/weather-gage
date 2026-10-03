@@ -12,8 +12,10 @@ export const MODEL_METERS_TO_WORLD = WORLD_UNITS_PER_METER * PRESENTATION_SCALE;
 // Each era's chart scale differs (a sail hex is 400 yards), so each era sizes
 // its authored ships so that its own representative ship fills SHIP_LENGTH: a
 // 50 m frigate at Nevis reads like a 210 m battlecruiser at the Dogger Bank.
+// At Hampton Roads the reference matches the procedural stand-ins, so a 54 m
+// sail frigate sits beside Virginia and Minnesota at their presentation size.
 // One uniform factor per era; ships within an era keep their true relative size.
-export const ERA_REFERENCE_METERS = Object.freeze({ sail: 50 });
+export const ERA_REFERENCE_METERS = Object.freeze({ sail: 50, ironclad: 60 });
 export function modelMetersToWorld(era) {
   const reference = ERA_REFERENCE_METERS[era];
   return reference ? SHIP_LENGTH / reference : MODEL_METERS_TO_WORLD;
@@ -45,7 +47,7 @@ export function battleActors(view, selectedId) {
   const actors = [
     ...view.ships.filter(s => s.status !== 'reserve' && opticallyVisible(s)).map(s => ({
       id: s.id, own: true, name: s.name, type: s.type, className: s.className,
-      facing: s.facing, hull: s.hull, status: s.status, depth: depthOf(s), y: level(depthOf(s)),
+      facing: s.facing, hull: s.hull, status: s.status, depth: depthOf(s), y: level(depthOf(s)), anchored: s.speed === 0,
       ...position(s),
     })),
     ...view.contacts.filter(c => !coldwar && Number.isFinite(c.q) && Number.isFinite(c.r)).map(c => ({
@@ -55,6 +57,7 @@ export function battleActors(view, selectedId) {
       uncertain: c.stale || c.confidence !== 'identified',
       stale: Boolean(c.stale),
       uncertainty: c.uncertainty || 0,
+      anchored: Boolean(c.anchored),
       y: 0, ...position(c),
     })),
   ];

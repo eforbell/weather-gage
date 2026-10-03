@@ -431,7 +431,9 @@ def _fr_1794(u, v):
     return "#1f3a8a" if u < 1 / 3 else "#f4f1ea" if u < 2 / 3 else "#c4142a"
 
 
-FLAG_DESIGNS.update({"us-1795": (_us_1795, 13), "fr-1794": (_fr_1794, 4)})
+# The 1861 flag (34 stars) differs from 1795 only in the canton, which reads
+# as plain blue at game distance.
+FLAG_DESIGNS.update({"us-1795": (_us_1795, 13), "us-1861": (_us_1795, 13), "fr-1794": (_fr_1794, 4)})
 
 
 def flag(kit, spec, nu=12):

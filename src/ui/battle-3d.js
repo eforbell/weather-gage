@@ -447,7 +447,7 @@ export function createBattle3D(host, onFailure = () => {}) {
       item.pitchTarget = sunk ? -0.15 : 0;
       item.rollTarget = sunk ? 0.4 : struck ? 0.12 : 0;
       item.floats = !undersea && !(actor.uncertain && !actor.own) && actor.y === 0;
-      item.underway = item.floats && (!actor.own || actor.status === 'active');
+      item.underway = item.floats && !actor.anchored && (!actor.own || actor.status === 'active'); // ships at anchor leave no wake
       item.afloat = !sunk;
       item.hull = actor.own ? actor.hull : undefined;
       if (item.model.userData.wake) item.model.userData.wake.visible = item.underway && !sunk;
