@@ -115,3 +115,13 @@ test('a submerged WWII contact draws no hull; an own submerged U-boat sits below
   assert.equal(actors.some((a) => a.id === 'c9'), false);
   assert.ok(actors.find((a) => a.id === sub.id).y < 0);
 });
+
+
+test('WWII has an explicit cruiser-sized metre reference while preserving relative fleet scale', async () => {
+  const { ERA_REFERENCE_METERS, SHIP_LENGTH, modelMetersToWorld } = await import('../src/ui/battle-presentation.js');
+  assert.equal(ERA_REFERENCE_METERS.ww2, 180);
+  const scale = modelMetersToWorld('ww2');
+  assert.equal(180 * scale, SHIP_LENGTH);
+  assert.equal((110 * scale) / (180 * scale), 110 / 180);
+  assert.equal(modelMetersToWorld('dreadnought'), SHIP_LENGTH / 210);
+});

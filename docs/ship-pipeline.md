@@ -80,7 +80,7 @@ Conventions: `aft` is metres aft of the stem at deck level, `side` is metres to 
 | `hull.lines[]` | **Offsets table**, fore to aft, first `aft: 0`, last `aft: length`. `halfDeck`, `halfWater` (half-breadths), `deck` (sheer height), `keel` (z of the keel: negative under water, positive for an overhanging counter), `fullness` (section exponent: ~1.5 fine V, 2 round, 5+ flat floor with a hard bilge). A deck break is two rows about 1 m apart with different `deck`. An end row with `halfDeck` > 0 is closed with a flat face: a **transom stern**. `halfDeck` < `halfWater` gives tumblehome. Across a deck break, keep the side fair: the lower deck's `halfDeck` is measured at its lower height, so it is wider |
 | `superstructures[]` | `plan` as `[[aft, halfWidth], …]` fore to aft, mirrored. Two rows make a rectangle, more make a polygon (chamfered ends) |
 | `conningTowers[]` | Oval, `length` fore and aft × `width` |
-| `turrets[]` + `turretType` | `facing` is `fore` or `aft`; `barbette` is the height of the gunhouse floor above its base (superfiring turrets have taller ones); optional `side` for wing turrets. `guns: 1` places a centreline barrel; `guns: 2` places twin barrels. Other counts are rejected. `turretType` sets gunhouse size, front slope and barrel dimensions; `shape: "cylinder"` builds a round Monitor-style turret (diameter `length`, no barbette or hoods) |
+| `turrets[]` + `turretType` | `facing` is `fore` or `aft`; `barbette` is the height of the gunhouse floor above its base (superfiring turrets have taller ones); optional `side` for wing turrets. `guns: 1` places a centreline barrel; `guns: 2` places twin barrels; `guns: 3` places triple barrels. `gunSpacing` is the centre-to-centre distance between adjacent barrels. Other counts are rejected. `turretType` sets gunhouse size, front slope and barrel dimensions; `shape: "cylinder"` builds a round Monitor-style turret (diameter `length`, no barbette or hoods) |
 | `funnels[]` | Oval, `length` × `width`, `top` height, optional `material` (default `upper`). Anchors `anchor_funnel_<id>` sit 0.6 m above the top. Optional `casing: { length, width, top }` adds a straight-sided, chamfered uptake casing under the funnel; the funnel rises from its roof |
 | `masts[]` | `type: pole` or `tripod` (with optional `legs: { footAft, footSpread, joinHeight }`), `topmastFrom`, `spottingTop`, `yards[]` |
 | `searchlightTowers[]`, `boats[]`, `hawsePipes[]`, `secondaryGuns` | Detail. `secondaryGuns.mounts[].angle` is the training angle from the bow (90 = abeam), mirrored to both sides |
@@ -110,7 +110,7 @@ Conventions: `aft` is metres aft of the stem at deck level, `side` is metres to 
 - **Stale-build stamps:** the GLB's scene extras carry `weatherGageSpecSha256` (the ship's `spec.json`) and `weatherGageKitSha256` (every `.py` under `tools/blender/`). If either changes without a rebuild, `npm test` fails. A kit change therefore forces every ship to be rebuilt.
 - Outward hull orientation is enforced by positive signed volume after welding, and the report checks an upward painted weather deck.
 - Budgets, hull length (the weather deck's extent, ±1 %; bowsprits, heads and rudders may reach past it), keel at `-draft`, turret facings and funnel anchor positions all match the spec.
-- **Era scale:** a metre asset is scaled by `modelMetersToWorld(era)` (`battle-presentation.js`). Each era's representative ship fills `SHIP_LENGTH`: 210 m by default, 50 m for sail and 60 m for the ironclad era, where it matches the procedural stand-ins (`ERA_REFERENCE_METERS`), so a frigate at Nevis is as large on screen as a battlecruiser at the Dogger Bank. One uniform factor per era; ships in an era keep their true relative sizes.
+- **Era scale:** a metre asset is scaled by `modelMetersToWorld(era)` (`battle-presentation.js`). Each era's representative ship fills `SHIP_LENGTH`: 210 m by default, 180 m for WW2 cruisers, 50 m for sail and 60 m for the ironclad era, where it matches the procedural stand-ins (`ERA_REFERENCE_METERS`), so a frigate at Nevis is as large on screen as a battlecruiser at the Dogger Bank. One uniform factor per era; ships in an era keep their true relative sizes.
 
 Builds are geometrically identical run to run, but not byte-identical: Blender's exporter varies index order. Compare builds with the report, not file hashes.
 
@@ -178,3 +178,39 @@ all specs after merging, including these six and the earlier flagships: the
 GLB kit-hash contract checks the entire kit. Do not bypass stale-build checks or
 copy a different branch's built assets without rebuilding against the merged
 kit. Preserve the exact-name registry entries from both branches.
+
+## Esperance WW2 fleet
+
+All twelve named ships in `SCENARIO_SETUPS.esperance` now have original authored
+models under `ships/` and `public/assets/ships/ww2/`, registered by exact public
+name in the `ww2` pack. These are readable, class-inspired October 1942 game
+models, not museum reconstructions. Sister ships share a coherent shape language
+but keep individual specs; destroyer provenance intentionally stays brief.
+
+Boise and Aoba were built and checked first, then the other ten ships:
+
+| Group | Main turret layout |
+|---|---|
+| USS Boise / USS Helena | Five triples, 15 guns |
+| USS San Francisco | Three triples, 9 guns |
+| USS Salt Lake City | Two twins and two triples, 10 guns |
+| Aoba / Furutaka / Kinugasa | Three twins, 6 guns |
+| Fubuki / Hatsuyuki | Three twins, 6 guns |
+| USS Farenholt / USS Duncan / USS Laffey | Four singles, 4 guns |
+
+**Unavoidable kit change:** `shipkit/parts.py` previously rejected triples.
+Its generic turret builder now supports three physical barrels while preserving
+single/twin barrel and roof-detail geometry. All twenty-one earlier main assets
+were rebuilt against the combined kit; their material-labelled surface vertex
+sets and triangle counts match main. No other Blender kit file was changed.
+
+WW2 has an explicit **180 m** entry in `ERA_REFERENCE_METERS`. This scales the
+whole era uniformly, so destroyers remain proportionally smaller than cruisers.
+No individual width or length hacks are applied.
+
+`tests/ww2-assets.test.js` checks every named ship's exact registry key, 1942
+configuration/provenance, main turret counts, metre proportions, FOW/fallback,
+and exposed geometry at every barrel lane (including the centre triple barrel).
+It allows later WW2 packs to add other named ships without weakening Esperance
+coverage. Visual review still checks boats, mast feet and fittings that those
+rays do not cover. See [WW2 fleet acceptance](ww2-ship-assets.md) for evidence.

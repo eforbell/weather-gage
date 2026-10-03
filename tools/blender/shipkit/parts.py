@@ -208,9 +208,9 @@ def turrets(kit):
         gun_z = house0 + H * GUN_AXIS
         face_y = L / 2 - t["frontSlope"] * GUN_AXIS
         guns = turret.get("guns", 2)
-        if guns not in (1, 2):
-            raise ValueError(f"Turret {turret['id']} requires one or two guns, got {guns}")
-        for side in ((0,) if guns == 1 else (-1, 1)):
+        if guns not in (1, 2, 3):
+            raise ValueError(f"Turret {turret['id']} requires one, two or three guns, got {guns}")
+        for side in ((0,) if guns == 1 else (-1, 1) if guns == 2 else (-2, 0, 2)):
             x = side * t["gunSpacing"] / 2
             put(rod((x, face_y - 1.5, gun_z), (x, face_y + t["barrelLength"], gun_z), t["barrelRadius"], t["muzzleRadius"], 12), "dark")
             if round_house:
@@ -218,7 +218,10 @@ def turrets(kit):
                 put(box((x, wall - 0.08, gun_z), (t["barrelRadius"] * 3.2, 0.3, t["barrelRadius"] * 3.2), 0.03), "dark")  # gunport
                 continue
             put(rod((x, face_y - 0.4, gun_z), (x, face_y + 0.9, gun_z), 0.72, 0.6, 12), "canvas")
-            put(box((side * (W / 2 - 1.5), L / 2 - t["frontSlope"] - 0.9, house1 + 0.2), (1.1, 1.3, 0.6)), "upper")
+            # Keep legacy roof fittings unchanged; triples have two corners.
+            if guns != 3 or side != 0:
+                detail_side = side / 2 if guns == 3 else side
+                put(box((detail_side * (W / 2 - 1.5), L / 2 - t["frontSlope"] - 0.9, house1 + 0.2), (1.1, 1.3, 0.6)), "upper")
         if not round_house:
             put(rod((-W / 2 - 0.5, -L / 2 + 1.9, house1 + 0.05), (W / 2 + 0.5, -L / 2 + 1.9, house1 + 0.05), 0.5, None, 12), "upper")
         muzzle = place @ Vector((0, face_y + t["barrelLength"], gun_z))

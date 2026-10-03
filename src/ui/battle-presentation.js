@@ -14,8 +14,9 @@ export const MODEL_METERS_TO_WORLD = WORLD_UNITS_PER_METER * PRESENTATION_SCALE;
 // 50 m frigate at Nevis reads like a 210 m battlecruiser at the Dogger Bank.
 // At Hampton Roads the reference matches the procedural stand-ins, so a 54 m
 // sail frigate sits beside Virginia and Minnesota at their presentation size.
+// WWII uses a 180 m cruiser reference; destroyers keep their smaller relative size.
 // One uniform factor per era; ships within an era keep their true relative size.
-export const ERA_REFERENCE_METERS = Object.freeze({ sail: 50, ironclad: 60 });
+export const ERA_REFERENCE_METERS = Object.freeze({ sail: 50, ironclad: 60, ww2: 180 });
 export function modelMetersToWorld(era) {
   const reference = ERA_REFERENCE_METERS[era];
   return reference ? SHIP_LENGTH / reference : MODEL_METERS_TO_WORLD;
