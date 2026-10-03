@@ -88,6 +88,10 @@ The hit chance follows the dreadnought model: a range band, times a fire-control
 
 ### Captains
 
+Captains choose and steer by their side's reports, never by true positions.
+- **They hold fire on unclassified echoes. This is a deliberate rule.** With no way to tell friend from foe on a 1942 radar scope, US cruisers at Cape Esperance shot up their own destroyer Duncan. Firing at blips, with a friendly-fire risk, is a candidate mechanic for later.
+- **Torpedo misses are known only to the side that fired,** and a dud only to the ship it struck.
+
 Heavy ships prefer heavy ships. In gun range they keep the target abeam; further out they steer for a lead point on the biggest contact they hold. The course for that lead comes only from a held radar or visual track, which is what a radar plot (CIC) worked out. Destroyers make torpedo runs as in 1915.
 
 ## Platform changes (small, generic)
@@ -120,15 +124,22 @@ An inspired-by-history night action on a 26 × 16 chart, moonless. Savo Island l
 
 | Plan | Win / draw / loss | Ships lost per game (US / Japan) | Torpedo hits per game (by US / by Japan) |
 |---|---|---|---|
-| Let the captains fight (radar on) | 66 / 0 / 35 | 0.34 / 1.23 | 0.58 / 0.81 |
-| Emission control (radar off) | 0 / 0 / 100 | 0.03 / 1.98 | 0.14 / 0.00 |
-| Cruisers in line, destroyers screen | 68 / 0 / 32 | 0.61 / 0.81 | 0.41 / 1.20 |
+| Let the captains fight (radar on) | 74 / 0 / 26 | 0.16 / 1.22 | 0.42 / 0.49 |
+| Emission control (radar off) | 3 / 0 / 98 | 0.25 / 0.63 | 0.59 / 0.04 |
+| Cruisers in line, destroyers screen | 89 / 0 / 11 | 0.07 / 1.30 | 0.28 / 0.28 |
+
+**Balance is provisional.** These numbers come after closing three hidden-information leaks found in review:
+- Captains steered by true positions.
+- Gun flashes gave an exact hex.
+- Torpedo misses revealed the aim point.
+
+Long Lances fired at scattered flash positions now hit far less, and the US wins more. Re-tuning waits until the scenario is playable: the night needs more Japanese teeth again, and the levers are lookout reach, flash uncertainty and spread size.
 
 What the harness found while tuning:
 - **The engine was dropping radar tracks.** The side picture took the closest report, not the clearest, so a destroyer's glimpse of Aoba replaced Boise's classified radar track. The cruisers then lost their target whenever a destroyer was out ahead. Contacts now merge by confidence first.
   - This changed nothing in the six existing scenarios: identical results over 200 seeds each, because their observers rarely disagree.
   - It moved captains-alone here from 52% to 98%, so the bombardment group was made more determined: it turns back at 30% hull, not 60%.
-- **Torpedoes are aimed at the report, not the truth.** A spread at gun flashes goes to the flash. It is led along the target's course only when the firing ship holds a track: her own radar echo, or a classified sight.
+- **Torpedoes are aimed at the report, not the truth.** A spread at gun flashes goes to the flash, which is itself a bearing and a rough range (uncertainty 2). It is led along the target's course only when the firing ship holds a track: her own radar echo, or a classified sight.
 - **Radar decides it.** With the sets off, US captains never find the cruisers in time, and the raid always gets through.
 - **Emission control is a trap here,** because the Japanese of 1942 had no receivers. In this scenario no ship carries a warning receiver, so the receiver rules and the per-observer `emitter` run only in unit tests. They should pay against a German force with Metox, which is the obvious second dockyard scenario: an escort group against a surfaced U-boat pack, where 271 against Metox is the whole story.
 - **The line trades losses for reliability.** In line the cruisers stay on the raiders instead of being drawn north by the screen, but they eat more Long Lances (1.2 hits a game), which is the Tassafaronga lesson.

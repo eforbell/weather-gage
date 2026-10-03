@@ -63,6 +63,7 @@ const STARSHELL_RANGE = 6;
 const STARSHELL_LIGHTS = 0.6;
 const SEARCHLIGHT_RANGE = 4;
 const FLASH_RANGE = { night: 10, day: 14 };
+const FLASH_UNCERTAINTY = 2;
 
 // ---------- Conditions ----------
 
@@ -117,7 +118,7 @@ export function detection(observer, enemy, state) {
   if (!found.length) return null;
   const best = found.sort((a, b) => CONF_RANK[b.confidence] - CONF_RANK[a.confidence] || (a.uncertainty ?? 0) - (b.uncertainty ?? 0))[0];
   // Whether the enemy is radiating is only known to a receiver that can hear her.
-  return { ...best, emitter: Boolean(intercept(observer, enemy, state, true)) };
+  return { ...best, emitter: Boolean(intercept(observer, enemy, state)) };
 }
 
 export function optical(observer, enemy, state) {
@@ -136,7 +137,8 @@ export function optical(observer, enemy, state) {
     if (d <= lookout) return { confidence: 'classified', range: d };
     if (d <= lookout + 1) return { confidence: 'sighted', range: d };
   }
-  if (enemy.firedAt >= 0 && enemy.firedAt >= state.tick - 1 && d <= FLASH_RANGE[night ? 'night' : 'day']) return { confidence: 'sighted', range: d }; // gun flashes
+  // Gun flashes: a bearing and a rough range, firmed up only while they keep coming.
+  if (enemy.firedAt >= 0 && enemy.firedAt >= state.tick - 1 && d <= FLASH_RANGE[night ? 'night' : 'day']) return { confidence: 'sighted', range: d, uncertainty: FLASH_UNCERTAINTY };
   return null;
 }
 
@@ -148,20 +150,21 @@ export function radarReach(observer, enemy, state) {
 }
 
 export function radarEcho(observer, enemy, state) {
-  const d = distance(observer, enemy);
-  if (d > radarReach(observer, enemy, state)) return null;
   const set = RADARS[observer.sensors.search];
+  const reach = radarReach(observer, enemy, state);
+  const d = distance(observer, enemy);
+  if (!set || !reach || d > reach) return null;
   return { confidence: d <= set.classify ? 'classified' : 'sighted', range: d };
 }
 
 // A radiating enemy set is heard on its bearing well beyond its own reach; the
 // position firms up while the signal is held (target motion analysis).
-export function intercept(observer, enemy, state, any = false) {
+export function intercept(observer, enemy, state) {
   const esm = ESM[observer.sensors?.esm];
   const set = RADARS[enemy.sensors?.search];
   if (!esm || !set || !enemy.radar || !esm.bands.includes(set.band)) return null;
   const d = distance(observer, enemy);
-  if (!any && d > Math.round(set.range.large * ESM_REACH)) return null;
+  if (d > Math.round(set.range.large * ESM_REACH)) return null;
   return { confidence: 'sighted', range: d, uncertainty: 3 };
 }
 
@@ -184,7 +187,7 @@ function desiredFacing(state, ship, destination) {
   const engaged = ship.order.type === 'engage' && ship.doctrine.roe === 'free';
   if (engaged && ship.torpedoes > 0) {
     const reach = TORPEDOES[ship.torpedo].range;
-    const prey = pickTarget(state, ship, reach + 4, 'large');
+    const prey = pickTarget(state, ship, reach + 4, 'large')?.contact;
     if (prey && ship.type === 'destroyer') {
       const d = distance(ship, prey);
       const dir = directionToward(ship, prey);
@@ -197,7 +200,7 @@ function desiredFacing(state, ship, destination) {
   if (ship.type !== 'destroyer' && (engaged || inFormation)) {
     // Heavy ships go for the heavy ships: inside gun range they keep them abeam,
     // further out they steer for where the target will be, not where she is.
-    const target = pickTarget(state, ship, ship.gunRange + 1, 'large');
+    const target = pickTarget(state, ship, ship.gunRange + 1, 'large')?.contact;
     if (target) return beamCourse(ship, target, Math.min(ship.doctrine.range, ship.gunRange));
     const blip = engaged && pickQuarry(state, ship, SEARCH_RADIUS);
     if (blip) return headingTo(state, ship, interceptPoint(state, ship, blip));
@@ -210,11 +213,7 @@ const SEARCH_RADIUS = 16;
 // Any fresh report will do for closing, but a known heavy ship comes first and a
 // known destroyer last.
 function pickQuarry(state, ship, maxRange) {
-  const rank = (c) => {
-    const s = state.ships.find((x) => x.id === c.targetId);
-    const known = CONF_RANK[c.confidence] >= CONF_RANK.classified;
-    return distance(ship, c) + (known ? (SIZE[s.type] === 'large' ? -6 : 6) : 0);
-  };
+  const rank = (c) => distance(ship, c) + (c.className ? (/cruiser|battleship/i.test(c.className) ? -6 : 6) : 0);
   return contactsForShip(state, ship).filter((c) => !c.stale && distance(ship, c) <= maxRange).sort((a, b) => rank(a) - rank(b) || (a.id < b.id ? -1 : 1))[0] || null;
 }
 
@@ -242,14 +241,18 @@ function leadPoint(state, from, target, lead) {
 
 function hasRadarFc(ship) { return Boolean(ship.sensors.fireControl && ship.radar && ship.weapons > 10); }
 
-// Captains choose from their side's fresh contact reports; the class is known only once classified.
+// Captains choose and steer by their side's fresh contact reports, never by where
+// the enemy truly is; the class is known only once classified. Captains hold fire
+// on unclassified echoes: with no way to tell friend from foe on a radar scope,
+// the 1942 Navy shot at its own destroyers (Duncan at Cape Esperance). Returns the
+// report and the ship it stands for (the guns' shells land on the real ship).
 function pickTarget(state, ship, maxRange, prefer) {
-  const candidates = contactsForShip(state, ship)
+  const rank = (c) => distance(ship, c) - (c.targetId === ship.fc?.targetId ? 2.5 : 0) + (prefer === 'large' && c.className && !/cruiser|battleship/i.test(c.className) ? 8 : 0);
+  const contact = contactsForShip(state, ship)
     .filter((c) => !c.stale && CONF_RANK[c.confidence] >= CONF_RANK.classified && distance(ship, c) <= maxRange)
-    .map((c) => state.ships.find((s) => s.id === c.targetId))
-    .filter((s) => s && isActive(s) && s.side !== ship.side);
-  const rank = (s) => distance(ship, s) - (s.id === ship.fc?.targetId ? 2.5 : 0) + (prefer === 'large' && SIZE[s.type] !== 'large' ? 8 : 0);
-  return candidates.sort((a, b) => rank(a) - rank(b) || (a.id < b.id ? -1 : 1))[0] || null;
+    .filter((c) => { const s = state.ships.find((x) => x.id === c.targetId); return s && isActive(s) && s.side !== ship.side; })
+    .sort((a, b) => rank(a) - rank(b) || (a.id < b.id ? -1 : 1))[0];
+  return contact ? { contact, target: state.ships.find((x) => x.id === contact.targetId) } : null;
 }
 
 // How the guns can be laid on a target this tick, best first: by radar, by eye
@@ -274,7 +277,7 @@ export function combat(state) {
       if (target && isActive(target)) state = launchTorpedoes(state, ship, target, contact);
     }
     if (ship.guns <= 0) continue;
-    const target = pickTarget(state, ship, ship.gunRange, ship.type === 'destroyer' ? 'any' : 'large');
+    const target = pickTarget(state, ship, ship.gunRange, ship.type === 'destroyer' ? 'any' : 'large')?.target;
     if (!target) continue;
     const solution = firingSolution(state, ship, target);
     if (solution) { state = fireBattery(state, ship, target, solution); continue; }
@@ -365,16 +368,18 @@ export function afterMove(state) {
 export function torpedoRun(state, item) {
   const target = state.ships.find((s) => s.id === item.targetId);
   if (!target || !isActive(target)) return state;
-  const kind = TORPEDOES[item.weapon] || TORPEDOES.mk15;
+  const kind = TORPEDOES[item.weapon];
   const miss = distance(target, { q: item.aimQ, r: item.aimR });
   const p = miss === 0 ? kind.hit : miss === 1 ? kind.hit / 2 : 0;
   if (!roll(state, p)) {
-    state = addLog(state, `Torpedo tracks run wide of ${target.name}.`, 'defense');
-    return addFx(state, { type: 'torpedo-miss', targetId: target.id, at: { q: item.aimQ, r: item.aimR } });
+    // A miss in the dark is known only to the side that fired, from its own plot.
+    state = addLog(state, `Torpedo tracks run wide of ${target.name}.`, 'defense', [item.side]);
+    return addFx(state, { type: 'torpedo-miss', targetId: target.id, at: { q: item.aimQ, r: item.aimR }, audience: [item.side] });
   }
   if (roll(state, kind.dud)) {
-    state = addLog(state, `A torpedo strikes ${target.name} and fails to explode.`, 'defense');
-    return addFx(state, { type: 'torpedo-miss', targetId: target.id, at: { q: item.aimQ, r: item.aimR } });
+    // A dud thuds into the hull: her crew know it; the firing side sees no explosion.
+    state = addLog(state, `A torpedo strikes ${target.name} and fails to explode.`, 'defense', [target.side]);
+    return addFx(state, { type: 'torpedo-miss', targetId: target.id, at: { q: target.q, r: target.r }, audience: [target.side] });
   }
   const damage = Math.round(kind.dmg[0] + nextRandom(state) * (kind.dmg[1] - kind.dmg[0]));
   applyDamage(target, { hull: damage, propulsion: damage * 0.8, weapons: damage * 0.3, crew: damage * 0.4 });

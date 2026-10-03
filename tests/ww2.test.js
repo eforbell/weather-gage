@@ -4,7 +4,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, step, getView, setRadar, serialize, deserialize } from '../src/sim/engine.js';
 import { SCENARIOS, DOCKYARD_SCENARIOS } from '../src/sim/scenarios.js';
-import { radarReach, radarEcho, intercept, optical, firingSolution, detection, TORPEDOES, RADARS, lightAt } from '../src/sim/eras/ww2.js';
+import { radarReach, radarEcho, intercept, optical, firingSolution, detection, moveShip, TORPEDOES, RADARS, lightAt } from '../src/sim/eras/ww2.js';
 
 const ship = (s, id) => s.ships.find((x) => x.id === id);
 // Open water well clear of Savo and Guadalcanal, so no land clutter.
@@ -158,4 +158,78 @@ test('saves reject malformed goals, arrivals and torpedo weapons', () => {
   assert.throws(broken((j) => { j.ships.find((x) => x.id === 'r_aoba').arrived = true; }), /arrived/);
   assert.throws(broken((j) => { j.ships.find((x) => x.id === 'r_aoba').goalText = 7; }), /goal text/);
   assert.throws(broken((j) => { j.pending.push({ kind: 'torpedo', shipId: 'r_fubuki', targetId: 'b_boise', side: 'red', salvo: 1, deliverAt: 2, q: 20, r: 1, aimQ: 10, aimR: 8, weapon: 'photon' }); }), /weapon/);
+});
+
+// ---------- Hidden information (each test changes only the truth, never the report) ----------
+
+const quiet = (s, keep) => {
+  for (const x of s.ships) {
+    if (!keep.includes(x.id)) x.status = 'escaped';
+    x.order = { type: 'hold' };
+    x.doctrine.roe = 'hold';
+  }
+  return step(s); // contacts from these positions; nobody moves or fires
+};
+
+test('captains steer by the report, not by where the enemy truly is', () => {
+  const base = quiet(placed([['b_salt_lake_city', 6, 7], ['r_aoba', 14, 7]]), ['b_salt_lake_city', 'r_aoba']);
+  assert.ok(base.contacts.blue.some((c) => c.targetId === 'r_aoba' && !c.stale), 'Salt Lake City holds Aoba');
+  const course = (s) => {
+    const own = ship(s, 'b_salt_lake_city');
+    own.order = { type: 'engage' };
+    own.doctrine.roe = 'free';
+    moveShip(s, own, new Set(), { q: 20, r: 8 });
+    return [own.q, own.r, own.facing];
+  };
+  const a = JSON.parse(serialize(base)), b = JSON.parse(serialize(base));
+  Object.assign(b.ships.find((x) => x.id === 'r_aoba'), { q: 12, r: 10 }); // she has moved; nobody has seen it
+  assert.deepEqual(course(a), course(b));
+});
+
+test('gun flashes give a bearing and a rough range, not the hex', () => {
+  let moved = 0;
+  for (let seed = 1; seed <= 12; seed += 1) {
+    const s = createGame('esperance', seed);
+    for (const [id, q, r] of [['r_fubuki', 12, 7], ['b_boise', 20, 7]]) Object.assign(ship(s, id), { q, r });
+    ship(s, 'b_boise').firedAt = 0;
+    ship(s, 'b_boise').radar = false;
+    const t = quiet(s, ['r_fubuki', 'b_boise']);
+    const c = t.contacts.red.find((x) => x.targetId === 'b_boise');
+    assert.ok(c && c.uncertainty > 0, 'a flash contact carries uncertainty');
+    if (c.q !== 20 || c.r !== 7) moved += 1;
+  }
+  assert.ok(moved > 0, 'the reported position is scattered off the truth');
+});
+
+test('a torpedo that misses in the dark is news only to the side that fired it', () => {
+  let s = placed([['r_fubuki', 20, 2], ['b_boise', 2, 7]]);
+  for (const x of s.ships) if (!['r_fubuki', 'b_boise'].includes(x.id)) x.status = 'escaped';
+  ship(s, 'b_boise').radar = false;
+  s.pending.push({ kind: 'torpedo', shipId: 'r_fubuki', targetId: 'b_boise', side: 'red', salvo: 1, deliverAt: 1, q: 20, r: 2, aimQ: 18, aimR: 7, weapon: 'type93' });
+  for (const x of s.ships) x.order = { type: 'hold' };
+  s = step(s);
+  const blue = getView(s, 'blue');
+  assert.equal(blue.fx.some((e) => e.type === 'torpedo-miss'), false, 'no marker at the secret aim point');
+  assert.equal(blue.log.some((e) => /run wide/.test(e.text)), false);
+});
+
+test('a radarless ship sharing a hex with the enemy does not crash the step', () => {
+  const s = placed([['b_duncan', 14, 7], ['r_aoba', 14, 7]]);
+  assert.doesNotThrow(() => step(deserialize(serialize(s))));
+});
+
+test('a receiver knows an enemy is radiating only within its reach', () => {
+  const s = placed([['b_boise', 5, 7], ['r_aoba', 20, 7]]);
+  Object.assign(ship(s, 'b_boise').sensors, { esm: 'cm' });
+  Object.assign(ship(s, 'r_aoba'), { sensors: { ...ship(s, 'r_aoba').sensors, search: 'type22' }, radar: true });
+  const reach = Math.round(RADARS.type22.range.large * 1.5);
+  assert.equal(detection(ship(s, 'b_boise'), ship(s, 'r_aoba'), s)?.emitter ?? false, false, `15 hexes is beyond ${reach}`);
+  ship(s, 'b_boise').q = 7;
+  assert.equal(detection(ship(s, 'b_boise'), ship(s, 'r_aoba'), s).emitter, true);
+});
+
+test('a WWII torpedo in a save must name its weapon', () => {
+  const j = JSON.parse(serialize(createGame('esperance', 2)));
+  j.pending.push({ kind: 'torpedo', shipId: 'r_fubuki', targetId: 'b_boise', side: 'red', salvo: 1, deliverAt: 2, q: 20, r: 1, aimQ: 10, aimR: 8 });
+  assert.throws(() => deserialize(JSON.stringify(j)), /weapon/);
 });

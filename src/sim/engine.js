@@ -392,7 +392,8 @@ function validatePending(pending, shipIds, tick, map, ships) {
       if (sideOf(item.shipId) !== item.side || sideOf(item.targetId) === item.side) throw new Error('Invalid torpedo sides');
       assertCoord(item, map);
       assertCoord({ q: item.aimQ, r: item.aimR }, map);
-      if (item.weapon !== undefined && !Object.hasOwn(ww2.TORPEDOES, item.weapon)) throw new Error('Invalid torpedo weapon');
+      const ww2Spread = ships.some((s) => s.era === 'ww2');
+      if ((ww2Spread || item.weapon !== undefined) && !Object.hasOwn(ww2.TORPEDOES, item.weapon)) throw new Error('Invalid torpedo weapon');
       if (Object.hasOwn(item, 'order')) throw new Error('Torpedo pending cannot include order');
     } else {
       if (item.kind !== undefined) throw new Error('Invalid pending kind');
