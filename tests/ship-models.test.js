@@ -32,11 +32,13 @@ const expectedScenarioSpecs = {
   b_san_francisco: 'ww2_cruiser', b_boise: 'ww2_cruiser', b_salt_lake_city: 'ww2_cruiser', b_helena: 'ww2_cruiser',
   b_farenholt: 'ww2_destroyer', b_duncan: 'ww2_destroyer', b_laffey: 'ww2_destroyer',
   b_bellerophon: 'sail_frigate', b_marlborough: 'sail_frigate', b_russell: 'sail_frigate', r_vengeur: 'sail_frigate', r_achille: 'sail_frigate', r_northumberland: 'sail_frigate',
+  b_empire_ocelot: 'ww2_merchant', b_baron_ogilvy: 'ww2_merchant', b_clan_macnab: 'ww2_merchant', b_trevisa: 'ww2_merchant', b_hartington: 'ww2_merchant', b_bretwalda: 'ww2_merchant',
+  b_walker: 'ww2_destroyer', b_stork: 'ww2_destroyer', b_sackville: 'ww2_destroyer', b_gentian: 'ww2_destroyer', r_u96: 'submarine', r_u201: 'submarine', r_u552: 'submarine', r_u432: 'submarine',
   r_aoba: 'ww2_cruiser', r_furutaka: 'ww2_cruiser', r_kinugasa: 'ww2_cruiser', r_fubuki: 'ww2_destroyer', r_hatsuyuki: 'ww2_destroyer',
 };
 
 function scenarioEra(id) {
-  return { nevis: 'sail', hampton: 'ironclad', dogger: 'dreadnought', defector: 'coldwar', northern_screen: 'coldwar', strait: 'modern', esperance: 'ww2', line: 'sail' }[id];
+  return { nevis: 'sail', hampton: 'ironclad', dogger: 'dreadnought', defector: 'coldwar', northern_screen: 'coldwar', strait: 'modern', esperance: 'ww2', line: 'sail', convoy: 'ww2' }[id];
 }
 
 test('ship specs resolve from public era/type and expose presentation dimensions', () => {

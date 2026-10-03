@@ -182,10 +182,53 @@ A deliberate choice: a burning ship (hull at 45% or less) counts as lit, so at n
   - Search sectors are the player's main decision.
   - Strike timing is the captains'.
 
-### Submarines and convoys
-- Reuse Cold War sonar (ASDIC is active-only), surfaced and submerged speed, and the U-boat surfacing at night to run on diesels.
-- Escorts with Type 271 and HF/DF.
-- Wolfpack coordination by radio, which HF/DF can intercept.
+### Submarines and convoys: The Wolf Pack (built)
+
+**The scenario:** a night convoy battle in the North Atlantic, 1942.
+- Six merchant ships steam east at about 9 knots for the next escort group at the far edge of the chart.
+- Four escorts:
+  - Walker, with Type 271 and HF/DF, ranges out by default.
+  - Stork and Gentian, with Type 271, screen the convoy.
+  - Sackville, with the old metric Type 286, screens too.
+- A four-boat wolf pack waits ahead.
+- **Outcome:** three merchant ships sunk is a defeat. Arriving, or still sailing at the end of the night (turn 48; dawn at 42), with one loss or fewer is a victory.
+
+**Rules added to `eras/ww2.js`:**
+- **U-boats:**
+  - Run surfaced at night, faster than the convoy and nearly invisible to lookouts.
+  - Dive when escorts close, when Metox hears a metric radar, after an attack, at dawn, or when damaged.
+  - Submerged, they move one hex every third turn (about 7 knots), so a boat forced down falls astern.
+- **Contact reports:** a shadowing U-boat radios the convoy home every few turns, and every report gives an HF/DF-equipped escort a bearing (`by: 'hfdf'`).
+- **ASDIC and depth charges:**
+  - ASDIC holds a U-boat inside 2 miles, surfaced or submerged, and says which (`contact.submerged`, which reaches the view).
+  - Guns ignore submerged contacts; depth charges (25% damage chance per pattern) go after them.
+  - The escort never learns whether a pattern hurt; the U-boat's side hears "depth charges close aboard".
+- **Radar against surfaced boats:**
+  - Type 271 finds a surfaced U-boat at about 4 miles, before her lookouts see the escort.
+  - Type 286 manages about 1 mile, and Metox hears it from about 10.
+- **Merchants:** a merchant ship broken by a G7e torpedo sinks.
+- **Escorts:** escorts on Screen hunt contacts within 8 miles of the convoy, then return.
+
+**Platform:**
+- `victory.convoy { ships, maxLosses, goodLosses }`, which reports the counts through, lost and still at sea.
+- `scenario.region`.
+- The 3D view draws no hull for a submerged contact, and puts an own submerged U-boat below the surface.
+- A depth-charge effect on the chart and in 3D.
+- WWII ships ignore depth and speed in `setDoctrine`.
+- `searchAt` is validated.
+
+| Plan (200 seeds) | Win / draw / loss | Merchants lost per game | U-boats lost per game |
+|---|---|---|---|
+| Walker ranges out, the rest screen (default) | 79 / 6 / 15 | 0.90 | 0.56 |
+| All escorts screen the convoy | 4 / 9 / 87 | 2.90 | 0.26 |
+| All escorts hunt freely (Engage) | 98 / 2 / 1 | 0.23 | 0.83 |
+| Sackville silences her metric radar | 87 / 11 / 2 | 0.65 | 0.70 |
+| All radar off | 92 / 8 / 1 | 0.53 | 0.56 |
+
+**What the harness says:**
+- **Escorts must hunt.** Escorts that cling to the columns lose the convoy.
+- **Emissions cut both ways, and the harness shows it plainly.** A radiating escort is heard by Metox and draws the pack in. Silencing Sackville's metric set helps, and in this tuning even silencing everything helps, because the 271s' detections matter less than not being heard. That over-rewards emission control.
+- **Next tuning pass:** give the U-boats a better search, so silence costs the escorts their warning, and narrow the gap between screening and hunting.
 
 ## Sources
 

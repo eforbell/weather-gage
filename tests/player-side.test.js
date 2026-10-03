@@ -17,7 +17,7 @@ test('the ?side= backdoor reads the query string and defaults to blue', () => {
 
 test('only two-sided scenarios without an escort objective can be played as red', () => {
   const playable = SCENARIOS.filter(s => sideIn(s.id, 'red') === 'red').map(s => s.id).sort();
-  assert.deepEqual(playable, ['dogger', 'esperance', 'hampton', 'line', 'nevis', 'strait']);
+  assert.deepEqual(playable, ['convoy', 'dogger', 'esperance', 'hampton', 'line', 'nevis', 'strait']);
   assert.equal(sideIn('defector', 'red'), 'blue', 'three-sided');
   assert.equal(sideIn('northern_screen', 'red'), 'blue', 'escort objective');
 });

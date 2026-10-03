@@ -134,6 +134,24 @@ export const SCENARIOS = [
     tickLabel: 'turn',
     region: ' / NORTH ATLANTIC',
   },
+  {
+    id: 'convoy',
+    title: 'The Wolf Pack',
+    region: ' / NORTH ATLANTIC',
+    subtitle: 'A night convoy battle in the North Atlantic, 1942',
+    era: 'ww2',
+    briefing:
+      'Six merchant ships, four escorts, one long night. U-boat command has a pack of four boats across your track. They attack on the surface in the dark, where ASDIC cannot hear them and a lookout sees only a wake. Two of your escorts carry the new centimetric Type 271 radar, which the U-boats cannot hear; Sackville has an old metric set that their Metox receivers can. Walker carries HF/DF: every time a U-boat radios the convoy’s position, she gets a bearing.',
+    objective: 'Bring the convoy through to the next escort group at the eastern edge of the chart. Losing three merchant ships is a defeat; arriving, or still sailing when the night ends, with no more than one loss is a victory.',
+    maxTicks: 48,
+    year: 1942,
+    difficulty: 2,
+    teaches: 'Centimetric radar against Metox, HF/DF, ASDIC and depth charges, screening a convoy',
+    hexScale: '1 hex ≈ 1 nautical mile',
+    tickLabel: '3-minute turn',
+    marks: [{ label: 'NEXT ESCORT GROUP', cells: [[27, 0], [27, 4], [27, 8], [27, 12], [27, 16]] }],
+    victory: { convoy: { ships: ['b_empire_ocelot', 'b_baron_ogilvy', 'b_clan_macnab', 'b_trevisa', 'b_hartington', 'b_bretwalda'], maxLosses: 3, goodLosses: 1 } },
+  },
 ];
 
 // Scenarios still in the dockyard: the engine and the tests run them, the
@@ -231,6 +249,28 @@ export const SCENARIO_SETUPS = {
       { ...sailShip('r_northumberland', 'red', 'Le Northumberland', 'Ship of the line', 12, 7, 1, 74), crew: 95 },
     ],
   },
+  convoy: {
+    wind: 2,
+    map: { width: 30, height: 18 },
+    conditions: { light: 'night', dawnAt: 42 },
+    terrain: [],
+    ships: [
+      merchant('b_empire_ocelot', 'SS Empire Ocelot', 9, 9),
+      merchant('b_baron_ogilvy', 'SS Baron Ogilvy', 9, 7),
+      merchant('b_clan_macnab', 'SS Clan Macnab', 9, 11),
+      merchant('b_trevisa', 'SS Trevisa', 7, 8),
+      merchant('b_hartington', 'SS Hartington', 7, 10),
+      merchant('b_bretwalda', 'SS Bretwalda', 7, 12),
+      { ...escort(ww2Ship('b_walker', 'blue', 'HMS Walker', 'Destroyer', 'destroyer', 13, 9, 0, { guns: 4, gunRange: 6, calibre: 'light', search: 'type271', speed: 4 }), { hfdf: true }), order: { type: 'engage' } }, // the escort group's striking force ranges out
+      escort(ww2Ship('b_stork', 'blue', 'HMS Stork', 'Sloop', 'destroyer', 11, 5, 0, { guns: 6, gunRange: 6, calibre: 'light', search: 'type271', speed: 3 })),
+      escort(ww2Ship('b_sackville', 'blue', 'HMCS Sackville', 'Corvette', 'destroyer', 11, 14, 0, { guns: 1, gunRange: 5, calibre: 'light', search: 'type286', speed: 3 })),
+      escort(ww2Ship('b_gentian', 'blue', 'HMS Gentian', 'Corvette', 'destroyer', 5, 10, 0, { guns: 1, gunRange: 5, calibre: 'light', search: 'type271', speed: 3 })),
+      uboat('r_u96', 'U-96', 24, 4),
+      uboat('r_u201', 'U-201', 27, 10),
+      uboat('r_u552', 'U-552', 23, 15),
+      uboat('r_u432', 'U-432', 28, 6),
+    ],
+  },
   defector: {
     wind: 0,
     sides: ['blue', 'red', 'green'],
@@ -266,7 +306,7 @@ export const SCENARIO_SETUPS = {
       subShip('b_sable', 'blue', 'BNS Sable', 'Attack submarine', 'ssn', 8, 3, 0, { speed: 4, quiet: 2, sonar: 5, torpedoes: 4, decoys: 2, captain: { name: 'Cdr. Imani', trait: 'steady' }, order: { type: 'engage' } }),
       subShip('b_kite', 'blue', 'BNS Kite', 'Attack submarine', 'ssn', 8, 14, 0, { speed: 4, quiet: 2, sonar: 5, torpedoes: 4, decoys: 2, captain: { name: 'Cdr. Orlov', trait: 'steady' }, order: { type: 'engage' }, depth: 'deep' }),
       { ...subShip('r_razor', 'red', 'RNS Razor', 'Attack submarine', 'ssn', 23, 4, 3, { speed: 4, quiet: 3, sonar: 4, torpedoes: 4, decoys: 2, captain: { name: 'Capt. Soren', trait: 'steady' }, order: { type: 'engage' } }), searchAt: [10, 7] },
-      { ...subShip('r_echo', 'red', 'RNS Echo', 'Attack submarine', 'ssn', 24, 10, 3, { speed: 4, quiet: 2, sonar: 5, torpedoes: 4, decoys: 2, captain: { name: 'Capt. Varin', trait: 'steady' }, order: { type: 'engage' }, depth: 'deep' }), searchAt: [10, 9] },
+      { ...subShip('r_echo', 'red', 'RNS Echo', 'Attack submarine', 'ssn', 24, 10, 3, { speed: 4, quiet: 2, sonar: 5, torpedoes: 4, decoys: 2, captain: { name: 'Capt. Varin', trait: 'steady' }, order: { type: 'engage' }, depth: 'deep' }), searchAt: [14, 9] },
       { ...subShip('r_dart', 'red', 'RNS Dart', 'Fast attack submarine', 'ssn', 26, 15, 3, { speed: 5, quiet: 4, sonar: 3, torpedoes: 4, decoys: 1, captain: { name: 'Capt. Taran', trait: 'reckless' }, order: { type: 'engage' }, speedSetting: 'flank' }), searchAt: [12, 11] },
     ],
   },
@@ -405,6 +445,24 @@ function dreadShip(id, side, name, className, type, q, r, opts = {}) {
     fc: { targetId: null, level: 0 },
     doctrine: destroyer ? { roe: 'free', range: 3, withdraw: 35 } : { roe: 'free', range: 7, withdraw: 25 },
   };
+}
+
+// Convoy action. Merchant ships steam east for the far edge of the chart.
+function merchant(id, name, q, r) {
+  const ship = ww2Ship(id, 'blue', name, 'Merchant ship', 'merchant', q, r, 0, { guns: 0, gunRange: 1, calibre: 'light', speed: 1 });
+  const goal = [27, 28, 29].flatMap((q) => Array.from({ length: 18 }, (_, row) => [q, row]));
+  return { ...ship, value: 1, goal, goalText: 'reaches the meeting point with the next escort group', order: { type: 'proceed', q: 28, r }, doctrine: { ...ship.doctrine, withdraw: 0 } };
+}
+
+// An escort: ASDIC, depth charges, and a screening station on the convoy.
+function escort(ship, sensors = {}) {
+  return { ...ship, sensors: { ...ship.sensors, sonar: true, ...sensors }, depthCharges: 6, order: { type: 'screen' }, doctrine: { ...ship.doctrine, range: 4 } };
+}
+
+// A Type VII U-boat: surfaces to attack at night, carries Metox, and reports the convoy home.
+function uboat(id, name, q, r) {
+  const ship = ww2Ship(id, 'red', name, 'Type VII U-boat', 'submarine', q, r, 3, { guns: 0, gunRange: 1, calibre: 'light', torpedoes: 4, torpedo: 'g7e', esm: 'metric', speed: 2 });
+  return { ...ship, value: 1, searchAt: [10, 9], doctrine: { roe: 'free', range: 3, withdraw: 40, depth: 'surface' } };
 }
 
 // The bombardment line off Lunga Point: a Japanese cruiser that gets here shells the airfield.

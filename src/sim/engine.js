@@ -21,7 +21,7 @@ const TERRAIN_TYPES = new Set(['land', 'shoal', 'mines']);
 const VALID_ORDERS = new Set(['engage', 'hold', 'proceed', 'withdraw', 'line', 'screen', 'shadow']);
 const SPEED_SETTINGS = new Set(['silent', 'standard', 'flank']);
 const DEPTHS = new Set(['shallow', 'deep', 'surface']);
-const CONTACT_SOURCES = new Set(['radar', 'eyes', 'flash', 'receiver']);
+const CONTACT_SOURCES = new Set(['radar', 'eyes', 'flash', 'receiver', 'sonar', 'hfdf']);
 // Fields a scripted scenario event may change on a ship.
 const EVENT_FIELDS = new Set(['quiet', 'speed', 'passiveClass', 'depth']);
 
@@ -112,6 +112,7 @@ export function setDoctrine(input, shipIds, patch) {
     const patch = { ...clean };
     for (const k of ['speed', 'depth']) if (ship.doctrine[k] === undefined) delete patch[k];
     if (ship.era === 'coldwar' && (ship.type === 'carrier' || ship.type === 'asw_destroyer')) { delete patch.speed; delete patch.depth; }
+    if (ship.era === 'ww2') { delete patch.speed; delete patch.depth; } // a WWII U-boat dives on her captain's judgement
     ship.doctrine = { ...ship.doctrine, ...patch };
   }
   return trimLog(addLog(state, `Doctrine updated for ${ids.size} ship(s).`, 'order', state.ships.filter(s => ids.has(s.id)).map(s => s.side)));
@@ -892,6 +893,24 @@ function checkOutcome(state, meta) {
     if (charges.every((s) => s.status === 'escaped')) return { ...state, outcome: { result: 'victory', title: meta.victory.successTitle || 'Rendezvous Made', summary: `${charges.map((s) => s.name).join(', ')} reached the rendezvous.` } };
   }
   // A raid: enough of the named enemy ships reach their goal and the defence has failed.
+  // A convoy: the escort wins by bringing the merchant ships through, and loses
+  // when too many are sunk. Each ship's fate is told in words.
+  const convoy = meta.victory?.convoy;
+  if (convoy) {
+    const charges = state.ships.filter((s) => convoy.ships.includes(s.id));
+    const lost = charges.filter((s) => s.status === 'sunk' || s.status === 'struck').length;
+    const sailing = charges.filter((s) => isActive(s)).length;
+    const fates = `${charges.filter((s) => s.arrived).length} through, ${lost} lost${sailing ? `, ${sailing} still at sea` : ''}`;
+    if (lost >= convoy.maxLosses) return { ...state, outcome: { result: 'defeat', title: convoy.lossTitle || 'The Convoy Is Savaged', summary: `${fates}.` } };
+    if (!sailing) {
+      const result = lost <= (convoy.goodLosses ?? 1) ? 'victory' : 'draw';
+      return { ...state, outcome: { result, title: result === 'victory' ? convoy.successTitle || 'The Convoy Is Through' : 'A Battered Convoy Is Through', summary: `${fates}.` } };
+    }
+    if (state.tick >= meta.maxTicks) {
+      const result = lost <= (convoy.goodLosses ?? 1) ? 'victory' : 'draw';
+      return { ...state, outcome: { result, title: result === 'victory' ? 'Morning Over a Convoy Intact' : 'Morning Over a Battered Convoy', summary: `${fates}.` } };
+    }
+  }
   // The raid fails once too few raiders are left who could still get there.
   const raid = meta.victory?.raid;
   if (raid) {
@@ -1025,6 +1044,7 @@ function publicContact(c) {
   if (c.className) out.className = c.className;
   if (typeof c.emitter === 'boolean') out.emitter = c.emitter;
   if (c.by && !c.stale) out.by = c.by;
+  if (typeof c.submerged === 'boolean' && !c.stale) out.submerged = c.submerged;
   if (c.anchored && !c.stale) out.anchored = true;
   return out;
 }

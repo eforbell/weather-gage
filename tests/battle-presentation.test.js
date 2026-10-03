@@ -106,3 +106,12 @@ test('ships at anchor are marked so they leave no wake, own or identified enemy'
   assert.equal(actor.anchored, true);
   assert.equal(battleActors(confederate, confederate.ships[0].id).actors.find(a => a.name === 'CSS Virginia').anchored, false);
 });
+
+test('a submerged WWII contact draws no hull; an own submerged U-boat sits below the surface', () => {
+  const view = getView(createGame('convoy', 3), 'red');
+  const sub = view.ships.find((s) => s.type === 'submarine');
+  const under = { ...view, ships: view.ships.map((s) => (s.id === sub.id ? { ...s, doctrine: { ...s.doctrine, depth: 'shallow' } } : s)), contacts: [{ id: 'c9', q: 10, r: 9, confidence: 'classified', className: 'Destroyer', stale: false, submerged: true }] };
+  const actors = battleActors(under, view.ships.find((s) => s.id !== sub.id).id).actors;
+  assert.equal(actors.some((a) => a.id === 'c9'), false);
+  assert.ok(actors.find((a) => a.id === sub.id).y < 0);
+});

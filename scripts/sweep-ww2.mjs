@@ -1,11 +1,19 @@
 // Plan sweep for the WWII dockyard scenario: run many seeds of a plan and report
 // win/draw/loss, ships lost, when the guns opened, and torpedo hits each way.
 //
-//   node scripts/sweep-ww2.mjs [seeds=200]
+//   node scripts/sweep-ww2.mjs [seeds=200] [esperance|convoy]
 import { createGame, step, setRadar, issueOrder } from '../src/sim/engine.js';
 
 const seeds = Number(process.argv[2] || 200);
-const PLANS = {
+const scenario = process.argv[3] || 'esperance';
+const CONVOY_PLANS = {
+  'Walker ranges out, the rest screen (default)': (s) => s,
+  'All escorts screen the convoy': (s) => issueOrder(s, s.ships.filter((x) => x.side === 'blue' && x.type === 'destroyer').map((x) => x.id), { type: 'screen' }),
+  'All escorts hunt freely (Engage)': (s) => issueOrder(s, s.ships.filter((x) => x.side === 'blue' && x.type === 'destroyer').map((x) => x.id), { type: 'engage' }),
+  'Sackville silences her metric radar': (s) => setRadar(s, ['b_sackville'], false),
+  'All radar off': (s) => setRadar(s, s.ships.filter((x) => x.side === 'blue').map((x) => x.id), false),
+};
+const ESPERANCE_PLANS = {
   'Let the captains fight (radar on)': (s) => s,
   'Emission control (radar off)': (s) => setRadar(s, s.ships.filter((x) => x.side === 'blue').map((x) => x.id), false),
   'Cruisers in line, destroyers screen': (s) => {
@@ -15,10 +23,11 @@ const PLANS = {
   },
 };
 
+const PLANS = scenario === 'convoy' ? CONVOY_PLANS : ESPERANCE_PLANS;
 for (const [plan, setup] of Object.entries(PLANS)) {
   const tally = { victory: 0, draw: 0, defeat: 0 }, lost = { blue: 0, red: 0 }, firstShot = [], torpedoHits = { blue: 0, red: 0 }, ticks = [];
   for (let seed = 1; seed <= seeds; seed += 1) {
-    let s = setup(createGame('esperance', seed));
+    let s = setup(createGame(scenario, seed));
     let opened = null;
     while (!s.outcome) {
       s = step(s);

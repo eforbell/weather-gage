@@ -32,7 +32,8 @@ export function battleActors(view, selectedId) {
   const focus = view.ships.find(s => s.id === selectedId) || view.ships[0];
   if (!focus) return { focus: null, actors: [] };
   const coldwar = focus.era === 'coldwar';
-  const depthOf = ship => coldwar ? ship.doctrine?.depth || 'shallow' : 'surface';
+  // Cold War boats report their depth; a WWII U-boat is either surfaced or submerged.
+  const depthOf = ship => coldwar ? ship.doctrine?.depth || 'shallow' : ship.type === 'submarine' ? ship.doctrine?.depth || 'surface' : 'surface';
   const level = depth => ({ surface: 0, shallow: -2.7, deep: -8 }[depth] ?? 0);
   const focusDepth = depthOf(focus);
   const position = point => hexToWorld(point, focus);
@@ -50,7 +51,8 @@ export function battleActors(view, selectedId) {
       facing: s.facing, hull: s.hull, status: s.status, depth: depthOf(s), y: level(depthOf(s)), anchored: s.speed === 0,
       ...position(s),
     })),
-    ...view.contacts.filter(c => !coldwar && Number.isFinite(c.q) && Number.isFinite(c.r)).map(c => ({
+    // A submerged contact (an ASDIC echo) has no hull on the surface to draw.
+    ...view.contacts.filter(c => !coldwar && !c.submerged && Number.isFinite(c.q) && Number.isFinite(c.r)).map(c => ({
       id: c.id, own: false,
       name: c.confidence === 'identified' ? c.name : c.className || 'Unresolved contact',
       type: c.confidence === 'identified' ? c.className : null,

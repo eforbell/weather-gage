@@ -185,6 +185,12 @@ const HANDLERS = {
     }
     fx.light({ x: from.x, y: from.y, z: from.z, life: 3, size: [1.2, 1.2], color: [6, 6.4, 7], fade: 0.3 });
   },
+  // Depth charges: a pattern of tall white columns astern of the escort.
+  'depth-charge'(e, c, fx) {
+    const T = c.pos(e.to) || c.pos(e.from);
+    if (!T) return;
+    for (let k = 0; k < 5; k++) fx.later(0.8 + k * 0.18, () => { fx.splash(around(T, L * 0.35), L * (e.hits ? 0.45 : 0.32), 0.9); fx.impulse(T, 0.15); });
+  },
   aground(e, c, fx) { const T = c.pos(e.to); if (T) fx.splash(around(T, L * 0.3), L * 0.12, 0.5); },
 };
 
