@@ -29,10 +29,13 @@ const expectedScenarioSpecs = {
   b_dallas: 'submarine', r_konovalov: 'submarine', g_red_october: 'submarine',
   b_steadfast: 'carrier', b_meridian: 'asw_destroyer', b_ward: 'asw_destroyer', b_sable: 'submarine', b_kite: 'submarine', r_razor: 'submarine', r_echo: 'submarine', r_dart: 'submarine',
   b_valiant: 'modern_surface', b_kestrel: 'modern_surface', r_shahin: 'modern_surface', r_miraj: 'modern_surface',
+  b_san_francisco: 'ww2_cruiser', b_boise: 'ww2_cruiser', b_salt_lake_city: 'ww2_cruiser', b_helena: 'ww2_cruiser',
+  b_farenholt: 'ww2_destroyer', b_duncan: 'ww2_destroyer', b_laffey: 'ww2_destroyer',
+  r_aoba: 'ww2_cruiser', r_furutaka: 'ww2_cruiser', r_kinugasa: 'ww2_cruiser', r_fubuki: 'ww2_destroyer', r_hatsuyuki: 'ww2_destroyer',
 };
 
 function scenarioEra(id) {
-  return { nevis: 'sail', hampton: 'ironclad', dogger: 'dreadnought', defector: 'coldwar', northern_screen: 'coldwar', strait: 'modern' }[id];
+  return { nevis: 'sail', hampton: 'ironclad', dogger: 'dreadnought', defector: 'coldwar', northern_screen: 'coldwar', strait: 'modern', esperance: 'ww2' }[id];
 }
 
 test('ship specs resolve from public era/type and expose presentation dimensions', () => {

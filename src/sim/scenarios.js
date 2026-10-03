@@ -100,6 +100,28 @@ export const SCENARIOS = [
   },
 ];
 
+// Scenarios still in the dockyard: the engine and the tests run them, the
+// launcher does not offer them yet (docs/design/ww2-radar-night-action.md).
+export const DOCKYARD_SCENARIOS = [
+  {
+    id: 'esperance',
+    title: 'Night off Cape Esperance',
+    subtitle: 'Radar against night optics, October 1942',
+    era: 'ww2',
+    briefing:
+      'A Japanese cruiser division is coming down the Slot in the dark to shell the airfield. Your cruisers carry radar: two of them the new centimetric SG sets that can see a destroyer at eleven miles. The enemy has none, but his lookouts see further in the dark than yours, and his torpedoes reach twice as far as your guns can see.',
+    objective: 'Stop the Japanese cruisers reaching the bombardment line off Lunga Point: sink them or turn them back before two get through. If time runs out with the raid neither through nor beaten off, the action is indecisive.',
+    maxTicks: 30,
+    year: 1942,
+    difficulty: 2,
+    teaches: 'Radar search and emission control, radar-directed gunnery, starshell and searchlights, the long torpedo',
+    hexScale: '1 hex ≈ 1 nautical mile',
+    tickLabel: '3-minute turn',
+    victory: { raid: { ships: ['r_aoba', 'r_furutaka', 'r_kinugasa'], count: 2, title: 'The Airfield Is Shelled', summary: 'Japanese cruisers reached the bombardment line off Lunga Point.' } },
+    dockyard: true,
+  },
+];
+
 export const SCENARIO_SETUPS = {
   nevis: {
     wind: 5,
@@ -154,6 +176,29 @@ export const SCENARIO_SETUPS = {
       dreadShip('r_posen', 'red', 'SMS Posen', 'Dreadnought battleship', 'battleship', 17, 6, { guns: 8, speed: 2, secondary: 3, facing: 3 }),
       dreadShip('r_v186', 'red', 'SMS V186', 'Torpedo boat', 'destroyer', 15, 3, { facing: 3 }),
       dreadShip('r_s33', 'red', 'SMS S33', 'Torpedo boat', 'destroyer', 15, 8, { facing: 3 }),
+    ],
+  },
+  esperance: {
+    wind: 1,
+    map: { width: 26, height: 16 },
+    conditions: { light: 'night' }, // moonless; no dawn inside the action
+    terrain: [
+      ...disc(10, 3, 1, 'land'), // Savo Island
+      ...row(15, 0, 25, 'land'), ...row(14, 0, 7, 'land'), ...row(13, 0, 3, 'land'), // Guadalcanal: Cape Esperance in the west, Lunga Point and the airfield to the east
+    ],
+    ships: [
+      ww2Ship('b_san_francisco', 'blue', 'USS San Francisco', 'Heavy cruiser', 'cruiser', 12, 9, 5, { guns: 9, gunRange: 12, calibre: 'medium', search: 'sc' }),
+      ww2Ship('b_boise', 'blue', 'USS Boise', 'Light cruiser', 'cruiser', 11, 10, 5, { guns: 15, gunRange: 10, calibre: 'light', search: 'sg', fireControl: true }),
+      ww2Ship('b_salt_lake_city', 'blue', 'USS Salt Lake City', 'Heavy cruiser', 'cruiser', 10, 11, 5, { guns: 10, gunRange: 12, calibre: 'medium', search: 'sc' }),
+      ww2Ship('b_helena', 'blue', 'USS Helena', 'Light cruiser', 'cruiser', 9, 12, 5, { guns: 15, gunRange: 10, calibre: 'light', search: 'sg', fireControl: true }),
+      ww2Ship('b_farenholt', 'blue', 'USS Farenholt', 'Destroyer', 'destroyer', 14, 8, 5, { guns: 4, gunRange: 6, calibre: 'light', torpedoes: 2, torpedo: 'mk15', search: 'sc' }),
+      ww2Ship('b_duncan', 'blue', 'USS Duncan', 'Destroyer', 'destroyer', 13, 9, 5, { guns: 4, gunRange: 6, calibre: 'light', torpedoes: 2, torpedo: 'mk15' }),
+      ww2Ship('b_laffey', 'blue', 'USS Laffey', 'Destroyer', 'destroyer', 8, 13, 5, { guns: 4, gunRange: 6, calibre: 'light', torpedoes: 2, torpedo: 'mk15', search: 'sc' }),
+      raider(ww2Ship('r_aoba', 'red', 'Aoba', 'Heavy cruiser', 'cruiser', 23, 0, 2, { guns: 6, gunRange: 12, calibre: 'medium', torpedoes: 1, torpedo: 'type93', japanese: true })),
+      raider(ww2Ship('r_furutaka', 'red', 'Furutaka', 'Heavy cruiser', 'cruiser', 24, 0, 2, { guns: 6, gunRange: 12, calibre: 'medium', torpedoes: 1, torpedo: 'type93', japanese: true })),
+      raider(ww2Ship('r_kinugasa', 'red', 'Kinugasa', 'Heavy cruiser', 'cruiser', 25, 0, 2, { guns: 6, gunRange: 12, calibre: 'medium', torpedoes: 1, torpedo: 'type93', japanese: true })),
+      ww2Ship('r_fubuki', 'red', 'Fubuki', 'Destroyer', 'destroyer', 22, 1, 2, { guns: 6, gunRange: 6, calibre: 'light', torpedoes: 2, torpedo: 'type93', japanese: true }),
+      ww2Ship('r_hatsuyuki', 'red', 'Hatsuyuki', 'Destroyer', 'destroyer', 25, 1, 2, { guns: 6, gunRange: 6, calibre: 'light', torpedoes: 2, torpedo: 'type93', japanese: true }),
     ],
   },
   defector: {
@@ -329,6 +374,42 @@ function dreadShip(id, side, name, className, type, q, r, opts = {}) {
     firedAt: -1,
     fc: { targetId: null, level: 0 },
     doctrine: destroyer ? { roe: 'free', range: 3, withdraw: 35 } : { roe: 'free', range: 7, withdraw: 25 },
+  };
+}
+
+// The bombardment line off Lunga Point: a Japanese cruiser that gets here shells the airfield.
+function raider(ship) {
+  // A bombardment force is not there to fight: badly hurt, it turns for home.
+  // It keeps formation speed (about 20 knots), not the 30-plus of a cruiser running free.
+  return { ...ship, raid: true, speed: 2, doctrine: { ...ship.doctrine, withdraw: 30 }, goal: [[16, 14], [17, 14], [18, 14], [19, 14], [20, 14], [21, 14]], goalText: 'reaches the bombardment line and opens fire on the airfield', order: { type: 'proceed', q: 18, r: 14 } };
+}
+
+// A WWII surface ship. `search` names a radar set (eras/ww2.js RADARS); ships with
+// one start radiating, which the player can stop with emission control.
+// `japanese` gives the Imperial Navy's night-fighting doctrine: trained night
+// lookouts, searchlights instead of starshell at close range.
+function ww2Ship(id, side, name, className, type, q, r, facing, opts = {}) {
+  const destroyer = type === 'destroyer';
+  const search = opts.search ?? null;
+  return {
+    ...baseShip(id, side, name, className, q, r, facing),
+    era: 'ww2',
+    type,
+    speed: opts.speed ?? (destroyer ? 4 : 3),
+    guns: opts.guns,
+    gunRange: opts.gunRange,
+    calibre: opts.calibre,
+    torpedoes: opts.torpedoes ?? 0,
+    ...(opts.torpedo ? { torpedo: opts.torpedo } : {}),
+    sensors: { search, fireControl: Boolean(opts.fireControl), esm: opts.esm ?? null },
+    radar: Boolean(search),
+    nightTraining: Boolean(opts.japanese),
+    searchlight: Boolean(opts.japanese),
+    value: destroyer ? 1 : type === 'battleship' ? 3 : 2,
+    firedAt: -1,
+    illuminatedUntil: -1,
+    fc: { targetId: null, level: 0 },
+    doctrine: destroyer ? { roe: 'free', range: 3, withdraw: 30 } : { roe: 'free', range: 6, withdraw: 25 },
   };
 }
 

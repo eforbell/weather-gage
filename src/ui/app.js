@@ -656,6 +656,7 @@ $('#inspector').onsubmit = e => {
 };
 function restore(text) {
   const loaded = deserialize(text);
+  if (!SCENARIOS.some(s => s.id === loaded.scenarioId)) throw Error('That mission is still in the dockyard.');
   const loadedSide = sideFor(loaded.scenarioId);
   const loadedView = getView(loaded, loadedSide);
   if (!loadedView.ships.length) throw Error('Save contains no player squadron.');

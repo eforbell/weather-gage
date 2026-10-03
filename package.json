@@ -15,6 +15,7 @@
     "test": "node --test",
     "check": "node scripts/check.mjs",
     "census:torpedoes": "node scripts/census-torpedoes.mjs",
+    "sweep:ww2": "node scripts/sweep-ww2.mjs",
     "build:fixture": "node scripts/build-ship-fixture.mjs",
     "test:fixture": "node scripts/verify-ship-fixture.mjs",
     "ship:build": "node scripts/build-ship.mjs",
