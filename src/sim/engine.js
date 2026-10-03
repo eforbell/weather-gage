@@ -1,4 +1,4 @@
-import { SCENARIO_SETUPS, SCENARIOS } from './scenarios.js';
+import { SCENARIO_SETUPS, SCENARIOS, DOCKYARD_SCENARIOS } from './scenarios.js';
 import {
   WIDTH, HEIGHT, DEFAULT_MAP, DIRECTIONS, ALL_SIDES, CONF_RANK, MAX_LOG, MAX_FX, sidesOf, hostile, chance, contactId, believedHostile, worthClosing,
   distance, isActive, assertCoord, nonEmptyString, addLog, reportText, addFx, publicFx, applyDamage, resolveStatus, roll, nextRandom, terrainAt, terrainAtMap, directionToward, hexDistanceRaw, turnDistance, inBounds, key, clamp, deepClone, bestContactFor, contactsForShip,
@@ -8,11 +8,12 @@ export { WIDTH, HEIGHT, DIRECTIONS, distance, isActive };
 import * as dreadnought from './eras/dreadnought.js';
 import * as ironclad from './eras/ironclad.js';
 import * as coldwar from './eras/coldwar.js';
+import * as ww2 from './eras/ww2.js';
 
 // Era rule modules. Each may provide: validateShip, onOrder, orderDelay, beforeTick,
 // moveShip, afterMove, combat, detection, validateEntities, publicEntities. Sail and modern still use the engine's
 // built-in rules below and are the next candidates to move out.
-const ERA_RULES = { dreadnought, ironclad, coldwar };
+const ERA_RULES = { dreadnought, ironclad, coldwar, ww2 };
 const rulesFor = (state) => ERA_RULES[scenarioFor(state.scenarioId).era] || {};
 
 export const VERSION = 1;
@@ -119,7 +120,8 @@ export function setRadar(input, shipIds, enabled) {
   let state = validateState(input);
   state = cloneState(state);
   const ids = new Set(Array.isArray(shipIds) ? shipIds : [shipIds]);
-  for (const ship of state.ships) if (ids.has(ship.id) && ship.era === 'modern') ship.radar = Boolean(enabled);
+  // Emission control: modern ships, and WWII ships that carry a search radar.
+  for (const ship of state.ships) if (ids.has(ship.id) && (ship.era === 'modern' || (ship.era === 'ww2' && ship.sensors?.search))) ship.radar = Boolean(enabled);
   return updateContacts(trimLog(addLog(state, `Radar ${enabled ? 'enabled' : 'secured'} for ${ids.size} ship(s).`, 'order', state.ships.filter(s => ids.has(s.id)).map(s => s.side))));
 }
 
@@ -197,7 +199,8 @@ export function deserialize(text) {
 
 
 function scenarioFor(id) {
-  const meta = SCENARIOS.find((scenario) => scenario.id === id);
+  // Dockyard scenarios run in the engine and the tests but are not offered in the launcher yet.
+  const meta = SCENARIOS.find((scenario) => scenario.id === id) || DOCKYARD_SCENARIOS.find((scenario) => scenario.id === id);
   if (!meta || !SCENARIO_SETUPS[meta.id]) throw new Error(`Unknown scenario: ${id}`);
   return meta;
 }
@@ -312,6 +315,10 @@ function validateShip(ship, ids, era, map) {
   validateDoctrine(ship.doctrine);
   if (ship.era === 'sail' && (!Number.isInteger(ship.guns) || ship.guns <= 0)) throw new Error('Invalid guns');
   ERA_RULES[era]?.validateShip?.(ship, map);
+  if (ship.goal !== undefined && (!Array.isArray(ship.goal) || !ship.goal.length || !ship.goal.every((c) => Array.isArray(c) && c.length === 2 && inBounds({ q: c[0], r: c[1] }, map)))) throw new Error('Invalid goal');
+  for (const k of ['arrived', 'raid']) if (ship[k] !== undefined && typeof ship[k] !== 'boolean') throw new Error(`Invalid ${k}`);
+  if (ship.goalText !== undefined && !nonEmptyString(ship.goalText)) throw new Error('Invalid goal text');
+  if (ship.arrived && ship.status !== 'escaped') throw new Error('Only a ship that left the chart can have arrived');
   if (ship.arriveAt !== undefined && (!Number.isInteger(ship.arriveAt) || ship.arriveAt < 0)) throw new Error('Invalid reserve arrival');
   if (ship.status === 'reserve' && ship.arriveAt === undefined) throw new Error('Invalid reserve arrival');
 }
@@ -377,7 +384,7 @@ function validatePending(pending, shipIds, tick, map, ships) {
       if (!Number.isInteger(item.salvo) || item.salvo < 1) throw new Error('Invalid missile salvo');
       if (Object.hasOwn(item, 'order')) throw new Error('Missile pending cannot include order');
     } else if (item.kind === 'torpedo') {
-      if (!ships.some((s) => s.era === 'dreadnought')) throw new Error('Torpedoes are not part of this era');
+      if (!ships.some((s) => s.era === 'dreadnought' || s.era === 'ww2')) throw new Error('Torpedoes are not part of this era');
       if (!nonEmptyString(item.shipId) || !shipIds.has(item.shipId)) throw new Error('Invalid torpedo shooter');
       if (!nonEmptyString(item.targetId) || !shipIds.has(item.targetId)) throw new Error('Invalid torpedo target');
       if (!ALL_SIDES.includes(item.side)) throw new Error('Invalid torpedo side');
@@ -385,6 +392,7 @@ function validatePending(pending, shipIds, tick, map, ships) {
       if (sideOf(item.shipId) !== item.side || sideOf(item.targetId) === item.side) throw new Error('Invalid torpedo sides');
       assertCoord(item, map);
       assertCoord({ q: item.aimQ, r: item.aimR }, map);
+      if (item.weapon !== undefined && !Object.hasOwn(ww2.TORPEDOES, item.weapon)) throw new Error('Invalid torpedo weapon');
       if (Object.hasOwn(item, 'order')) throw new Error('Torpedo pending cannot include order');
     } else {
       if (item.kind !== undefined) throw new Error('Invalid pending kind');
@@ -566,9 +574,10 @@ function moveShips(state, era) {
         ship.status = 'escaped';
         state = addLog(state, `${ship.name} withdraws beyond the action.`, 'escape');
         occupied.delete(key(ship.q, ship.r));
-      } else if (isActive(ship) && ship.goal?.some(([q, r]) => q === ship.q && r === ship.r)) {
+      } else if (isActive(ship) && !(ship.raid && ship.order.type === 'withdraw') && ship.goal?.some(([q, r]) => q === ship.q && r === ship.r)) {
         ship.status = 'escaped';
-        state = addLog(state, `${ship.name} reaches the rendezvous.`, 'escape');
+        ship.arrived = true; // reached her goal, as opposed to withdrawing off the chart
+        state = addLog(state, `${ship.name} ${ship.goalText || 'reaches the rendezvous'}.`, 'escape');
         occupied.delete(key(ship.q, ship.r));
       }
       continue;
@@ -665,7 +674,7 @@ function searchTarget(state, ship) {
 
 
 function withdrawTarget(state, ship) {
-  if (ship.goal) return { q: ship.goal[0][0], r: ship.goal[0][1] }; // a ship with a destination limps on toward it
+  if (ship.goal && !ship.raid) return { q: ship.goal[0][0], r: ship.goal[0][1] }; // a ship with a destination limps on toward it; a raider turns for home
   return ship.side === 'blue' ? { q: 0, r: ship.r } : { q: state.map.width - 1, r: ship.r };
 }
 
@@ -805,7 +814,14 @@ function scanContacts(state, side, observers, previous, scope) {
         const era = scenarioFor(state.scenarioId).era;
         const detected = ERA_RULES[era]?.detection ? ERA_RULES[era].detection(obs, enemy, state) : detection(obs, enemy, era);
         if (!detected) continue;
-        if (!best || CONF_RANK[detected.confidence] > CONF_RANK[best.confidence] || detected.range < best.range) best = detected;
+        // The clearest report wins, then the closest: a destroyer's glimpse must not
+        // replace a cruiser's classified radar track. Any observer that can hear
+        // the enemy radiating makes that known.
+        const better = !best || CONF_RANK[detected.confidence] > CONF_RANK[best.confidence]
+          || (CONF_RANK[detected.confidence] === CONF_RANK[best.confidence] && detected.range < best.range);
+        const emitter = Boolean(best?.emitter) || Boolean(detected.emitter);
+        if (better) best = detected;
+        if (detected.emitter !== undefined || best.emitter !== undefined) best = { ...best, emitter };
       }
     }
     if (best) {
@@ -818,7 +834,8 @@ function scanContacts(state, side, observers, previous, scope) {
         lastSeen: state.tick,
         stale: false,
         range: best.range,
-        emitter: Boolean(enemy.radar) || (enemy.emitUntil ?? -1) >= state.tick || (enemy.pingAt ?? -1) === state.tick,
+        // An era can say whether this observer could tell the enemy was radiating (a matching receiver).
+        emitter: best.emitter ?? (Boolean(enemy.radar) || (enemy.emitUntil ?? -1) >= state.tick || (enemy.pingAt ?? -1) === state.tick),
       };
       if (best.datum) {
         // A datum is a fixed point with fixed uncertainty: it never sharpens into a track.
@@ -869,6 +886,17 @@ function checkOutcome(state, meta) {
     if (!charges.length) throw new Error('Scenario protects unknown ships');
     if (charges.some((s) => !isActive(s) && s.status !== 'escaped' && s.status !== 'reserve')) return { ...state, outcome: { result: 'defeat', title: meta.victory.lossTitle || 'The Defector Is Lost', summary: `${charges.map((s) => s.name).join(', ')} did not survive.` } };
     if (charges.every((s) => s.status === 'escaped')) return { ...state, outcome: { result: 'victory', title: meta.victory.successTitle || 'Rendezvous Made', summary: `${charges.map((s) => s.name).join(', ')} reached the rendezvous.` } };
+  }
+  // A raid: enough of the named enemy ships reach their goal and the defence has failed.
+  // The raid fails once too few raiders are left who could still get there.
+  const raid = meta.victory?.raid;
+  if (raid) {
+    const raiders = state.ships.filter((s) => raid.ships.includes(s.id));
+    const arrived = raiders.filter((s) => s.arrived).length;
+    const coming = raiders.filter((s) => (isActive(s) && s.order.type !== 'withdraw') || s.status === 'reserve').length;
+    if (arrived >= raid.count) return { ...state, outcome: { result: 'defeat', title: raid.title, summary: raid.summary } };
+    if (arrived + coming < raid.count) return { ...state, outcome: { result: 'victory', title: raid.repulsedTitle || 'The Raid Is Turned Back', summary: `${raiders.filter((s) => !s.arrived).map((s) => s.name).join(', ')} sunk or turned for home.` } };
+    if (state.tick >= meta.maxTicks) return { ...state, outcome: { result: 'draw', title: 'Still Coming On', summary: 'Time ran out with the raid neither through nor beaten off.' } };
   }
   const blueActive = decisive('blue').some(alive);
   const redActive = protect ? true : decisive('red').some(alive); // with an escort goal, sinking the hunter is not the win
