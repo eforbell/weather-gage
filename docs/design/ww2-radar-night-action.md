@@ -1,8 +1,8 @@
 # Design: the Second World War era — radar, night action and the road to carriers
 
-Status: research, rules module and a dockyard scenario, 2026-10-03. The era is
-not offered in the mission launcher yet ("Carriers & Radar · in the dockyard").
-The simulation, the tests and the balance harness all run it.
+Status: research, rules module and a playable night action, 2026-10-03. Night off
+Cape Esperance is in the mission launcher ("Radar & Night Action"); carriers are
+designed below but not built.
 
 ## Why radar first, carriers second
 
@@ -147,16 +147,25 @@ What the harness found while tuning:
 
 ## Next steps
 
-### Toward a playable night action
-1. **Launcher and chart:**
-   - Promote `esperance` from the dockyard and add an era entry in `app.js` (labels, order hints, a radar-range ring).
-   - Show radar blips distinctly from visual contacts, and show "emitting" contacts heard by receivers.
-   - Add the `ERA_LOOK` night grade for the 3D view.
-2. **3D:**
-   - Starshell (a slow, bright, falling flare) and a searchlight beam, both lighting the water.
-   - Night lighting with gun flashes as the main light.
-   - Authored US and IJN cruisers through the ship pipeline.
-3. **Advisor tips** for radar and emission control, the Long Lance, and starshell against radar.
+### Playable night action (done)
+- **Launcher:** Night off Cape Esperance is a mission, with an era header, briefing note, field-manual entry and flag-lieutenant tips and debrief. It can be played as red with `?side=red`.
+- **Chart:**
+  - Cruiser and destroyer silhouettes, and gun and torpedo range rings (the Long Lance's reach is visible).
+  - The shaded envelope is the selected ship's search radar while it radiates, or her night lookouts' reach when silent.
+  - Every report says how it was made (`contact.by`: radar, eyes, flash or receiver). Unclassified reports read RADAR BLIP, GUN FLASHES or RADAR EMISSIONS, and the ring style differs by source.
+- **Ship panel:** the radar set with an on/off switch, its reach and band, fire-control pips, torpedo count and what laying guns at night needs.
+- **3D:**
+  - A moonless night grade.
+  - Starshell: a small, fierce flare in a faint halo that drifts down. A wide burst hangs off to one side.
+  - A searchlight beam from the ship holding it to her target.
+
+A deliberate choice: a burning ship (hull at 45% or less) counts as lit, so at night she is seen, and reported `by: 'eyes'`, well beyond lookout range. That tells the other side she is on fire, which is what a burning ship at night does.
+
+### Still to do for the night action
+- **Re-tune balance:** the night needs more Japanese teeth after the information fixes.
+- **Authored WWII hulls** through the ship pipeline.
+- **Gun-flash lighting** of nearby hulls and water.
+- **A radar scope view**, perhaps.
 
 ### Carriers (the second slice)
 - **An operational scale.** One hex covers roughly 10 nm and one tick roughly 20 minutes, so strike ranges of 150–250 nm become 15–25 hexes. This needs per-scenario scale, which already exists in part.

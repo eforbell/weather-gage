@@ -126,19 +126,19 @@ export function optical(observer, enemy, state) {
   const night = lightAt(state) === 'night';
   if (!night || illuminated(state, enemy)) {
     const reach = night ? 8 : 14;
-    if (d <= Math.min(reach, SIZE[enemy.type] === 'small' ? 4 : 6)) return { confidence: 'identified', range: d };
-    if (d <= Math.min(reach, 10)) return { confidence: 'classified', range: d };
-    if (d <= reach) return { confidence: 'sighted', range: d };
+    if (d <= Math.min(reach, SIZE[enemy.type] === 'small' ? 4 : 6)) return { confidence: 'identified', range: d, by: 'eyes' };
+    if (d <= Math.min(reach, 10)) return { confidence: 'classified', range: d, by: 'eyes' };
+    if (d <= reach) return { confidence: 'sighted', range: d, by: 'eyes' };
   } else {
     // Night lookouts: a big silhouette carries further, and trained night lookouts
     // with big binoculars (the Imperial Navy's speciality) see further still.
     const lookout = 2 + (SIZE[enemy.type] === 'large' ? 1 : 0) + (observer.nightTraining ? 2 : 0);
-    if (d <= lookout - 1) return { confidence: 'identified', range: d };
-    if (d <= lookout) return { confidence: 'classified', range: d };
-    if (d <= lookout + 1) return { confidence: 'sighted', range: d };
+    if (d <= lookout - 1) return { confidence: 'identified', range: d, by: 'eyes' };
+    if (d <= lookout) return { confidence: 'classified', range: d, by: 'eyes' };
+    if (d <= lookout + 1) return { confidence: 'sighted', range: d, by: 'eyes' };
   }
   // Gun flashes: a bearing and a rough range, firmed up only while they keep coming.
-  if (enemy.firedAt >= 0 && enemy.firedAt >= state.tick - 1 && d <= FLASH_RANGE[night ? 'night' : 'day']) return { confidence: 'sighted', range: d, uncertainty: FLASH_UNCERTAINTY };
+  if (enemy.firedAt >= 0 && enemy.firedAt >= state.tick - 1 && d <= FLASH_RANGE[night ? 'night' : 'day']) return { confidence: 'sighted', range: d, uncertainty: FLASH_UNCERTAINTY, by: 'flash' };
   return null;
 }
 
@@ -154,7 +154,7 @@ export function radarEcho(observer, enemy, state) {
   const reach = radarReach(observer, enemy, state);
   const d = distance(observer, enemy);
   if (!set || !reach || d > reach) return null;
-  return { confidence: d <= set.classify ? 'classified' : 'sighted', range: d };
+  return { confidence: d <= set.classify ? 'classified' : 'sighted', range: d, by: 'radar' };
 }
 
 // A radiating enemy set is heard on its bearing well beyond its own reach; the
@@ -165,7 +165,7 @@ export function intercept(observer, enemy, state) {
   if (!esm || !set || !enemy.radar || !esm.bands.includes(set.band)) return null;
   const d = distance(observer, enemy);
   if (d > Math.round(set.range.large * ESM_REACH)) return null;
-  return { confidence: 'sighted', range: d, uncertainty: 3 };
+  return { confidence: 'sighted', range: d, uncertainty: 3, by: 'receiver' };
 }
 
 // ---------- Signals ----------

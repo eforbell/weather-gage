@@ -25,6 +25,13 @@ const PRIMERS = {
     ['Destroyers are torpedoes', 'Sent in early on Engage, they force the enemy line to dodge and scatter. Held on Screen, they guard your capitals against his torpedo boats. One torpedo hit cripples a dreadnought.'],
     ['Mind the battlecruiser', 'Lion is fast but thinly armoured and her magazines are vulnerable. Speed is her protection, not armour.'],
   ],
+  ww2: [
+    ['Radar sees, eyes name', 'Your SG sets hold the enemy at ten miles and more in the dark, but a blip has no name. Only a lookout, or the light of starshell, says what it is.'],
+    ['The long torpedo', 'Japanese destroyers and cruisers carry torpedoes that reach eight miles, twice what your guns can see at night. A spread aimed at your gun flashes is already running before you know it.'],
+    ['Light them up', 'Cruisers without fire-control radar need light to shoot at night: starshell (often wide), a burning target, or an enemy close enough to see. A searchlight lights the enemy, and the ship holding it.'],
+    ['Keep the cruisers together', 'Form line keeps the cruisers on the enemy cruisers instead of being drawn off by his destroyers. The airfield is what matters.'],
+    ['Emissions', 'Untick a ship’s radar to go silent. The 1942 Imperial Navy has no receiver that hears centimetric radar, so silence buys little here and costs you the picture.'],
+  ],
   coldwar: [
     ['Hear, don’t be heard', 'Speed is noise. Silent running is slow but nearly inaudible; at flank speed you are loud and deaf. Hunters sprint, then drift to listen.'],
     ['A bearing is not a position', 'Each boat has its own sonar picture: select a submarine to see what she hears. Passive contacts sit somewhere inside their ring. Hold contact and the ring shrinks; hold it three ticks and sonar will classify it, not always correctly.'],
@@ -56,6 +63,7 @@ export function advise(view, sc) {
       const carrier = own.find(s => s.type === 'carrier');
       if (carrier && (carrier.airSorties ?? 0) > 0 && (carrier.patrolReadyAt ?? 0) <= view.tick) return `${carrier.name} has aircraft ready. Launch a patrol toward the suspected lane; reports will arrive after two ticks.`;
     }
+    if (sc.era === 'ww2' && own.some(s => s.sensors?.search) && !own.some(s => s.radar)) return 'Every set is silent and the night is empty. The enemy cannot hear your radar; switch the SG cruisers back on or you will not find him in the dark.';
     if (sc.era === 'modern' && !own.some(s => s.radar)) return 'Your ships are silent and blind. A short radar burst finds the enemy but tells him where you are.';
     return view.tick < 2 ? 'No contacts yet. Engage sends captains toward the enemy’s likely position; Proceed lets you choose the approach.' : 'Contact lost. Last-known markers show where the enemy was, not where he is.';
   }
@@ -99,6 +107,21 @@ export function advise(view, sc) {
     if (idleBoat && wooden && iron && distance(iron, wooden) <= 3) return `Virginia is engaged. The gunboats can add their fire now, but keep ${idleBoat.name} away from the heavy broadsides of Minnesota.`;
     if (iron && wooden && distance(iron, wooden) > 3) return 'Close the range. Wooden broadsides cannot hurt your armour much, and your shells burn best at two cables.';
     return 'Anchored ships cannot turn. Come at them from ahead or astern and your fire rakes them end to end.';
+  }
+
+  if (sc.era === 'ww2') {
+    if (!own.some(s => s.sensors?.search)) {
+      // The Imperial Navy side: no radar, better eyes, the long torpedo.
+      if (fresh.some(c => c.by === 'flash')) return 'Their guns are firing: the flashes give you a bearing. Long Lances reach eight miles; let the destroyers send spreads down the bearing before you show yourself.';
+      return 'Your lookouts see further in the dark than theirs, but their radar sees further still. Keep the cruisers moving on the airfield; let the destroyers deal with whatever comes out of the night.';
+    }
+    const blips = fresh.filter(c => c.by === 'radar' && c.confidence === 'sighted');
+    if (blips.length && fresh.every(c => c.confidence === 'sighted')) return 'Radar blips only. Guns hold fire until a contact is classified, though destroyers will torpedo any fresh report; close in, or let the SG cruisers lead.';
+    const cruisers = fresh.filter(c => /cruiser/i.test(c.className || ''));
+    const scattered = own.filter(s => s.type === 'cruiser' && s.order.type === 'engage');
+    if (cruisers.length && scattered.length > 1) return `Enemy cruisers in the picture. Form line on the flagship so your ${scattered.length} cruisers fight the ships bound for the airfield, not the screen.`;
+    if (fresh.some(c => c.by === 'flash')) return 'Gun flashes on the horizon: someone is firing. Expect torpedoes before you see the ship that fired them.';
+    return 'Keep the radar cruisers on the heaviest blips. Ships without fire-control radar fire starshell first and shoot only once the target is lit or close.';
   }
 
   if (sc.era === 'dreadnought') {
@@ -147,6 +170,17 @@ export function lesson(view, sc, stats) {
     if (stats.hits < stats.taken) return 'The enemy outshot you. Check the wind: firing downwind into your own smoke costs a third of your hits, and hard turns reset fire control.';
     if (!stats.torpedoHits) return 'Your destroyers scored no torpedo hits. Launch them when the enemy capitals are committed to a gunnery duel and holding course.';
     return result === 'victory' ? 'A well-fought action: good geometry, steady gunnery and torpedoes at the right moment.' : 'Good fundamentals. Look at when you committed the destroyers and whether the battlecruiser was exposed too long.';
+  }
+  if (sc.era === 'ww2') {
+    // The engine scores from the US side; a red player raided the airfield.
+    if (view.ships.some(s => s.side === 'red')) {
+      if (result === 'defeat') return 'The airfield burned. Night eyes, the long torpedo and a bombardment group that kept its course beat the radar.';
+      if (result === 'victory') return 'Turned back. Their radar found you long before your lookouts found them; keep the cruisers on course and send the destroyers at their gun flashes.';
+      return 'Neither through nor beaten off. Press on harder: the airfield is the objective, not the enemy cruisers.';
+    }
+    if (result === 'victory') return 'The airfield is safe. Radar found them, the line kept the cruisers on the cruisers, and the night belonged to whoever could see in it.';
+    if (result === 'defeat') return 'They reached the bombardment line. Keep the radar on, form your cruisers in line across their path, and fight the cruisers, not the screen.';
+    return 'Neither through nor beaten off. Close sooner: radar-directed fire needs the enemy inside about twelve miles.';
   }
   if (sc.era === 'sail') {
     if (stats.hits < stats.taken) return 'The enemy delivered more broadsides than you. Concentrate both frigates on one opponent, and use the wind to choose the moment you close.';

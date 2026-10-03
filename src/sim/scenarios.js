@@ -98,11 +98,6 @@ export const SCENARIOS = [
     hexScale: '1 hex ≈ 5 nautical miles',
     tickLabel: 'minute',
   },
-];
-
-// Scenarios still in the dockyard: the engine and the tests run them, the
-// launcher does not offer them yet (docs/design/ww2-radar-night-action.md).
-export const DOCKYARD_SCENARIOS = [
   {
     id: 'esperance',
     title: 'Night off Cape Esperance',
@@ -118,9 +113,12 @@ export const DOCKYARD_SCENARIOS = [
     hexScale: '1 hex ≈ 1 nautical mile',
     tickLabel: '3-minute turn',
     victory: { raid: { ships: ['r_aoba', 'r_furutaka', 'r_kinugasa'], count: 2, title: 'The Airfield Is Shelled', summary: 'Japanese cruisers reached the bombardment line off Lunga Point.' } },
-    dockyard: true,
   },
 ];
+
+// Scenarios still in the dockyard: the engine and the tests run them, the
+// launcher does not offer them yet (docs/design/ww2-radar-night-action.md).
+export const DOCKYARD_SCENARIOS = [];
 
 export const SCENARIO_SETUPS = {
   nevis: {

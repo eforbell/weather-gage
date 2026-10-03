@@ -21,6 +21,7 @@ const TERRAIN_TYPES = new Set(['land', 'shoal', 'mines']);
 const VALID_ORDERS = new Set(['engage', 'hold', 'proceed', 'withdraw', 'line', 'screen', 'shadow']);
 const SPEED_SETTINGS = new Set(['silent', 'standard', 'flank']);
 const DEPTHS = new Set(['shallow', 'deep', 'surface']);
+const CONTACT_SOURCES = new Set(['radar', 'eyes', 'flash', 'receiver']);
 // Fields a scripted scenario event may change on a ship.
 const EVENT_FIELDS = new Set(['quiet', 'speed', 'passiveClass', 'depth']);
 
@@ -367,6 +368,7 @@ function validateContacts(contacts, shipIds, sides, keys = sides, map = DEFAULT_
       if (contact.emitter !== undefined && typeof contact.emitter !== 'boolean') throw new Error('Invalid contact emitter');
       for (const k of ['uncertainty', 'holdSince']) if (contact[k] !== undefined && (!Number.isInteger(contact[k]) || contact[k] < 0)) throw new Error(`Invalid contact ${k}`);
       if (contact.submerged !== undefined && typeof contact.submerged !== 'boolean') throw new Error('Invalid contact submerged');
+      if (contact.by !== undefined && !CONTACT_SOURCES.has(contact.by)) throw new Error('Invalid contact source');
       if (contact.side !== undefined && !sides.includes(contact.side)) throw new Error('Invalid contact side');
     }
   }
@@ -843,6 +845,7 @@ function scanContacts(state, side, observers, previous, scope) {
         Object.assign(contact, { q: best.datum.q, r: best.datum.r, uncertainty: best.uncertainty });
       } else if (best.uncertainty !== undefined) trackMotion(state, scope, enemy, contact, best, prior.get(enemy.id));
       if (best.submerged !== undefined) contact.submerged = best.submerged; // sonar can tell a hull under water from one on it
+      if (best.by) contact.by = best.by; // how the report was made: radar, eyes, flash, receiver
       if (CONF_RANK[contact.confidence] >= 3) { contact.name = enemy.name; if (sidesOf(state).length > 2) contact.side = enemy.side; }
       if (CONF_RANK[contact.confidence] >= 3 && enemy.speed === 0) contact.anchored = true; // a ship at anchor is plain to see once identified
       if (CONF_RANK[contact.confidence] >= 2) contact.className = contact.uncertainty && enemy.passiveClass ? enemy.passiveClass : enemy.className;
@@ -1019,6 +1022,7 @@ function publicContact(c) {
   if (c.name) out.name = c.name;
   if (c.className) out.className = c.className;
   if (typeof c.emitter === 'boolean') out.emitter = c.emitter;
+  if (c.by && !c.stale) out.by = c.by;
   if (c.anchored && !c.stale) out.anchored = true;
   return out;
 }
