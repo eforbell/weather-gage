@@ -529,13 +529,14 @@ function showDebrief() {
 // ---------- Mission browser ----------
 
 const ERA_ORDER = [
-  { era: 'sail', year: '1775–1815', name: 'Age of Sail' },
-  { era: 'ironclad', year: '1850–1890', name: 'Ironclads & Steam' },
-  { era: 'dreadnought', year: '1905–1918', name: 'Dreadnoughts' },
-  { era: 'ww2', year: '1939–1945', name: 'Radar & Night Action' },
-  { era: 'coldwar', year: '1947–1991', name: 'Cold War & ASW' },
-  { era: 'modern', year: 'Near future', name: 'Missile Age' },
+  { era: 'sail', year: '1775–1815', name: 'Age of Sail', blurb: 'You fight the wind before you fight the enemy. Guns fire only off the beam, and signals take time.' },
+  { era: 'ironclad', year: '1850–1890', name: 'Ironclads & Steam', blurb: 'Steam frees you from the wind and iron shrugs off shot. The question is what the new weapons can do.' },
+  { era: 'dreadnought', year: '1905–1918', name: 'Dreadnoughts', blurb: 'Range, speed and fire control. Cross the T, mind your own smoke, and find the enemy first.' },
+  { era: 'ww2', year: '1939–1945', name: 'Second World War', blurb: 'Radar sees in the dark and the U-boat hides beneath it. Information decides the fight.' },
+  { era: 'coldwar', year: '1947–1991', name: 'Cold War & ASW', blurb: 'Nobody sees anything: you listen. Speed is noise, and one ping gives you away.' },
+  { era: 'modern', year: 'Near future', name: 'Missile Age', blurb: 'Radar or silence, salvo or defence. Finite magazines, fictional waters.' },
 ];
+const DIFFICULTY = ['', 'Introductory', 'Standard', 'Demanding'];
 const RANK = { victory: 3, draw: 2, defeat: 1 };
 function records() {
   try { const r = JSON.parse(localStorage.getItem('weather-gage.record') || '{}'); return r && typeof r === 'object' && !Array.isArray(r) ? r : {}; } catch { return {}; }
@@ -565,31 +566,68 @@ function miniChart(id) {
   return `<svg class="mini-chart" viewBox="${chartViewBox({ width, height })}" aria-hidden="true">${svg}</svg>`;
 }
 
-function missionCard(sc) {
+function missionCard(sc, recommended) {
   const setup = SCENARIO_SETUPS[sc.id];
   const own = setup.ships.filter(s => s.side === 'blue');
-  const opposing = setup.ships.filter(s => s.side === 'red' && s.status !== 'reserve').length;
+  const opposing = setup.ships.filter(s => s.side !== 'blue').length;
   const rec = records()[sc.id];
   const minutes = Math.round((sc.maxTicks * SPEEDS.normal) / 60000);
   const record = rec ? `Best: <b>${escape(rec.best)}</b> · ${rec.plays} sortie${rec.plays > 1 ? 's' : ''}` : 'Not yet sailed';
+  const year = sc.year < 2000 ? sc.year : 'Near future';
   return `<article class="mission-card era-${escape(sc.era)}">
-    <div class="card-top"><span class="year">${sc.year < 2000 ? escape(sc.year) : 'NEAR FUTURE'}</span><span class="era-tag">${escape(ERA[sc.era].label.split(' / ')[0])}</span><span class="difficulty" title="Difficulty ${sc.difficulty} of 3" aria-label="Difficulty ${sc.difficulty} of 3">${'●'.repeat(Math.min(3, sc.difficulty))}${'○'.repeat(Math.max(0, 3 - sc.difficulty))}</span></div>
-    ${miniChart(sc.id)}
-    <h2>${escape(sc.title)}</h2><p class="card-sub">${escape(sc.subtitle)}</p>
-    <dl><dt>Your force</dt><dd>${own.map(s => escape(s.name)).join(', ')}</dd><dt>Opposition</dt><dd>${opposing} warship${opposing > 1 ? 's' : ''} reported</dd><dt>Teaches</dt><dd>${escape(sc.teaches)}</dd><dt>Length</dt><dd>${sc.maxTicks} ${escape(sc.tickLabel)} turns · ${minutes <= 1 ? 'about a minute' : `about ${minutes} min`} of running clock, plus your pauses</dd></dl>
-    <div class="card-foot"><span class="record ${rec?.best || ''}">${record}</span><button class="primary" data-launch="${escape(sc.id)}">Take command →</button></div>
+    <figure class="card-art">${miniChart(sc.id)}<img src="images/missions/${escape(sc.id)}.jpg" alt="" loading="lazy" onerror="this.remove()"><span class="card-year">${escape(year)}</span>${recommended ? '<span class="card-flag">Start here</span>' : ''}</figure>
+    <div class="card-body">
+      <h3>${escape(sc.title)}</h3><p class="card-sub">${escape(sc.subtitle)}</p>
+      <ul class="card-facts" aria-label="At a glance">
+        <li title="Difficulty ${sc.difficulty} of 3"><span class="pips" aria-hidden="true">${'●'.repeat(Math.min(3, sc.difficulty))}${'○'.repeat(Math.max(0, 3 - sc.difficulty))}</span>${escape(DIFFICULTY[sc.difficulty] || '')}</li>
+        <li title="Your ships against the opposing force">${own.length} v ${opposing}</li>
+        <li title="About ${minutes <= 1 ? 'a minute' : `${minutes} minutes`} of running clock at normal pace, plus your pauses">${sc.maxTicks} turns</li>
+      </ul>
+      <p class="card-teaches"><span>Teaches</span> ${escape(sc.teaches)}</p>
+      <p class="card-force"><span>Your force</span> ${own.slice(0, 3).map(s => escape(s.name)).join(', ')}${own.length > 3 ? ` and ${own.length - 3} more` : ''}</p>
+      <div class="card-foot"><span class="record ${rec?.best || ''}">${record}</span><button class="primary" data-launch="${escape(sc.id)}">Take command →</button></div>
+    </div>
   </article>`;
+}
+
+// The first mission not yet sailed, easiest and earliest first: a new admiral's starting point.
+function recommendedMission() {
+  const sailed = records();
+  return [...SCENARIOS].sort((a, b) => a.difficulty - b.difficulty || a.year - b.year).find(sc => !sailed[sc.id])?.id || null;
+}
+
+let launcherEra = pref('launcher-era', 'all');
+
+function launcherList() {
+  const recommended = recommendedMission();
+  const eras = ERA_ORDER.filter(e => SCENARIOS.some(sc => sc.era === e.era) && (launcherEra === 'all' || launcherEra === e.era));
+  return eras.map(e => `<section class="era-group" aria-labelledby="era-${e.era}">
+      <header class="era-head"><h2 id="era-${e.era}">${escape(e.name)}</h2><span>${escape(e.year)}</span><p>${escape(e.blurb)}</p></header>
+      <div class="mission-grid">${SCENARIOS.filter(sc => sc.era === e.era).sort((a, b) => a.year - b.year).map(sc => missionCard(sc, sc.id === recommended)).join('')}</div>
+    </section>`).join('');
+}
+
+function launcherRail() {
+  const count = era => SCENARIOS.filter(sc => era === 'all' || sc.era === era).length;
+  const item = (era, name, year) => {
+    const n = count(era);
+    return `<li><button data-era="${era}" aria-pressed="${launcherEra === era}" ${n ? '' : 'disabled'}><b>${escape(name)}</b><span>${escape(year)}</span><i>${n ? `${n} mission${n > 1 ? 's' : ''}` : 'in the dockyard'}</i></button></li>`;
+  };
+  return `<nav class="era-rail" aria-label="Filter missions by era"><ol>${item('all', 'Every era', '1775 to the near future')}${ERA_ORDER.map(e => item(e.era, e.name, e.year)).join('')}</ol></nav>`;
 }
 
 function showLauncher() {
   pause();
   outcomeTimers.forEach(clearTimeout); outcomeTimers = [];
-  const byYear = [...SCENARIOS].sort((a, b) => a.year - b.year);
+  if (launcherEra !== 'all' && !SCENARIOS.some(sc => sc.era === launcherEra)) launcherEra = 'all';
+  const sailed = Object.keys(records()).filter(id => SCENARIOS.some(sc => sc.id === id)).length;
   $('#launcher').innerHTML = `<div class="dialog-top"><span class="eyebrow">THE ADMIRALTY CHART ROOM</span><button data-close aria-label="Close mission browser">×</button></div>
-    <h1 id="launcher-title">Choose your command</h1><p class="dialog-lead">Each era changes the question. In sail you fight the wind, with ironclads you learn what the new weapons can do, and in 1915 it is about range, speed and finding the enemy first.</p>
-    <ol class="era-line">${ERA_ORDER.map(e => `<li class="${e.planned ? 'planned' : ''} ${SCENARIOS.some(s => s.era === e.era) ? 'built' : ''}"><b>${e.name}</b><span>${e.year}${e.planned ? ' · in the dockyard' : ''}</span></li>`).join('')}</ol>
-    <div class="mission-grid">${byYear.map(missionCard).join('')}</div>`;
+    <div class="launcher-intro"><h1 id="launcher-title">Choose your command</h1><p class="dialog-lead">Each era changes the question. Pick a war, read the sealed orders, and command a squadron whose captains fight the battle you set up.</p><p class="launcher-tally">${SCENARIOS.length} missions · ${ERA_ORDER.filter(e => SCENARIOS.some(sc => sc.era === e.era)).length} eras · ${sailed} sailed</p></div>
+    <div class="launcher-body">${launcherRail()}<div class="mission-list">${launcherList()}</div></div>`;
   if (!$('#launcher').open) $('#launcher').showModal();
+  // On a phone the rail is a row of chips: bring the remembered era into view.
+  const chosen = $('#launcher .era-rail [aria-pressed=true]');
+  if (chosen) chosen.closest('.era-rail').scrollLeft = chosen.offsetLeft - 8;
 }
 
 $('#missions').onclick = showLauncher;
@@ -603,6 +641,15 @@ $('#launcher').addEventListener('close', () => {
 });
 $('#launcher').onclick = e => {
   if (e.target.closest('[data-close]')) { $('#launcher').close(); return; }
+  const era = e.target.closest('[data-era]');
+  if (era) {
+    launcherEra = era.dataset.era;
+    setPref('launcher-era', launcherEra);
+    for (const b of $('#launcher').querySelectorAll('[data-era]')) b.setAttribute('aria-pressed', String(b === era));
+    $('#launcher .mission-list').innerHTML = launcherList();
+    $('#launcher .mission-list').scrollTop = 0;
+    return;
+  }
   const launch = e.target.closest('[data-launch]');
   if (launch) { newSortie(launch.dataset.launch); launchedFromChartRoom = true; $('#launcher').close(); }
 };
