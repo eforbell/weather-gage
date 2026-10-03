@@ -1,0 +1,609 @@
+{
+  "schema": "weather-gage/ship-spec@1",
+  "id": "furutaka",
+  "name": "Furutaka",
+  "className": "Furutaka-class heavy cruiser",
+  "era": "ww2",
+  "registryKeys": [
+    "furutaka"
+  ],
+  "configuration": "October 1942 Cape Esperance: Furutaka-class heavy cruiser silhouette with late-1930s modernization, three twin 20.3 cm/8-inch turrets, twin funnels, a tiered Japanese bridge and aircraft deck fittings. Built as original enjoyable hero geometry, not a measured reconstruction.",
+  "units": "meters",
+  "conventions": "aft = metres aft of the stem at deck level; side = metres to starboard (+) or port (-) of the centreline; heights = metres above the design waterline. The builder converts to Blender and the glTF exporter emits the game contract: bow -Z, up +Y, waterline at Y=0.",
+  "budget": {
+    "tier": "hero-blockout",
+    "maxTriangles": 40000,
+    "maxDrawCalls": 12,
+    "maxBytes": 2000000
+  },
+  "hull": {
+    "length": 181.8,
+    "beam": 16.93,
+    "draft": 5.6,
+    "camber": 0.22,
+    "bootTopping": [
+      -0.42,
+      0.55
+    ],
+    "stationSpacing": 1.2,
+    "lines": [
+      {
+        "aft": 0.0,
+        "halfDeck": 0.0,
+        "halfWater": 0.0,
+        "deck": 6.85,
+        "keel": 0.1,
+        "fullness": 1.18
+      },
+      {
+        "aft": 2.36,
+        "halfDeck": 0.92,
+        "halfWater": 0.34,
+        "deck": 6.8,
+        "keel": -1.8,
+        "fullness": 1.25
+      },
+      {
+        "aft": 7.27,
+        "halfDeck": 2.7,
+        "halfWater": 1.35,
+        "deck": 6.63,
+        "keel": -3.9,
+        "fullness": 1.45
+      },
+      {
+        "aft": 15.71,
+        "halfDeck": 4.92,
+        "halfWater": 3.37,
+        "deck": 6.4,
+        "keel": -5.35,
+        "fullness": 1.85
+      },
+      {
+        "aft": 29.45,
+        "halfDeck": 6.94,
+        "halfWater": 5.88,
+        "deck": 6.2,
+        "keel": -5.66,
+        "fullness": 3.0
+      },
+      {
+        "aft": 46.14,
+        "halfDeck": 7.91,
+        "halfWater": 7.28,
+        "deck": 6.13,
+        "keel": -5.66,
+        "fullness": 4.8
+      },
+      {
+        "aft": 58.91,
+        "halfDeck": 8.15,
+        "halfWater": 7.76,
+        "deck": 5.2,
+        "keel": -5.66,
+        "fullness": 5.5
+      },
+      {
+        "aft": 76.58,
+        "halfDeck": 8.41,
+        "halfWater": 8.34,
+        "deck": 4.97,
+        "keel": -5.66,
+        "fullness": 5.9
+      },
+      {
+        "aft": 102.11,
+        "halfDeck": 8.46,
+        "halfWater": 8.46,
+        "deck": 4.9,
+        "keel": -5.66,
+        "fullness": 6.1
+      },
+      {
+        "aft": 123.71,
+        "halfDeck": 8.24,
+        "halfWater": 8.24,
+        "deck": 4.87,
+        "keel": -5.66,
+        "fullness": 5.7
+      },
+      {
+        "aft": 140.4,
+        "halfDeck": 7.66,
+        "halfWater": 7.42,
+        "deck": 4.7,
+        "keel": -5.55,
+        "fullness": 4.4
+      },
+      {
+        "aft": 155.12,
+        "halfDeck": 6.17,
+        "halfWater": 5.59,
+        "deck": 4.55,
+        "keel": -4.85,
+        "fullness": 3.0
+      },
+      {
+        "aft": 167.89,
+        "halfDeck": 3.76,
+        "halfWater": 2.36,
+        "deck": 4.4,
+        "keel": -2.1,
+        "fullness": 1.8
+      },
+      {
+        "aft": 178.2,
+        "halfDeck": 1.11,
+        "halfWater": 0.39,
+        "deck": 4.3,
+        "keel": 0.8,
+        "fullness": 1.25
+      },
+      {
+        "aft": 181.8,
+        "halfDeck": 0.0,
+        "halfWater": 0.0,
+        "deck": 4.25,
+        "keel": 1.35,
+        "fullness": 1.12
+      }
+    ]
+  },
+  "superstructures": [
+    {
+      "id": "forecastle-break-shelter",
+      "base": "deck",
+      "top": 6.95,
+      "plan": [
+        [
+          41.24,
+          3.4
+        ],
+        [
+          56.94,
+          4.41
+        ],
+        [
+          66.76,
+          3.22
+        ]
+      ]
+    },
+    {
+      "id": "bridge-lower",
+      "base": 7.75,
+      "top": 9.8,
+      "plan": [
+        [
+          46.14,
+          2.72
+        ],
+        [
+          55.96,
+          3.22
+        ],
+        [
+          62.84,
+          2.29
+        ]
+      ]
+    },
+    {
+      "id": "bridge-middle",
+      "base": 10.6,
+      "top": 12.6,
+      "plan": [
+        [
+          48.11,
+          2.03
+        ],
+        [
+          56.94,
+          2.46
+        ],
+        [
+          60.87,
+          1.7
+        ]
+      ]
+    },
+    {
+      "id": "bridge-top-platform",
+      "base": 13.4,
+      "top": 13.6,
+      "plan": [
+        [
+          47.13,
+          2.97
+        ],
+        [
+          58.91,
+          3.14
+        ],
+        [
+          61.85,
+          2.12
+        ]
+      ]
+    },
+    {
+      "id": "bridge-cap",
+      "base": 14.4,
+      "top": 15.7,
+      "plan": [
+        [
+          50.07,
+          1.44
+        ],
+        [
+          57.44,
+          1.7
+        ]
+      ]
+    },
+    {
+      "id": "funnel-uptakes",
+      "base": "deck",
+      "top": 7.85,
+      "plan": [
+        [
+          68.0,
+          3.35
+        ],
+        [
+          96.5,
+          3.95
+        ],
+        [
+          107.0,
+          3.05
+        ]
+      ]
+    },
+    {
+      "id": "torpedo-weather-deck",
+      "base": "deck",
+      "top": 6.35,
+      "plan": [
+        [
+          108.0,
+          3.75
+        ],
+        [
+          130.0,
+          4.05
+        ],
+        [
+          137.0,
+          3.1
+        ]
+      ]
+    },
+    {
+      "id": "aft-aircraft-deck",
+      "base": "deck",
+      "top": 6.05,
+      "plan": [
+        [
+          135.0,
+          2.8
+        ],
+        [
+          148.5,
+          3.85
+        ],
+        [
+          155.0,
+          2.75
+        ]
+      ]
+    },
+    {
+      "id": "aft-control",
+      "base": 6.25,
+      "top": 8.7,
+      "plan": [
+        [
+          141.0,
+          2.0
+        ],
+        [
+          150.0,
+          2.35
+        ],
+        [
+          154.0,
+          1.65
+        ]
+      ]
+    }
+  ],
+  "conningTowers": [
+    {
+      "id": "fwd-ct",
+      "aft": 50.0,
+      "base": 7.35,
+      "top": 11.3,
+      "length": 4.0,
+      "width": 4.2
+    }
+  ],
+  "turrets": [
+    {
+      "id": "A",
+      "aft": 27.0,
+      "base": "deck",
+      "barbette": 0.9,
+      "facing": "fore",
+      "guns": 2
+    },
+    {
+      "id": "B",
+      "aft": 38.2,
+      "base": "deck",
+      "barbette": 3.15,
+      "facing": "fore",
+      "guns": 2
+    },
+    {
+      "id": "Y",
+      "aft": 154.5,
+      "base": "deck",
+      "barbette": 1.0,
+      "facing": "aft",
+      "guns": 2
+    }
+  ],
+  "turretType": {
+    "barbetteRadius": 3.2,
+    "length": 7.1,
+    "width": 5.6,
+    "height": 2.05,
+    "frontSlope": 0.75,
+    "gunSpacing": 1.65,
+    "barrelLength": 8.55,
+    "barrelRadius": 0.18,
+    "muzzleRadius": 0.145
+  },
+  "funnels": [
+    {
+      "id": "1",
+      "aft": 73.0,
+      "base": "deck",
+      "top": 17.6,
+      "length": 4.45,
+      "width": 3.35,
+      "casing": {
+        "length": 7.4,
+        "width": 4.95,
+        "top": 8.55
+      }
+    },
+    {
+      "id": "2",
+      "aft": 91.7,
+      "base": "deck",
+      "top": 17.1,
+      "length": 4.25,
+      "width": 3.05,
+      "casing": {
+        "length": 7.1,
+        "width": 4.65,
+        "top": 8.25
+      }
+    }
+  ],
+  "masts": [
+    {
+      "id": "fore",
+      "type": "tripod",
+      "aft": 58.8,
+      "base": "deck",
+      "top": 29.8,
+      "radius": 0.28,
+      "topmastFrom": 20.8,
+      "legs": {
+        "footAft": 6.0,
+        "footSpread": 2.8,
+        "joinHeight": 21.7
+      },
+      "spottingTop": {
+        "height": 20.9,
+        "size": [
+          2.8,
+          3.1,
+          1.05
+        ]
+      },
+      "yards": [
+        {
+          "height": 19.0,
+          "span": 7.8
+        }
+      ]
+    },
+    {
+      "id": "main",
+      "type": "pole",
+      "aft": 123.0,
+      "base": "deck",
+      "top": 22.5,
+      "radius": 0.2,
+      "topmastFrom": 15.0,
+      "spottingTop": {
+        "height": 14.2,
+        "size": [
+          2.1,
+          2.4,
+          0.85
+        ]
+      },
+      "yards": [
+        {
+          "height": 13.0,
+          "span": 6.0
+        }
+      ]
+    }
+  ],
+  "searchlightTowers": [
+    {
+      "id": "bridge-sl",
+      "aft": 61.0,
+      "base": 7.4,
+      "top": 10.2,
+      "radius": 0.65
+    },
+    {
+      "id": "mid-sl",
+      "aft": 109.0,
+      "base": "deck",
+      "top": 8.4,
+      "radius": 0.68
+    },
+    {
+      "id": "aft-sl",
+      "aft": 142.0,
+      "base": 6.05,
+      "top": 9.2,
+      "radius": 0.58
+    }
+  ],
+  "boats": [
+    {
+      "aft": 105.5,
+      "side": 5.1,
+      "base": 6.35,
+      "length": 7.4,
+      "beam": 1.8
+    },
+    {
+      "aft": 105.5,
+      "side": -5.1,
+      "base": 6.35,
+      "length": 7.4,
+      "beam": 1.8
+    },
+    {
+      "aft": 117.0,
+      "side": 5.35,
+      "base": 6.35,
+      "length": 6.2,
+      "beam": 1.6
+    },
+    {
+      "aft": 117.0,
+      "side": -5.35,
+      "base": 6.35,
+      "length": 6.2,
+      "beam": 1.6
+    },
+    {
+      "aft": 146.0,
+      "side": 0.0,
+      "base": 6.05,
+      "length": 8.2,
+      "beam": 2.0
+    }
+  ],
+  "secondaryGuns": {
+    "barrelLength": 2.9,
+    "radius": 0.075,
+    "mounts": [
+      {
+        "aft": 68.24,
+        "height": 6.6,
+        "angle": 75
+      },
+      {
+        "aft": 104.56,
+        "height": 6.8,
+        "angle": 100
+      }
+    ]
+  },
+  "hawsePipes": [
+    {
+      "aft": 4.42,
+      "height": 4.65
+    },
+    {
+      "aft": 7.36,
+      "height": 4.5
+    }
+  ],
+  "rig": {
+    "spars": [
+      {
+        "id": "catapult",
+        "from": [
+          136.0,
+          -4.25,
+          7.0
+        ],
+        "to": [
+          148.0,
+          4.35,
+          7.0
+        ],
+        "radius": 0.12,
+        "endRadius": 0.07
+      },
+      {
+        "id": "stern-staff",
+        "from": [
+          177.5,
+          0,
+          4.6
+        ],
+        "to": [
+          177.5,
+          0,
+          10.3
+        ],
+        "radius": 0.08,
+        "endRadius": 0.045
+      },
+      {
+        "id": "bow-jackstaff",
+        "from": [
+          3.0,
+          0,
+          6.9
+        ],
+        "to": [
+          2.6,
+          0,
+          10.6
+        ],
+        "radius": 0.06,
+        "endRadius": 0.035
+      }
+    ]
+  },
+  "guns": 6,
+  "paint": {
+    "hull": "#566267",
+    "upper": "#697579",
+    "deck": "#7e7059",
+    "boot": "#151719",
+    "bottom": "#49302b",
+    "dark": "#1f2427",
+    "canvas": "#a69f8e",
+    "spar": "#49483f"
+  },
+  "surface": {
+    "hull": {
+      "roughness": 0.86,
+      "metalness": 0.0
+    },
+    "upper": {
+      "roughness": 0.82,
+      "metalness": 0.0
+    },
+    "dark": {
+      "roughness": 0.78,
+      "metalness": 0.0
+    }
+  }
+}
