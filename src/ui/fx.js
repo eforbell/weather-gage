@@ -315,6 +315,17 @@ export function createFx({ layer, tracks, wrap, banner, pt }) {
         case 'aground':
           if (to) later(start, () => floatText(to, 'AGROUND', 'muted'));
           break;
+        case 'starshell':
+          if (from) later(start * 0.4 + i * gap, () => flash(from, 10));
+          if (to) later(start + flight + i * gap, () => { flash(to, f.hits ? 34 : 18); floatText(to, f.hits ? 'STARSHELL' : 'STARSHELL WIDE', 'muted'); });
+          break;
+        case 'searchlight':
+          if (from && to) later(start * 0.4 + i * gap, () => {
+            const beam = el('line', { x1: from.x, y1: from.y, x2: to.x, y2: to.y, class: 'fx-searchlight' });
+            temp(beam, 1800);
+            floatText(to, 'SEARCHLIGHT', f.from?.own ? 'own' : 'enemy');
+          });
+          break;
         default:
           break;
       }

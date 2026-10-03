@@ -21,6 +21,7 @@ const TERRAIN_TYPES = new Set(['land', 'shoal', 'mines']);
 const VALID_ORDERS = new Set(['engage', 'hold', 'proceed', 'withdraw', 'line', 'screen', 'shadow']);
 const SPEED_SETTINGS = new Set(['silent', 'standard', 'flank']);
 const DEPTHS = new Set(['shallow', 'deep', 'surface']);
+const CONTACT_SOURCES = new Set(['radar', 'eyes', 'flash', 'receiver']);
 // Fields a scripted scenario event may change on a ship.
 const EVENT_FIELDS = new Set(['quiet', 'speed', 'passiveClass', 'depth']);
 
@@ -367,6 +368,7 @@ function validateContacts(contacts, shipIds, sides, keys = sides, map = DEFAULT_
       if (contact.emitter !== undefined && typeof contact.emitter !== 'boolean') throw new Error('Invalid contact emitter');
       for (const k of ['uncertainty', 'holdSince']) if (contact[k] !== undefined && (!Number.isInteger(contact[k]) || contact[k] < 0)) throw new Error(`Invalid contact ${k}`);
       if (contact.submerged !== undefined && typeof contact.submerged !== 'boolean') throw new Error('Invalid contact submerged');
+      if (contact.by !== undefined && !CONTACT_SOURCES.has(contact.by)) throw new Error('Invalid contact source');
       if (contact.side !== undefined && !sides.includes(contact.side)) throw new Error('Invalid contact side');
     }
   }
@@ -843,6 +845,7 @@ function scanContacts(state, side, observers, previous, scope) {
         Object.assign(contact, { q: best.datum.q, r: best.datum.r, uncertainty: best.uncertainty });
       } else if (best.uncertainty !== undefined) trackMotion(state, scope, enemy, contact, best, prior.get(enemy.id));
       if (best.submerged !== undefined) contact.submerged = best.submerged; // sonar can tell a hull under water from one on it
+      if (best.by) contact.by = best.by; // how the report was made: radar, eyes, flash, receiver
       if (CONF_RANK[contact.confidence] >= 3) { contact.name = enemy.name; if (sidesOf(state).length > 2) contact.side = enemy.side; }
       if (CONF_RANK[contact.confidence] >= 3 && enemy.speed === 0) contact.anchored = true; // a ship at anchor is plain to see once identified
       if (CONF_RANK[contact.confidence] >= 2) contact.className = contact.uncertainty && enemy.passiveClass ? enemy.passiveClass : enemy.className;
@@ -895,9 +898,11 @@ function checkOutcome(state, meta) {
     const raiders = state.ships.filter((s) => raid.ships.includes(s.id));
     const arrived = raiders.filter((s) => s.arrived).length;
     const coming = raiders.filter((s) => (isActive(s) && s.order.type !== 'withdraw') || s.status === 'reserve').length;
-    if (arrived >= raid.count) return { ...state, outcome: { result: 'defeat', title: raid.title, summary: raid.summary } };
-    if (arrived + coming < raid.count) return { ...state, outcome: { result: 'victory', title: raid.repulsedTitle || 'The Raid Is Turned Back', summary: `${raiders.filter((s) => !s.arrived).map((s) => s.name).join(', ')} sunk or turned for home.` } };
-    if (state.tick >= meta.maxTicks) return { ...state, outcome: { result: 'draw', title: 'Still Coming On', summary: 'Time ran out with the raid neither through nor beaten off.' } };
+    // Each raider's fate in words: the debrief never shows enemy damage.
+    const fates = raiders.map((s) => `${s.name} ${s.arrived ? 'reached the line' : s.status === 'sunk' ? 'sunk' : s.status === 'struck' ? 'struck' : !isActive(s) || s.order.type === 'withdraw' ? 'turned back' : 'still coming'}`).join(' · ');
+    if (arrived >= raid.count) return { ...state, outcome: { result: 'defeat', title: raid.title, summary: `${raid.summary} ${fates}.` } };
+    if (arrived + coming < raid.count) return { ...state, outcome: { result: 'victory', title: raid.repulsedTitle || 'The Raid Is Turned Back', summary: `${fates}.` } };
+    if (state.tick >= meta.maxTicks) return { ...state, outcome: { result: 'draw', title: 'Still Coming On', summary: `Time ran out with the raid neither through nor beaten off. ${fates}.` } };
   }
   const blueActive = decisive('blue').some(alive);
   const redActive = protect ? true : decisive('red').some(alive); // with an escort goal, sinking the hunter is not the win
@@ -1019,6 +1024,7 @@ function publicContact(c) {
   if (c.name) out.name = c.name;
   if (c.className) out.className = c.className;
   if (typeof c.emitter === 'boolean') out.emitter = c.emitter;
+  if (c.by && !c.stale) out.by = c.by;
   if (c.anchored && !c.stale) out.anchored = true;
   return out;
 }

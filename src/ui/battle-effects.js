@@ -22,6 +22,7 @@ const ERA = {
   ironclad: { funnel: 1, coal: [0.15, 0.14, 0.13], gun: [0.9, 0.89, 0.85], gunAmount: 1.3, splash: 0.55 },
   dreadnought: { funnel: 1.1, coal: [0.13, 0.12, 0.11], gun: [0.6, 0.55, 0.48], gunAmount: 0.9, splash: 1 },
   coldwar: { funnel: 0.12, coal: [0.5, 0.5, 0.5], gun: [0.72, 0.72, 0.72], gunAmount: 0.4, splash: 0.6 },
+  ww2: { funnel: 0.35, coal: [0.3, 0.3, 0.3], gun: [0.62, 0.6, 0.56], gunAmount: 0.7, splash: 0.9 },
   modern: { funnel: 0.1, coal: [0.55, 0.55, 0.55], gun: [0.75, 0.75, 0.75], gunAmount: 0.4, splash: 0.6 },
 };
 
@@ -31,8 +32,6 @@ export const FX_KNOWN_GAPS = {
   event: 'Scenario announcements are banners in the dispatch, not a physical event.',
   ivan: 'A Crazy Ivan is a turn; the hull model shows it on the next tick.',
   struck: 'Hauling down colours needs flag models (M1).',
-  starshell: 'WWII night illumination is chart-only until the WWII presentation pass (docs/design/ww2-radar-night-action.md).',
-  searchlight: 'WWII searchlight beams are chart-only until the WWII presentation pass (docs/design/ww2-radar-night-action.md).',
 };
 export const ENTITY_KNOWN_GAPS = {
   torpedo: 'Running Cold War torpedoes are chart-only until the undersea milestone (M3).',
@@ -158,6 +157,33 @@ const HANDLERS = {
       fx.emitter(T, 30, 'pyre', 1.5);
     });
     fx.later(1.45, () => fx.ring(T, HEX * 2.8, 1.4, new THREE.Color(1.4, 1.4, 1.3)));
+  },
+  // Starshell: a bright flare that hangs over the target and drifts down. A wide
+  // burst (hits 0) hangs off to one side and lights nothing useful.
+  starshell(e, c, fx) {
+    const P = c.pos(e.from), T = c.pos(e.to);
+    if (P) fx.flash(up(P, 0.8), 0.35);
+    if (!T) return;
+    const at = e.hits ? up(around(T, L * 0.3), L * 0.9) : up(around(T, HEX * 0.7), L * 1.1);
+    fx.later(1.1, () => {
+      // A small, fierce core inside a faint halo, drifting down on its parachute.
+      fx.light({ x: at.x, y: at.y, z: at.z, vy: -0.35, drag: 0.2, life: 7, size: [L * 0.1, L * 0.08], color: [10, 9.5, 8], fade: 0.01 });
+      fx.light({ x: at.x, y: at.y, z: at.z, vy: -0.35, drag: 0.2, life: 7, size: [L * 0.55, L * 0.45], color: [0.45, 0.44, 0.4], fade: 0.01 });
+      for (let i = 0; i < 6; i++) fx.light({ x: at.x, y: at.y, z: at.z, vx: rand(-0.3, 0.3), vy: rand(-0.6, -0.2), vz: rand(-0.3, 0.3), drag: 0.3, life: rand(4, 7), size: [0.3, 0.12], color: [6, 5, 3], fade: 0.01 });
+      fx.smoke({ x: at.x, y: at.y + 0.3, z: at.z, vy: 0.05, drag: 1, wind: 0.6, life: 9, size: [0.6, 2.4], color: [0.55, 0.55, 0.55], alpha: 0.25 });
+    });
+  },
+  // Searchlight: a cold beam from the ship holding it to her target, for a few seconds.
+  searchlight(e, c, fx) {
+    const P = c.pos(e.from), T = c.pos(e.to);
+    if (!P || !T) return;
+    const from = up(P, 1.2), to = up(T, 0.8);
+    const n = Math.min(160, Math.ceil(from.distanceTo(to) / 0.3)); // packed tight so it reads as one beam
+    for (let i = 0; i <= n; i++) {
+      const k = i / n, p = from.clone().lerp(to, k), w = 0.5 + k * 1.4;
+      fx.light({ x: p.x, y: p.y, z: p.z, life: 3, size: [w, w], color: [0.55, 0.62, 0.75], fade: 0.3 });
+    }
+    fx.light({ x: from.x, y: from.y, z: from.z, life: 3, size: [1.2, 1.2], color: [6, 6.4, 7], fade: 0.3 });
   },
   aground(e, c, fx) { const T = c.pos(e.to); if (T) fx.splash(around(T, L * 0.3), L * 0.12, 0.5); },
 };

@@ -50,8 +50,18 @@ export const LOOKS = {
   },
 };
 LOOKS.defector = { ...LOOKS.northern_screen, note: 'Barents Sea, low grey light' };
+// Moonless tropical night: kept readable rather than black, so gun flashes,
+// starshell and searchlights carry the scene.
+LOOKS.esperance = {
+  note: 'Moonless night in Ironbottom Sound',
+  sun: [3, 250], sunColor: 0x9db4d8, sunIntensity: 0.75,
+  sky: { turbidity: 2, rayleigh: 0.5, mie: 0.002, g: 0.8, clouds: 0.35, cloudDensity: 0.45 }, skyScale: 0.25,
+  water: 0x0a1c26, haze: 0.0085, env: 0.45, exposure: 0.5, tone: 'agx',
+  grade: { tint: [0.78, 0.88, 1.12], saturation: 0.6, vignette: 0.55 },
+  swell: 0.5, waves: { size: 3, speed: 0.7, distortion: 0.5 }, smoke: 0.55,
+};
 
-const ERA_LOOK = { sail: 'nevis', ironclad: 'hampton', dreadnought: 'dogger', coldwar: 'northern_screen', modern: 'strait' };
+const ERA_LOOK = { sail: 'nevis', ironclad: 'hampton', dreadnought: 'dogger', coldwar: 'northern_screen', modern: 'strait', ww2: 'esperance' };
 
 export function lookFor(scenarioId, era) {
   return LOOKS[scenarioId] || LOOKS[ERA_LOOK[era]] || LOOKS.dogger;

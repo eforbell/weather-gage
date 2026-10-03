@@ -14,9 +14,9 @@ function placed(pairs) {
   return s;
 }
 
-test('the WWII scenario is in the dockyard, not the launcher', () => {
-  assert.ok(!SCENARIOS.some((s) => s.era === 'ww2'));
-  assert.deepEqual(DOCKYARD_SCENARIOS.map((s) => [s.id, s.era]), [['esperance', 'ww2']]);
+test('the WWII night action is a launcher mission set at night', () => {
+  assert.deepEqual(SCENARIOS.filter((s) => s.era === 'ww2').map((s) => s.id), ['esperance']);
+  assert.deepEqual(DOCKYARD_SCENARIOS, []);
   assert.equal(lightAt(createGame('esperance', 1)), 'night');
 });
 
@@ -232,4 +232,14 @@ test('a WWII torpedo in a save must name its weapon', () => {
   const j = JSON.parse(serialize(createGame('esperance', 2)));
   j.pending.push({ kind: 'torpedo', shipId: 'r_fubuki', targetId: 'b_boise', side: 'red', salvo: 1, deliverAt: 2, q: 20, r: 1, aimQ: 10, aimR: 8 });
   assert.throws(() => deserialize(JSON.stringify(j)), /weapon/);
+});
+
+test('reports say how they were made, and stale ones stop claiming a source', () => {
+  let s = quiet(placed([['b_boise', 6, 7], ['r_aoba', 18, 7]]), ['b_boise', 'r_aoba']);
+  assert.equal(getView(s, 'blue').contacts.find((c) => !c.stale)?.by, 'radar');
+  s = setRadar(s, ['b_boise'], false);
+  s = step(s);
+  const old = getView(s, 'blue').contacts[0];
+  assert.equal(old.stale, true);
+  assert.equal(old.by, undefined);
 });
