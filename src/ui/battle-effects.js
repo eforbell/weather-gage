@@ -31,6 +31,8 @@ export const FX_KNOWN_GAPS = {
   event: 'Scenario announcements are banners in the dispatch, not a physical event.',
   ivan: 'A Crazy Ivan is a turn; the hull model shows it on the next tick.',
   struck: 'Hauling down colours needs flag models (M1).',
+  starshell: 'WWII night illumination is chart-only until the WWII presentation pass (docs/design/ww2-radar-night-action.md).',
+  searchlight: 'WWII searchlight beams are chart-only until the WWII presentation pass (docs/design/ww2-radar-night-action.md).',
 };
 export const ENTITY_KNOWN_GAPS = {
   torpedo: 'Running Cold War torpedoes are chart-only until the undersea milestone (M3).',

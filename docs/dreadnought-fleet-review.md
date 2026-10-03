@@ -129,3 +129,12 @@ all thirteen earlier assets compared with merged main. No visual asset redesign
 was introduced by integration. A second independent integration-only pass was
 unavailable; the original independent visual approval and these fresh
 geometry/technical checks are the final acceptance evidence.
+
+## Merge-time WWII integration
+
+At the user's merge request, main advanced to `90ba6f1` (PR #15, WWII simulation).
+The ancestry guard stopped the merge, then that main update was incorporated
+without textual conflicts. It changes no Blender kit file or authored spec, so
+no further model rebuild was needed. Fresh combined-branch verification:
+**329/329 tests**, syntax check, production build, and all nineteen current
+spec/kit asset reports plus Khronos validation (zero errors/warnings).

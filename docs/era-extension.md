@@ -109,3 +109,6 @@ Route finding also changed the older steam scenarios: the Union ships at Hampton
 - The seeker is a cone and a noise contest. Wire cuts, re-attack patterns and torpedo speed versus a boat's evasion speed are not modelled.
 - Red October's captain uses the platform's generic goal-seeking. A real Ramius would read the threat picture and take a different route.
 - Towed arrays, convergence zones, surface ships and aircraft (the WWII groundwork).
+
+## Fourth probe: the Second World War, radar first (dockyard, 2026-10-03)
+Design and results: [`docs/design/ww2-radar-night-action.md`](design/ww2-radar-night-action.md). The era module (`src/sim/eras/ww2.js`) plugged into the registry with no new hook. Its sensors are data (search radar sets with range by hull size and a band, fire-control radar, warning receivers), and it adds night light, starshell and searchlights, radar-directed versus visual gunnery, and the Long Lance. The platform gained a dockyard scenario list (runs in the engine and tests, not in the launcher), raid victory (`victory.raid`; the enemy wins by getting through), raiders that turn for home, and per-observer `emitter` knowledge. Carriers are designed there but not built: they need the operational scale (backlog 13).
