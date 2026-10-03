@@ -448,8 +448,13 @@ def flag(kit, spec, nu=12):
     pattern = spec.get("pattern")
     if pattern:
         cells = pattern["rows"]
-        nu, nv = len(cells[0]), len(cells)
-        design = lambda u, v: pattern["colors"][cells[min(nv - 1, int(v * nv))][min(nu - 1, int(u * nu))]]
+        cols, rows_n = len(cells[0]), len(cells)
+        if any(len(row) != cols for row in cells):
+            raise ValueError("flag pattern rows must all be the same length")
+        # The mesh stays fine enough to ripple however coarse the pattern is;
+        # cell edges still fall on face edges.
+        nu, nv = cols * math.ceil(12 / cols), rows_n * math.ceil(8 / rows_n)
+        design = lambda u, v: pattern["colors"][cells[min(rows_n - 1, int(v * rows_n))][min(cols - 1, int(u * cols))]]
     else:
         design, nv = FLAG_DESIGNS[spec["design"]]
     width, height = spec["size"]
