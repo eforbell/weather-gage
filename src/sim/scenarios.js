@@ -104,7 +104,7 @@ export const SCENARIOS = [
     subtitle: 'Radar against night optics, October 1942',
     era: 'ww2',
     briefing:
-      'A Japanese cruiser division is coming down the Slot in the dark to shell the airfield. Your cruisers carry radar: two of them the new centimetric SG sets that can see a destroyer at eleven miles. The enemy has none, but his lookouts see further in the dark than yours, and his torpedoes reach twice as far as your guns can see.',
+      'A Japanese cruiser division is coming down the Slot in the dark to shell Henderson Field, the airfield on the south shore. Two cruisers on the bombardment line off Lunga Point (marked on the chart) and the airfield burns. Your cruisers carry radar: two of them the new centimetric SG sets that can see a destroyer at eleven miles. The enemy has none, but his lookouts see further in the dark than yours, and his torpedoes reach twice as far as your guns can see.',
     objective: 'Stop the Japanese cruisers reaching the bombardment line off Lunga Point: sink them or turn them back before two get through. If time runs out with the raid neither through nor beaten off, the action is indecisive.',
     maxTicks: 30,
     year: 1942,
@@ -113,6 +113,10 @@ export const SCENARIOS = [
     hexScale: '1 hex ≈ 1 nautical mile',
     tickLabel: '3-minute turn',
     victory: { raid: { ships: ['r_aoba', 'r_furutaka', 'r_kinugasa'], count: 2, title: 'The Airfield Is Shelled', summary: 'Japanese cruisers reached the bombardment line off Lunga Point.' } },
+    marks: [
+      { label: 'BOMBARDMENT LINE', cells: [[16, 14], [17, 14], [18, 14], [19, 14], [20, 14], [21, 14]] },
+      { label: 'HENDERSON FIELD', cells: [[22, 15], [23, 15]] },
+    ],
   },
 ];
 

@@ -226,7 +226,7 @@ function damageMarks(hull, wind) {
 }
 
 // How an unclassified WWII report was made, as a lookout or plotting officer would call it.
-const SOURCE_LABEL = { radar: 'RADAR BLIP', flash: 'GUN FLASHES', receiver: 'RADAR EMISSIONS', eyes: 'SIGHTED' };
+const SOURCE_LABEL = { radar: 'RADAR', flash: 'FLASHES', receiver: 'EMISSIONS', eyes: 'SIGHTED' };
 
 function syncContacts(view) {
   const layer = $('#l-contacts');

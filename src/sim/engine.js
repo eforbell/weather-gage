@@ -898,9 +898,11 @@ function checkOutcome(state, meta) {
     const raiders = state.ships.filter((s) => raid.ships.includes(s.id));
     const arrived = raiders.filter((s) => s.arrived).length;
     const coming = raiders.filter((s) => (isActive(s) && s.order.type !== 'withdraw') || s.status === 'reserve').length;
-    if (arrived >= raid.count) return { ...state, outcome: { result: 'defeat', title: raid.title, summary: raid.summary } };
-    if (arrived + coming < raid.count) return { ...state, outcome: { result: 'victory', title: raid.repulsedTitle || 'The Raid Is Turned Back', summary: `${raiders.filter((s) => !s.arrived).map((s) => s.name).join(', ')} sunk or turned for home.` } };
-    if (state.tick >= meta.maxTicks) return { ...state, outcome: { result: 'draw', title: 'Still Coming On', summary: 'Time ran out with the raid neither through nor beaten off.' } };
+    // Each raider's fate in words: the debrief never shows enemy damage.
+    const fates = raiders.map((s) => `${s.name} ${s.arrived ? 'reached the line' : s.status === 'sunk' ? 'sunk' : s.status === 'struck' ? 'struck' : !isActive(s) || s.order.type === 'withdraw' ? 'turned back' : 'still coming'}`).join(' · ');
+    if (arrived >= raid.count) return { ...state, outcome: { result: 'defeat', title: raid.title, summary: `${raid.summary} ${fates}.` } };
+    if (arrived + coming < raid.count) return { ...state, outcome: { result: 'victory', title: raid.repulsedTitle || 'The Raid Is Turned Back', summary: `${fates}.` } };
+    if (state.tick >= meta.maxTicks) return { ...state, outcome: { result: 'draw', title: 'Still Coming On', summary: `Time ran out with the raid neither through nor beaten off. ${fates}.` } };
   }
   const blueActive = decisive('blue').some(alive);
   const redActive = protect ? true : decisive('red').some(alive); // with an escort goal, sinking the hunter is not the win
