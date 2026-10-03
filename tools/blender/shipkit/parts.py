@@ -207,7 +207,10 @@ def turrets(kit):
             put(cylinder(L / 2 - 0.3, house1 - 0.02, house1 + 0.1, 40), "dark")  # roof grating
         gun_z = house0 + H * GUN_AXIS
         face_y = L / 2 - t["frontSlope"] * GUN_AXIS
-        for side in (-1, 1):
+        guns = turret.get("guns", 2)
+        if guns not in (1, 2):
+            raise ValueError(f"Turret {turret['id']} requires one or two guns, got {guns}")
+        for side in ((0,) if guns == 1 else (-1, 1)):
             x = side * t["gunSpacing"] / 2
             put(rod((x, face_y - 1.5, gun_z), (x, face_y + t["barrelLength"], gun_z), t["barrelRadius"], t["muzzleRadius"], 12), "dark")
             if round_house:

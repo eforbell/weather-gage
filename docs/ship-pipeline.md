@@ -6,7 +6,7 @@ occlusion and smoke anchors. A Node report checks the result against the spec,
 and the game loads it in place of the procedural model. No one opens the
 Blender UI. An agent edits numbers, looks at the renders, and repeats.
 
-HMS Lion is the first ship built this way (`ships/hms-lion/`). SMS Seydlitz (`ships/sms-seydlitz/`) adds measured wing turrets and funnel uptake casings. The four Nevis frigates (`ships/uss-constellation/`, `uss-baltimore/`, `linsurgente/`, `volontaire/`) add the sail kit: transom sterns, gunport batteries, painted strakes, bulwarks, a head, and a full rig with sails and flags. Hampton Roads' USS Congress and USS Cumberland (`ships/uss-congress/`, `uss-cumberland/`) reuse it at anchor with every sail furled, USS Minnesota under steam. The steam kit (`shipkit/steam.py`) adds CSS Virginia's casemate, the side-wheelers' paddle boxes and walking beams (CSS Patrick Henry, CSS Jamestown), deck guns, and USS Monitor's round turret (`turretType.shape`). Copy their structure, not their measurements.
+HMS Lion is the first ship built this way (`ships/hms-lion/`). SMS Seydlitz (`ships/sms-seydlitz/`) adds measured wing turrets and funnel uptake casings. The four Nevis frigates (`ships/uss-constellation/`, `uss-baltimore/`, `linsurgente/`, `volontaire/`) add the sail kit: transom sterns, gunport batteries, painted strakes, bulwarks, a head, and a full rig with sails and flags. Hampton Roads' USS Congress and USS Cumberland (`ships/uss-congress/`, `uss-cumberland/`) reuse it at anchor with every sail furled, USS Minnesota under steam. The steam kit (`shipkit/steam.py`) adds CSS Virginia's casemate, the side-wheelers' paddle boxes and walking beams (CSS Patrick Henry, CSS Jamestown), deck guns, and USS Monitor's round turret (`turretType.shape`). Copy their structure, not their measurements. The six non-flagship Dogger Bank ships (`hms-orion`, `sms-posen`, `hms-meteor`, `hms-laurel`, `sms-v186`, `sms-s33`) complete the dreadnought fleet with class-/side-faithful silhouettes rather than measured flagship accuracy; see their provenance ledgers.
 
 ```
 ships/<id>/spec.json ──► blender -b (tools/blender/build_ship.py)
@@ -80,7 +80,7 @@ Conventions: `aft` is metres aft of the stem at deck level, `side` is metres to 
 | `hull.lines[]` | **Offsets table**, fore to aft, first `aft: 0`, last `aft: length`. `halfDeck`, `halfWater` (half-breadths), `deck` (sheer height), `keel` (z of the keel: negative under water, positive for an overhanging counter), `fullness` (section exponent: ~1.5 fine V, 2 round, 5+ flat floor with a hard bilge). A deck break is two rows about 1 m apart with different `deck`. An end row with `halfDeck` > 0 is closed with a flat face: a **transom stern**. `halfDeck` < `halfWater` gives tumblehome. Across a deck break, keep the side fair: the lower deck's `halfDeck` is measured at its lower height, so it is wider |
 | `superstructures[]` | `plan` as `[[aft, halfWidth], …]` fore to aft, mirrored. Two rows make a rectangle, more make a polygon (chamfered ends) |
 | `conningTowers[]` | Oval, `length` fore and aft × `width` |
-| `turrets[]` + `turretType` | `facing` is `fore` or `aft`; `barbette` is the height of the gunhouse floor above its base (superfiring turrets have taller ones); optional `side` for wing turrets. `turretType` sets gunhouse size, front slope and barrel dimensions; `shape: "cylinder"` builds a round Monitor-style turret (diameter `length`, no barbette or hoods) |
+| `turrets[]` + `turretType` | `facing` is `fore` or `aft`; `barbette` is the height of the gunhouse floor above its base (superfiring turrets have taller ones); optional `side` for wing turrets. `guns: 1` places a centreline barrel; `guns: 2` places twin barrels. Other counts are rejected. `turretType` sets gunhouse size, front slope and barrel dimensions; `shape: "cylinder"` builds a round Monitor-style turret (diameter `length`, no barbette or hoods) |
 | `funnels[]` | Oval, `length` × `width`, `top` height, optional `material` (default `upper`). Anchors `anchor_funnel_<id>` sit 0.6 m above the top. Optional `casing: { length, width, top }` adds a straight-sided, chamfered uptake casing under the funnel; the funnel rises from its roof |
 | `masts[]` | `type: pole` or `tripod` (with optional `legs: { footAft, footSpread, joinHeight }`), `topmastFrom`, `spottingTop`, `yards[]` |
 | `searchlightTowers[]`, `boats[]`, `hawsePipes[]`, `secondaryGuns` | Detail. `secondaryGuns.mounts[].angle` is the training angle from the bow (90 = abeam), mirrored to both sides |
@@ -141,3 +141,40 @@ Keep the kit generic. Ship-specific numbers belong in the spec, never in Python.
 - **Vertex AO only.** There is no texture bake (planking, scuttles, weathering streaks); that needs UVs and the KTX2 path.
 - **Fleet proportions are decided:** authored GLBs keep true beam; procedural hulls/fittings use class-specific, non-exaggerated length/beam ratios. Readable presentation lengths/heights and compressed chart distances remain abstractions. See [fleet proportions](3d-visual-direction.md#fleet-proportions-2026-10-02). No per-hero width hack or double scaling.
 - No automated golden screenshots of the viewport yet (M0 in [3d-visual-direction.md](3d-visual-direction.md#milestones-and-gates)).
+
+## Dreadnought fleet fidelity tier
+
+Dogger Bank's eight named ships now have individual authored assets. Lion and
+Seydlitz retain their measured flagship specs and meshes. The other six use
+original class-/side-faithful hulls and fittings, intentionally avoiding a claim
+of exact January 1915 reconstruction. Scenario mechanics are unchanged.
+
+- Orion: five centreline twin turrets, raised forecastle, two funnels and tripod
+  foremast; shorter and fuller than Lion.
+- Posen: compact, broad German battleship with wing turrets and two funnels.
+  The fictional scenario's eight guns mean four visible twin mounts, not the
+  historical six twin mounts/twelve guns. This is recorded in its provenance.
+- Meteor, Laurel, V186 and S33: individually dimensioned narrow screen hulls,
+  different funnel/upperwork silhouettes and national palettes. Each carries
+  one forward single mount and one aft twin mount: three visible barrels for
+  the scenario's three light guns, not an asserted historical destroyer
+  battery. No hull-width exaggeration or per-ship conversion factor.
+
+`tests/dreadnought-assets.test.js` locks complete exact-name coverage, distinct
+screen proportions, provenance, failure fallback and uncertain-contact gating.
+It also ray-tests the **exported GLBs** along each exposed main-gun barrel:
+near, middle and outer sections must be visible from above, not buried below a
+forecastle, deckhouse, funnel or another turret roof. This supplements, rather
+than replaces, independent multi-view visual review. Secondary fittings, boat
+clearances, hull seams and ordinary mounting overlaps still require inspection.
+
+### Parallel-era integration
+
+Single-barrel turret support is a narrow kit extension. All existing assets
+were rebuilt to refresh their kit stamps; earlier specs and geometry are
+unchanged.
+When integrating a separate era branch that **does** change the kit, rebuild
+all specs after merging, including these six and the earlier flagships: the
+GLB kit-hash contract checks the entire kit. Do not bypass stale-build checks or
+copy a different branch's built assets without rebuilding against the merged
+kit. Preserve the exact-name registry entries from both branches.

@@ -1,0 +1,291 @@
+{
+  "schema": "weather-gage/ship-spec@1",
+  "id": "hms-laurel",
+  "name": "HMS Laurel",
+  "className": "Laforey-class destroyer",
+  "era": "dreadnought",
+  "registryKeys": [
+    "hms laurel"
+  ],
+  "configuration": "January 1915 Dogger Bank screen: Samuel White-built Laforey/L-class destroyer silhouette with two funnels and three scenario light guns (one forward single mount and one aft twin mount).",
+  "units": "meters",
+  "conventions": "aft = metres aft of the stem at deck level; side = metres to starboard (+) or port (-) of the centreline; heights = metres above the design waterline. The builder converts to Blender and the glTF exporter emits the game contract: bow -Z, up +Y, waterline at Y=0.",
+  "budget": {
+    "tier": "fleet-blockout",
+    "maxTriangles": 40000,
+    "maxDrawCalls": 12,
+    "maxBytes": 2000000
+  },
+  "hull": {
+    "length": 81.9,
+    "beam": 8.4,
+    "draft": 3.2,
+    "camber": 0.12,
+    "bootTopping": [
+      -0.25,
+      0.38
+    ],
+    "stationSpacing": 0.8,
+    "lines": [
+      {
+        "aft": 0,
+        "halfDeck": 0,
+        "halfWater": 0,
+        "deck": 4.4,
+        "keel": 0.15,
+        "fullness": 1.2
+      },
+      {
+        "aft": 2.87,
+        "halfDeck": 0.76,
+        "halfWater": 0.34,
+        "deck": 4.3,
+        "keel": -1.12,
+        "fullness": 1.4
+      },
+      {
+        "aft": 6.55,
+        "halfDeck": 1.6,
+        "halfWater": 1.01,
+        "deck": 4.12,
+        "keel": -2.4,
+        "fullness": 1.6
+      },
+      {
+        "aft": 13.1,
+        "halfDeck": 2.86,
+        "halfWater": 2.44,
+        "deck": 3.9,
+        "keel": -3.2,
+        "fullness": 2.2
+      },
+      {
+        "aft": 22.11,
+        "halfDeck": 3.7,
+        "halfWater": 3.44,
+        "deck": 3.75,
+        "keel": -3.2,
+        "fullness": 3.2
+      },
+      {
+        "aft": 23.75,
+        "halfDeck": 3.78,
+        "halfWater": 3.61,
+        "deck": 3.4,
+        "keel": -3.2,
+        "fullness": 3.4
+      },
+      {
+        "aft": 34.4,
+        "halfDeck": 4.07,
+        "halfWater": 4.12,
+        "deck": 3.4,
+        "keel": -3.2,
+        "fullness": 4.6
+      },
+      {
+        "aft": 54.05,
+        "halfDeck": 3.99,
+        "halfWater": 4.12,
+        "deck": 3.4,
+        "keel": -3.2,
+        "fullness": 4.5
+      },
+      {
+        "aft": 65.52,
+        "halfDeck": 3.44,
+        "halfWater": 3.28,
+        "deck": 3.4,
+        "keel": -2.94,
+        "fullness": 3.2
+      },
+      {
+        "aft": 74.53,
+        "halfDeck": 2.31,
+        "halfWater": 1.76,
+        "deck": 3.45,
+        "keel": -2.08,
+        "fullness": 2
+      },
+      {
+        "aft": 80.26,
+        "halfDeck": 0.92,
+        "halfWater": 0.21,
+        "deck": 3.5,
+        "keel": -0.48,
+        "fullness": 1.4
+      },
+      {
+        "aft": 81.9,
+        "halfDeck": 0,
+        "halfWater": 0,
+        "deck": 3.5,
+        "keel": 0.7,
+        "fullness": 1.2
+      }
+    ]
+  },
+  "superstructures": [
+    {
+      "id": "bridge",
+      "base": "deck",
+      "top": 7.7,
+      "plan": [
+        [
+          24,
+          1.55
+        ],
+        [
+          32,
+          1.8
+        ]
+      ]
+    },
+    {
+      "id": "aft-deckhouse",
+      "base": "deck",
+      "top": 5.5,
+      "plan": [
+        [
+          47.502,
+          1.2
+        ],
+        [
+          58.968,
+          1.3
+        ]
+      ]
+    }
+  ],
+  "conningTowers": [
+    {
+      "id": "wheelhouse",
+      "aft": 28,
+      "base": "deck",
+      "top": 8.9,
+      "length": 2.6,
+      "width": 3
+    }
+  ],
+  "turrets": [
+    {
+      "id": "A",
+      "aft": 14.2,
+      "base": "deck",
+      "barbette": 0.35,
+      "facing": "fore",
+      "guns": 1
+    },
+    {
+      "id": "X",
+      "aft": 72.0,
+      "base": "deck",
+      "barbette": 0.35,
+      "facing": "aft",
+      "guns": 2
+    }
+  ],
+  "turretType": {
+    "barbetteRadius": 1.0,
+    "length": 2.4,
+    "width": 1.9,
+    "height": 0.9,
+    "frontSlope": 0.2,
+    "gunSpacing": 0.55,
+    "barrelLength": 3.0,
+    "barrelRadius": 0.12,
+    "muzzleRadius": 0.09
+  },
+  "funnels": [
+    {
+      "id": "1",
+      "aft": 31,
+      "base": "deck",
+      "top": 12.2,
+      "length": 2.8,
+      "width": 2.1
+    },
+    {
+      "id": "2",
+      "aft": 43,
+      "base": "deck",
+      "top": 12.2,
+      "length": 3.5,
+      "width": 2.1
+    }
+  ],
+  "masts": [
+    {
+      "id": "fore",
+      "type": "pole",
+      "aft": 33,
+      "base": "deck",
+      "top": 21,
+      "radius": 0.18,
+      "topmastFrom": 14,
+      "yards": [
+        {
+          "height": 12.5,
+          "span": 5.5
+        }
+      ]
+    },
+    {
+      "id": "main",
+      "type": "pole",
+      "aft": 57.33,
+      "base": "deck",
+      "top": 16,
+      "radius": 0.14,
+      "topmastFrom": 12,
+      "yards": [
+        {
+          "height": 10,
+          "span": 4.5
+        }
+      ]
+    }
+  ],
+  "searchlightTowers": [
+    {
+      "id": "aft-sl",
+      "aft": 44.226000000000006,
+      "base": "deck",
+      "top": 6.4,
+      "radius": 0.55
+    }
+  ],
+  "hawsePipes": [
+    {
+      "aft": 2.8,
+      "height": 3.1
+    }
+  ],
+  "boats": [
+    {
+      "aft": 40.95,
+      "side": 2.2680000000000002,
+      "base": "deck",
+      "length": 4.6,
+      "beam": 1.2
+    },
+    {
+      "aft": 40.95,
+      "side": -2.2680000000000002,
+      "base": "deck",
+      "length": 4.6,
+      "beam": 1.2
+    }
+  ],
+  "paint": {
+    "hull": "#6d7678",
+    "upper": "#7d8587",
+    "deck": "#83745d",
+    "boot": "#191b1d",
+    "bottom": "#46302b",
+    "dark": "#222629",
+    "canvas": "#afa793"
+  },
+  "references": [],
+  "guns": 3
+}
