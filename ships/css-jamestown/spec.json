@@ -1,0 +1,102 @@
+{
+  "schema": "weather-gage/ship-spec@1",
+  "units": "meters",
+  "conventions": "aft = metres aft of the stem at deck level; side = metres to starboard (+) or port (-) of the centreline; heights = metres above the design waterline. The builder converts to Blender (bow +Y, starboard +X, up +Z), which the glTF exporter turns into the game's contract (bow -Z, up +Y, waterline at Y=0).",
+  "budget": {"tier": "hero-blockout", "maxTriangles": 40000, "maxDrawCalls": 8, "maxBytes": 2000000},
+  "id": "css-jamestown",
+  "name": "CSS Jamestown",
+  "className": "Side-wheel gunboat (ex-Thomas Jefferson)",
+  "era": "ironclad",
+  "registryKeys": ["css jamestown"],
+  "guns": 2,
+  "configuration": "March 1862 (Hampton Roads): a smaller converted coastal steamer, side wheels, walking beam, funnel abaft the engine, schooner rig with sails furled, two pivot guns (2).",
+  "hull": {
+    "length": 73.0,
+    "overallLength": 81.18,
+    "beam": 10.0,
+    "draft": 4.0,
+    "camber": 0.18,
+    "bootTopping": [-0.25, 0.25],
+    "stationSpacing": 1.0,
+    "lines": [
+      {"aft": 0.0, "halfDeck": 0.0, "halfWater": 0.0, "deck": 3.6, "keel": 0.8, "fullness": 1.5},
+      {"aft": 1.15, "halfDeck": 1.34, "halfWater": 0.48, "deck": 3.55, "keel": -2.0, "fullness": 1.4},
+      {"aft": 4.8, "halfDeck": 3.26, "halfWater": 2.3, "deck": 3.4, "keel": -3.6, "fullness": 1.6},
+      {"aft": 13.45, "halfDeck": 4.7, "halfWater": 4.42, "deck": 3.15, "keel": -4.0, "fullness": 2.0},
+      {"aft": 24.97, "halfDeck": 4.94, "halfWater": 4.99, "deck": 3.0, "keel": -4.0, "fullness": 2.4},
+      {"aft": 49.95, "halfDeck": 4.94, "halfWater": 4.99, "deck": 3.0, "keel": -4.0, "fullness": 2.4},
+      {"aft": 59.55, "halfDeck": 4.7, "halfWater": 4.32, "deck": 3.0, "keel": -4.0, "fullness": 2.0},
+      {"aft": 67.24, "halfDeck": 3.84, "halfWater": 2.5, "deck": 3.1, "keel": -3.6, "fullness": 1.5},
+      {"aft": 71.56, "halfDeck": 2.78, "halfWater": 0.77, "deck": 3.2, "keel": -1.0, "fullness": 1.2},
+      {"aft": 73.0, "halfDeck": 2.21, "halfWater": 0.29, "deck": 3.25, "keel": 1.0, "fullness": 1.1}
+    ]
+  },
+  "surface": {"hull": {"metalness": 0.0, "roughness": 0.6}, "upper": {"metalness": 0.0, "roughness": 0.65}, "dark": {"metalness": 0.05, "roughness": 0.6}},
+  "curves": {"rail": [[0.0, 4.8], [9.61, 4.2], [36.5, 4.0], [63.39, 4.15], [73.0, 4.4]]},
+  "strakes": [{"id": "sheer-stripe", "line": "rail", "from": -1.75, "to": -1.5, "fromAft": 1.0, "toAft": 72.9, "material": "upper", "out": 0.05}],
+  "bulwarks": {"rail": "rail", "fromAft": 0.6, "toAft": 73.0, "thickness": 0.25, "outer": "hull", "inner": "upper", "cap": "dark"},
+  "superstructures": [
+    {"id": "saloon", "base": "deck", "top": 5.0, "plan": [[46.11, 2.3], [47.07, 2.9], [61.47, 2.9], [62.43, 2.3]]},
+    {"id": "pilothouse", "base": "deck", "top": 5.5, "plan": [[10.57, 1.3], [13.06, 1.3]]}
+  ],
+  "paddleBoxes": {"aft": 34.58, "radius": 4.6, "axle": 2.6, "width": 2.4, "material": "upper", "guard": 7.0},
+  "walkingBeam": {"aft": 33.14, "top": 10.5, "length": 8.0},
+  "funnels": [{"id": "1", "aft": 40.82, "base": "deck", "top": 13.5, "length": 1.8, "width": 1.8, "material": "dark"}],
+  "deckGuns": [{"aft": 7.5, "side": 0, "train": 0, "length": 3.0, "radius": 0.23}, {"aft": 66.28, "side": 0, "train": 180, "length": 3.0, "radius": 0.23}],
+  "stern": {"windows": [{"z": 2.5, "count": 4, "span": 3.0, "size": [0.45, 0.6]}], "rudder": {"top": 2.0, "chord": 1.4}},
+  "rig": {
+    "brace": 0,
+    "rigging": 0.07,
+    "masts": [
+      {
+        "id": "fore",
+        "aft": 15.37,
+        "rake": 4.0,
+        "sections": [{"head": 19.0, "radius": 0.36}, {"from": 17.4, "head": 28.0, "radius": 0.2}],
+        "top": {"z": 17.6, "size": [2.2, 3.4]},
+        "shrouds": {"count": 3, "aft": [-0.6, 1.6], "z": 3.6, "out": 0.6, "backstays": 1},
+        "crosstrees": [{"z": 26.5, "span": 2.6}],
+        "yards": []
+      },
+      {
+        "id": "main",
+        "aft": 53.79,
+        "rake": 5.0,
+        "sections": [{"head": 19.5, "radius": 0.34}, {"from": 18.0, "head": 27.0, "radius": 0.18}],
+        "top": {"z": 18.2, "size": [2.0, 3.0]},
+        "shrouds": {"count": 3, "aft": [-0.6, 1.6], "z": 3.6, "out": 0.6, "backstays": 1},
+        "crosstrees": [{"z": 25.6, "span": 2.4}],
+        "yards": []
+      }
+    ],
+    "spars": [
+      {"id": "bowsprit", "from": [1.92, 0, 3.9], "to": [-6.72, 0, 6.8], "radius": 0.3, "endRadius": 0.18},
+      {"id": "gaff", "from": [54.85, 0, 17.0], "to": [61.47, 0, 19.0], "radius": 0.15, "endRadius": 0.1, "material": "dark"},
+      {"id": "boom", "from": [54.85, 0, 5.6], "to": [68.2, 0, 6.0], "radius": 0.18, "endRadius": 0.12, "material": "dark"},
+      {"id": "ensign-staff", "from": [72.62, 0, 3.6], "to": [73.38, 0, 9.0], "radius": 0.09, "endRadius": 0.06},
+      {"id": "fore-gaff", "from": [16.43, 0, 16.0], "to": [23.05, 0, 18.0], "radius": 0.14, "endRadius": 0.09, "material": "dark"},
+      {"id": "fore-boom", "from": [16.43, 0, 5.2], "to": [28.82, 0, 5.6], "radius": 0.16, "endRadius": 0.1, "material": "dark"}
+    ],
+    "stays": [
+      [[15.56, 0, 18.4], [-5.28, 0, 6.4]],
+      [[15.94, 0, 27.0], [-6.53, 0, 6.8]],
+      [[53.98, 0, 19.0], [15.85, 0, 17.8]],
+      [[54.37, 0, 26.5], [16.14, 0, 26.6]]
+    ],
+    "foreAftSails": [],
+    "flags": [
+      {"id": "ensign", "design": "csa-1861", "hoist": [73.38, 8.9], "size": [3.4, 2.2], "stream": 100, "wave": 0.08},
+      {"id": "jack", "design": "csa-1861", "hoist": [54.56, 26.9], "size": [2.0, 1.3], "stream": 100, "wave": 0.08}
+    ]
+  },
+  "paint": {
+    "hull": "#202020",
+    "upper": "#cbc4b0",
+    "deck": "#9c8a6c",
+    "boot": "#cfc9b9",
+    "bottom": "#7a3f2c",
+    "dark": "#141414",
+    "canvas": "#e3dcc9",
+    "spar": "#a6865c"
+  }
+}
