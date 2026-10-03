@@ -47,7 +47,16 @@ const PRIMERS = {
   ],
 };
 
+const CONVOY_PRIMER = [
+  ['The wolf pack attacks at night, on the surface', 'A surfaced U-boat is fast and almost invisible to a lookout. Centimetric Type 271 radar finds her at four miles, and her receiver cannot hear it.'],
+  ['Push them down', 'A submerged U-boat makes seven knots and cannot keep up with the convoy. Every boat you force under is a boat that is not attacking.'],
+  ['Huff-Duff', 'Each time a U-boat radios the convoy’s position, Walker’s HF/DF gets a bearing. Run it down before she attacks.'],
+  ['Unleash the escorts', 'On Screen, escorts hunt only close to the convoy. Engage lets them go after contacts further out, and the pack is broken up before it closes. Escorts that cling to the columns lose the convoy.'],
+  ['Mind your emissions', 'Metox hears Sackville’s old metric radar from ten miles and steers the pack toward her. The centimetric 271 is unheard. Consider silencing Sackville.'],
+];
+
 export function primer(era, scenarioId) {
+  if (scenarioId === 'convoy') return CONVOY_PRIMER;
   const items = PRIMERS[era] || [];
   return scenarioId === 'northern_screen' ? items.filter(([title]) => title !== 'Don’t start a war') : items;
 }
@@ -109,6 +118,17 @@ export function advise(view, sc) {
     return 'Anchored ships cannot turn. Come at them from ahead or astern and your fire rakes them end to end.';
   }
 
+  if (sc.id === 'convoy') {
+    if (own.some(s => s.type === 'submarine')) {
+      const surfaced = own.filter(s => s.type === 'submarine' && s.doctrine.depth === 'surface');
+      return surfaced.length ? 'Stay on the surface in the dark and close on the merchant ships; dive when escorts come at you.' : 'Your boats are down. Wait for the hunt to pass, then surface and catch the convoy up.';
+    }
+    if (fresh.some(c => c.by === 'hfdf')) return 'HF/DF bearing: a U-boat is reporting the convoy. Send an escort down the bearing before the pack gathers.';
+    const screening = own.filter(s => s.depthCharges !== undefined && s.order.type === 'screen');
+    if (screening.length >= 3 && fresh.length) return 'Escorts on Screen hunt only close to the convoy. Order some to Engage and break up the pack before it reaches the merchant ships.';
+    if (fresh.some(c => c.submerged)) return 'A U-boat is down. Hold her with ASDIC and depth-charge her, or simply keep her down while the convoy draws away.';
+    return 'Hunt what the 271s find: a surfaced U-boat is a tiny echo at four miles. Sackville’s metric radar is heard by Metox; silence it if the pack seems to know where you are.';
+  }
   if (sc.era === 'ww2') {
     if (!own.some(s => s.sensors?.search)) {
       // The Imperial Navy side: no radar, better eyes, the long torpedo.
@@ -170,6 +190,12 @@ export function lesson(view, sc, stats) {
     if (stats.hits < stats.taken) return 'The enemy outshot you. Check the wind: firing downwind into your own smoke costs a third of your hits, and hard turns reset fire control.';
     if (!stats.torpedoHits) return 'Your destroyers scored no torpedo hits. Launch them when the enemy capitals are committed to a gunnery duel and holding course.';
     return result === 'victory' ? 'A well-fought action: good geometry, steady gunnery and torpedoes at the right moment.' : 'Good fundamentals. Look at when you committed the destroyers and whether the battlecruiser was exposed too long.';
+  }
+  if (sc.id === 'convoy') {
+    if (view.ships.some(s => s.side === 'red')) return result === 'defeat' ? 'The convoy was savaged. Surface attacks at night, before the escorts found you, decided it.' : 'The convoy came through. Too many of your boats were forced down, and a submerged boat cannot keep up.';
+    if (result === 'victory') return 'The convoy came through. Radar found them on the surface, HF/DF found them when they talked, and the escorts kept them down.';
+    if (result === 'defeat') return 'The pack got in among the merchant ships. Let the escorts off the leash (Engage), run down HF/DF bearings early, and do not radiate what Metox can hear.';
+    return 'A battered convoy. Hunt further out: a U-boat forced down astern never reaches the columns.';
   }
   if (sc.era === 'ww2') {
     // The engine scores from the US side; a red player raided the airfield.

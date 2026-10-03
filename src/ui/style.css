@@ -232,3 +232,4 @@ dialog.launcher{max-width:1240px;width:calc(100% - 32px)}
 /* WWII report sources: a radar blip is a hard echo with no outline yet; flashes and receiver bearings are vaguer still. */
 .contact.by-radar .contact-ring{stroke-dasharray:1 3;stroke-width:1.4}.contact.by-flash .contact-ring,.contact.by-receiver .contact-ring{stroke-dasharray:8 5;opacity:.7}
 .fx-searchlight{stroke:#f6f3d8;stroke-width:5;opacity:.75;stroke-linecap:round;filter:blur(1.5px)}
+.hull.submerged{fill:none;stroke:var(--blue);stroke-dasharray:3 2}

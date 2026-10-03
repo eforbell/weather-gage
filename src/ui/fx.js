@@ -315,6 +315,9 @@ export function createFx({ layer, tracks, wrap, banner, pt }) {
         case 'aground':
           if (to) later(start, () => floatText(to, 'AGROUND', 'muted'));
           break;
+        case 'depth-charge':
+          if (to || from) later(start + i * gap, () => { const p = to || from; for (let k = 0; k < 3; k++) later(k * 160, () => splash(jitter(p, 10))); floatText(p, f.hits ? 'DEPTH CHARGES · DAMAGED' : 'DEPTH CHARGES', f.from?.own ? 'own' : 'muted'); });
+          break;
         case 'starshell':
           if (from) later(start * 0.4 + i * gap, () => flash(from, 10));
           if (to) later(start + flight + i * gap, () => { flash(to, f.hits ? 34 : 18); floatText(to, f.hits ? 'STARSHELL' : 'STARSHELL WIDE', 'muted'); });

@@ -61,6 +61,9 @@ LOOKS.esperance = {
   swell: 0.5, waves: { size: 3, speed: 0.7, distortion: 0.5 }, smoke: 0.55,
 };
 
+// The convoy's night: the same dark, but a North Atlantic sea running.
+LOOKS.convoy = { ...LOOKS.esperance, note: 'North Atlantic night, a heavy sea running', sky: { ...LOOKS.esperance.sky, clouds: 0.8, cloudDensity: 0.65 }, water: 0x0b1a22, haze: 0.0095, swell: 1.7, waves: { size: 2.4, speed: 1.1, distortion: 1 } };
+
 const ERA_LOOK = { sail: 'nevis', ironclad: 'hampton', dreadnought: 'dogger', coldwar: 'northern_screen', modern: 'strait', ww2: 'esperance' };
 
 export function lookFor(scenarioId, era) {

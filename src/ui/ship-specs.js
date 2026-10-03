@@ -59,6 +59,8 @@ export const SHIP_SPECS = Object.freeze({
   // and two raked funnels) and a long, fine fleet destroyer. Battleships reuse the dreadnought silhouette for now.
   ww2_cruiser: { key: 'ww2_cruiser', era: 'ww2', loaderKey: 'ww2/cruiser', presentationUnits: true, dimensions: { length: 9.0, beam: 1.0, freeboard: 0.52, draft: 0.5 }, modelScale: { beam: 0.5 }, paint: SURFACE_PAINT, hull: { ...baseHull, bowFine: 0.03, sternWidth: 0.6, sheer: 0.22, flare: 0.14, tumblehome: 0.03, rake: 0.06 }, turrets: [turret(-3.0, 'large', 2), turret(-2.05, 'large', 2), turret(2.75, 'large', 2)], funnels: [{ x: 0, z: 0.15, height: 1.05 }, { x: 0, z: 0.85, height: 0.95 }], masts: [{ z: -0.9, height: 2.3 }, { z: 1.55, height: 1.7 }], bridge: { z: -1.15, length: 1.15, height: 1.05 } },
   ww2_destroyer: { key: 'ww2_destroyer', era: 'ww2', loaderKey: 'ww2/destroyer', presentationUnits: true, dimensions: { length: 6.6, beam: 0.66, freeboard: 0.44, draft: 0.42 }, modelScale: { beam: 0.48 }, paint: SURFACE_PAINT, hull: { ...baseHull, bowFine: 0.03, sternWidth: 0.62, sheer: 0.2, flare: 0.13, tumblehome: 0.03, rake: 0.06 }, turrets: [turret(-2.25), turret(-1.6), turret(2.2)], funnels: [{ x: 0, z: -0.2, height: 0.8 }, { x: 0, z: 0.5, height: 0.75 }], masts: [{ z: -0.85, height: 1.9 }], bridge: { z: -1.05, length: 0.9, height: 0.78 } },
+  // A tramp freighter: high bow, bridge and funnel amidships, a mast and derricks fore and aft.
+  ww2_merchant: { key: 'ww2_merchant', era: 'ww2', loaderKey: 'ww2/merchant', presentationUnits: true, dimensions: { length: 7.4, beam: 1.05, freeboard: 0.55, draft: 0.55 }, modelScale: { beam: 0.55 }, paint: { ...SURFACE_PAINT, hull: 'darkSteel', upper: 'paleSteel' }, hull: { ...baseHull, bowFine: 0.06, sternWidth: 0.7, sheer: 0.28, flare: 0.12, tumblehome: 0.02, rake: 0.05 }, funnels: [{ x: 0, z: 0.35, height: 0.9 }], masts: [{ z: -2.0, height: 2.2 }, { z: 2.1, height: 2.0 }], bridge: { z: -0.15, length: 1.2, height: 0.85 } },
   carrier: { key: 'carrier', era: 'modern', loaderKey: 'modern/light-carrier', presentationUnits: true, dimensions: { length: 10.7, beam: 1.19, freeboard: 0.52, draft: 0.58 }, modelScale: { beam: 0.4 }, paint: { ...SURFACE_PAINT, hull: 'darkSteel' }, hull: { ...baseHull, bowFine: 0.035, sternWidth: 0.76, sheer: 0.14, flare: 0.1, tumblehome: 0.03 }, island: { x: 0.46, z: -0.45 }, masts: [{ z: -0.9, height: 2.1 }] },
   modern_surface: { key: 'modern_surface', era: 'modern', loaderKey: 'modern/surface-combatant', presentationUnits: true, dimensions: { length: 7.0, beam: 0.74, freeboard: 0.48, draft: 0.48 }, modelScale: { beam: 0.48 }, paint: SURFACE_PAINT, hull: { ...baseHull, bowFine: 0.025, sternWidth: 0.7, sheer: 0.13, flare: 0.12, tumblehome: 0.05 }, turrets: [turret(-2.35)], funnels: [{ x: 0, z: 0.75, height: 0.75 }], masts: [{ z: -0.55, height: 2.25 }], bridge: { z: -0.85, length: 1.45, height: 0.82 } },
   asw_destroyer: { key: 'asw_destroyer', era: 'coldwar', loaderKey: 'modern/asw-destroyer', presentationUnits: true, dimensions: { length: 6.75, beam: 0.68, freeboard: 0.46, draft: 0.46 }, modelScale: { beam: 0.48 }, paint: SURFACE_PAINT, hull: { ...baseHull, bowFine: 0.03, sternWidth: 0.68, sheer: 0.14, flare: 0.11, tumblehome: 0.04 }, turrets: [turret(-2.15)], funnels: [{ x: 0, z: 0.55, height: 0.72 }], masts: [{ z: -0.7, height: 2.0 }], bridge: { z: -0.7, length: 1.25, height: 0.78 } },
@@ -68,7 +70,7 @@ export const SHIP_SPECS = Object.freeze({
 export function shipSpecFor(type = '', era = '') {
   const label = String(type || '').toLowerCase();
   if (/carrier/.test(label)) return SHIP_SPECS.carrier;
-  if (/submarine|ssn|ssbn|attack boat/.test(label)) return SHIP_SPECS.submarine;
+  if (/submarine|u-boat|ssn|ssbn|attack boat/.test(label)) return SHIP_SPECS.submarine;
   if (era === 'sail') return SHIP_SPECS.sail_frigate;
   if (era === 'ironclad') {
     if (/monitor|turret/.test(label)) return SHIP_SPECS.ironclad_monitor;
@@ -86,7 +88,8 @@ export function shipSpecFor(type = '', era = '') {
   }
   if (era === 'ww2') {
     if (/battleship/.test(label)) return SHIP_SPECS.dreadnought_battleship;
-    if (/destroyer/.test(label)) return SHIP_SPECS.ww2_destroyer;
+    if (/destroyer|corvette|sloop/.test(label)) return SHIP_SPECS.ww2_destroyer;
+    if (/merchant|freighter|tanker/.test(label)) return SHIP_SPECS.ww2_merchant;
     return SHIP_SPECS.ww2_cruiser;
   }
   if (era === 'modern' || era === 'coldwar') {

@@ -15,7 +15,7 @@ function placed(pairs) {
 }
 
 test('the WWII night action is a launcher mission set at night', () => {
-  assert.deepEqual(SCENARIOS.filter((s) => s.era === 'ww2').map((s) => s.id), ['esperance']);
+  assert.deepEqual(SCENARIOS.filter((s) => s.era === 'ww2').map((s) => s.id), ['esperance', 'convoy']);
   assert.deepEqual(DOCKYARD_SCENARIOS, []);
   assert.equal(lightAt(createGame('esperance', 1)), 'night');
 });
@@ -242,4 +242,92 @@ test('reports say how they were made, and stale ones stop claiming a source', ()
   const old = getView(s, 'blue').contacts[0];
   assert.equal(old.stale, true);
   assert.equal(old.by, undefined);
+});
+
+// ---------- The convoy: U-boats, escorts and merchant ships ----------
+
+function convoyAt(pairs, seed = 4) {
+  const s = createGame('convoy', seed);
+  for (const [id, q, r, depth] of pairs) {
+    Object.assign(ship(s, id), { q, r });
+    if (depth) ship(s, id).doctrine.depth = depth;
+  }
+  return s;
+}
+
+test('Metox hears the old metric Type 286 but not the centimetric 271', () => {
+  const s = convoyAt([['r_u96', 15, 9], ['b_sackville', 8, 9], ['b_stork', 9, 11]]);
+  const u96 = ship(s, 'r_u96');
+  assert.equal(intercept(u96, ship(s, 'b_sackville'), s)?.by, 'receiver');
+  assert.equal(intercept(u96, ship(s, 'b_stork'), s), null);
+});
+
+test('radar finds a surfaced U-boat; only ASDIC holds a submerged one, and says she is under', () => {
+  const s = convoyAt([['b_stork', 10, 9], ['r_u201', 13, 9, 'surface']]);
+  const [stork, u201] = [ship(s, 'b_stork'), ship(s, 'r_u201')];
+  assert.equal(radarEcho(stork, u201, s)?.by, 'radar', 'Type 271 at 3 miles');
+  u201.doctrine.depth = 'shallow';
+  assert.equal(radarEcho(stork, u201, s), null);
+  assert.equal(optical(stork, u201, s), null, 'nothing to see at night');
+  Object.assign(u201, { q: 12 });
+  const ping = detection(stork, u201, s);
+  assert.equal(ping.by, 'sonar');
+  assert.equal(ping.submerged, true);
+});
+
+test('a U-boat that radios the convoy gives Walker an HF/DF bearing from far off', () => {
+  const s = convoyAt([['b_walker', 6, 9], ['r_u552', 26, 9]]);
+  const u552 = ship(s, 'r_u552');
+  assert.equal(detection(ship(s, 'b_walker'), u552, s), null);
+  u552.emitUntil = s.tick;
+  const fix = detection(ship(s, 'b_walker'), u552, s);
+  assert.equal(fix.by, 'hfdf');
+  assert.ok(fix.uncertainty > 0, 'a bearing, not a position');
+  assert.equal(detection(ship(s, 'b_stork'), u552, s), null, 'only the ship with the set');
+});
+
+test('guns ignore a submerged U-boat; depth charges go after her', () => {
+  let s = convoyAt([['b_gentian', 10, 9], ['r_u96', 11, 9, 'shallow']]);
+  for (const x of s.ships) if (!['b_gentian', 'r_u96'].includes(x.id)) x.status = 'escaped';
+  for (const x of s.ships) x.order = { type: 'hold' };
+  s = step(s);
+  const contact = s.contacts.blue.find((c) => c.targetId === 'r_u96');
+  assert.equal(contact?.submerged, true);
+  assert.equal(s.log.some((e) => /Gentian opens/.test(e.text)), false, 'no gunfire at a submerged contact');
+  assert.equal(ship(s, 'b_gentian').depthCharges, 5, 'one pattern dropped');
+});
+
+test('a torpedo that breaks a merchant ship sends her down', () => {
+  let sank = 0;
+  for (let seed = 1; seed <= 30; seed += 1) {
+    let t = convoyAt([['b_trevisa', 12, 9]], seed);
+    for (const x of t.ships) { if (x.id !== 'b_trevisa' && x.id !== 'r_u96') x.status = 'escaped'; x.order = { type: 'hold' }; }
+    t.pending.push({ kind: 'torpedo', shipId: 'r_u96', targetId: 'b_trevisa', side: 'red', salvo: 1, deliverAt: 1, q: 15, r: 9, aimQ: 12, aimR: 9, weapon: 'g7e' });
+    t = step(t);
+    const trevisa = ship(t, 'b_trevisa');
+    if (t.log.some((e) => /Trevisa is struck by a torpedo/.test(e.text))) {
+      assert.equal(trevisa.status, 'sunk');
+      sank += 1;
+    }
+  }
+  assert.ok(sank > 5, 'most hits sink her');
+});
+
+test('the convoy is lost at three merchant ships, and through when the rest arrive', () => {
+  let s = createGame('convoy', 9);
+  for (const id of ['b_empire_ocelot', 'b_baron_ogilvy', 'b_clan_macnab']) Object.assign(ship(s, id), { status: 'sunk', hull: 0 });
+  assert.equal(step(s).outcome?.result, 'defeat');
+  let t = createGame('convoy', 9);
+  for (const id of ['b_empire_ocelot', 'b_baron_ogilvy', 'b_clan_macnab', 'b_trevisa', 'b_hartington']) Object.assign(ship(t, id), { status: 'escaped', arrived: true });
+  Object.assign(ship(t, 'b_bretwalda'), { status: 'sunk', hull: 0 });
+  t = step(t);
+  assert.equal(t.outcome?.result, 'victory');
+  assert.match(t.outcome.summary, /5 through, 1 lost/);
+});
+
+test('the convoy sortie runs to a deterministic outcome and survives save and load', () => {
+  const run = (seed) => { let s = createGame('convoy', seed); while (!s.outcome) { s = step(s); if (s.tick === 10) s = deserialize(serialize(s)); } return s; };
+  const a = run(31), b = run(31);
+  assert.deepEqual(a.outcome, b.outcome);
+  assert.ok(a.log.some((e) => /radios a contact report/.test(e.text)));
 });
