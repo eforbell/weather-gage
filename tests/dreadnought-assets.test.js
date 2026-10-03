@@ -24,6 +24,14 @@ test('the entire Dogger fleet resolves to distinct named authored assets', () =>
   assert.deepEqual(Object.keys(SHIP_ASSET_REGISTRY.dreadnought).sort(), fleet.map(ship => ship.name.toLowerCase()).sort());
 });
 
+test('all named ships in the first three era scenarios have authored coverage', () => {
+  for (const id of ['nevis', 'hampton', 'dogger']) {
+    for (const ship of SCENARIO_SETUPS[id].ships) {
+      assert.ok(shipAssetSpecFor(ship, ship.era), `${id}: ${ship.name} still needs an authored hull`);
+    }
+  }
+});
+
 test('Dogger screens keep slender, smaller hulls and distinct national palettes', async () => {
   const specs = await Promise.all(fleet.map(ship => loadShipSpec(shipAssetSpecFor(ship, 'dreadnought').specId)));
   const capitals = specs.filter((_, i) => fleet[i].type !== 'destroyer');

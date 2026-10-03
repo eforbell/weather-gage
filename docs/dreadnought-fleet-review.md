@@ -1,6 +1,9 @@
 # Dreadnought fleet acceptance record
 
-Base reviewed: `main` at `c0cec92`. Delivery branch: `feat/dreadnought-fleet-models`.
+Initial base reviewed: `main` at `c0cec92`. During this work Hampton Roads
+merged into `main` at `be28288`; the delivery branch incorporates that merge
+and all nineteen assets were rebuilt against the combined kit.
+Delivery branch: `feat/dreadnought-fleet-models`.
 
 ## Scope and fidelity
 
@@ -18,12 +21,12 @@ and turret/torpedo arrangements remain deliberately simplified.
 
 ## Technical evidence
 
-- Main baseline: 244 tests passed; final: **284/284** passed.
+- Main baseline: 244 tests passed; final combined branch: **310/310** passed.
 - `npm run check`, Python compile check and `npm run build` passed. Vite still
   reports the existing large battle-renderer chunk advisory; no build error.
-- All fourteen assets rebuilt after adding single-barrel turret support; all
+- All nineteen assets rebuilt after adding single-barrel turret support; all
   asset reports and pinned Khronos validation passed, zero errors/warnings.
-- Earlier eight assets match main's material-labelled surface vertex sets to
+- All thirteen earlier assets match merged main's material-labelled surface vertex sets to
   0.00001 m; counts match. Export triangle diagonals/order may differ, so byte
   or triangle-connectivity hashes are not preservation evidence. Original
   flagship/sail/ironclad specs remain unchanged.
@@ -61,8 +64,10 @@ The local before/after viewport screenshots and browser evidence are under
 `output/playwright/`; these review-only outputs are not shipped. The independent
 verdict is also persisted at `.omx/state/dreadnought-independent/ralph-progress.json`.
 
-A later merge with the Hampton steam kit must preserve both sets of registry
-entries and rebuild **all** specs under the merged kit hash. See
+The Hampton steam kit is already integrated in this branch. Its thirteen main
+assets and all six new dreadnought models share the current kit hash, and a
+regression test covers every named ship in the first three eras. Future kit
+merges still require rebuilding **all** specs. See
 [ship-pipeline.md](ship-pipeline.md#parallel-era-integration).
 
 ---
@@ -112,3 +117,15 @@ Non-blocking note: game-distance/viewports show long mast shadows on several tal
 
 - I inspected committed/generated raster views and live viewport captures, not an interactive Blender scene.
 - `lsp_diagnostics` was not available through the exposed tools in this subagent; I substituted the repo syntax check, full test suite, targeted asset tests, Python compile check and per-ship GLB reports/validator.
+
+## Post-review main integration verification
+
+The independent visual review above was completed before Hampton Roads merged
+into this branch. After integration, the leader reran all nineteen builds,
+Khronos checks, the 310-test suite, syntax/Python checks, production build and
+the six-ship both-side viewport checks (no warnings). All six reviewed assets
+retain identical material-labelled surface vertex sets to 0.00001 m, as do
+all thirteen earlier assets compared with merged main. No visual asset redesign
+was introduced by integration. A second independent integration-only pass was
+unavailable; the original independent visual approval and these fresh
+geometry/technical checks are the final acceptance evidence.

@@ -46,12 +46,15 @@ export function muzzleReach(turretType = {}) {
   return (turretType.length ?? 0) / 2 - (turretType.frontSlope ?? 0) * GUN_AXIS + (turretType.barrelLength ?? 0);
 }
 
-// Guns the model carries, to match the scenario's `guns`: turret guns plus
-// broadside batteries (a battery's count is per side).
+// Guns the model carries, to match the scenario's `guns`: turret guns,
+// broadside batteries (a battery's count is per side), guns on open deck
+// slides or pivots, and casemate ports (per side, plus bow and stern).
 export function shipGunCount(spec) {
   const turrets = (spec.turrets || []).reduce((sum, turret) => sum + turret.guns, 0);
   const broadside = (spec.batteries || []).reduce((sum, battery) => sum + 2 * (battery.positions?.length ?? battery.count), 0);
-  return turrets + broadside;
+  const ports = spec.casemate?.ports || {};
+  const casemate = 2 * (ports.side?.length || 0) + (ports.bow || 0) + (ports.stern || 0);
+  return turrets + broadside + (spec.deckGuns?.length || 0) + casemate;
 }
 
 // Facing and placement of every turret from its muzzle anchor ([x, y, z] in

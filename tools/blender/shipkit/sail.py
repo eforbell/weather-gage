@@ -294,7 +294,7 @@ def rig(kit):
     yard_dir = Vector((math.cos(brace), math.sin(brace), 0.0))  # starboard yardarm forward
     belly_dir = Vector((-math.sin(brace), math.cos(brace), 0.0))
     rope = spec.get("rigging", 0.08)
-    for mspec in spec["masts"]:
+    for mspec in spec.get("masts", []):
         mast = Mast(kit, mspec)
         z = mast.z0
         for i, section in enumerate(mspec["sections"]):
@@ -427,13 +427,19 @@ def _us_1795(u, v):
     return "#b0202e" if int(v * 13) % 2 == 0 else "#f4f1ea"
 
 
+def _csa_1861(u, v):
+    if u < 0.4 and v < 2 / 3:
+        return "#26346e"
+    return "#f4f1ea" if 1 / 3 <= v < 2 / 3 else "#b51f2b"
+
+
 def _fr_1794(u, v):
     return "#1f3a8a" if u < 1 / 3 else "#f4f1ea" if u < 2 / 3 else "#c4142a"
 
 
 # The 1861 flag (34 stars) differs from 1795 only in the canton, which reads
 # as plain blue at game distance.
-FLAG_DESIGNS.update({"us-1795": (_us_1795, 13), "us-1861": (_us_1795, 13), "fr-1794": (_fr_1794, 4)})
+FLAG_DESIGNS.update({"us-1795": (_us_1795, 13), "us-1861": (_us_1795, 13), "fr-1794": (_fr_1794, 4), "csa-1861": (_csa_1861, 6)})
 
 
 def flag(kit, spec, nu=12):
