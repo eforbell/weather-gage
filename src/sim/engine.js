@@ -369,6 +369,7 @@ function validateContacts(contacts, shipIds, sides, keys = sides, map = DEFAULT_
       if (contact.emitter !== undefined && typeof contact.emitter !== 'boolean') throw new Error('Invalid contact emitter');
       for (const k of ['uncertainty', 'holdSince']) if (contact[k] !== undefined && (!Number.isInteger(contact[k]) || contact[k] < 0)) throw new Error(`Invalid contact ${k}`);
       if (contact.submerged !== undefined && typeof contact.submerged !== 'boolean') throw new Error('Invalid contact submerged');
+      if (contact.facing !== undefined && (!Number.isInteger(contact.facing) || contact.facing < 0 || contact.facing > 5)) throw new Error('Invalid contact facing');
       if (contact.by !== undefined && !CONTACT_SOURCES.has(contact.by)) throw new Error('Invalid contact source');
       if (contact.side !== undefined && !sides.includes(contact.side)) throw new Error('Invalid contact side');
     }
@@ -850,6 +851,8 @@ function scanContacts(state, side, observers, previous, scope) {
       if (CONF_RANK[contact.confidence] >= 3) { contact.name = enemy.name; if (sidesOf(state).length > 2) contact.side = enemy.side; }
       if (CONF_RANK[contact.confidence] >= 3 && enemy.speed === 0) contact.anchored = true; // a ship at anchor is plain to see once identified
       if (CONF_RANK[contact.confidence] >= 2) contact.className = contact.uncertainty && enemy.passiveClass ? enemy.passiveClass : enemy.className;
+      // A ship seen or tracked well enough to classify shows her heading; an estimated position does not.
+      if (CONF_RANK[contact.confidence] >= 2 && contact.uncertainty === undefined && !contact.submerged) contact.facing = enemy.facing;
       contacts.push(contact);
     } else {
       const old = prior.get(enemy.id);
@@ -1046,6 +1049,7 @@ function publicContact(c) {
   if (c.by && !c.stale) out.by = c.by;
   if (typeof c.submerged === 'boolean' && !c.stale) out.submerged = c.submerged;
   if (c.anchored && !c.stale) out.anchored = true;
+  if (c.facing !== undefined && !c.stale) out.facing = c.facing;
   return out;
 }
 

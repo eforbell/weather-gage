@@ -578,7 +578,8 @@ function actorKeys(actor) {
   const publicName = String(actor?.name || '').toLowerCase();
   const className = String(actor?.className || '').toLowerCase();
   const type = String(actor?.type || '').toLowerCase();
-  return [...new Set([publicName, className, type].filter(Boolean))];
+  const standIn = String(actor?.assetName || '').toLowerCase(); // a classified contact's class model (classStandIns)
+  return [...new Set([standIn, publicName, className, type].filter(Boolean))];
 }
 
 // `era` picks the metre-to-world factor for metre assets (modelMetersToWorld);
