@@ -1,0 +1,529 @@
+{
+  "schema": "weather-gage/ship-spec@1",
+  "id": "ss-trevisa",
+  "name": "SS Trevisa",
+  "className": "Short wartime coastal tramp freighter",
+  "era": "ww2",
+  "registryKeys": [
+    "ss trevisa"
+  ],
+  "configuration": "1942 North Atlantic convoy merchant: original class-inspired tramp/cargo freighter silhouette with broad cargo hull, central bridge, one funnel, visible hatch covers, kingposts and cargo derricks. Artist-chosen readable game model, not a measured reconstruction.",
+  "units": "meters",
+  "conventions": "aft = metres aft of the stem at deck level; side = metres to starboard (+) or port (-); heights = metres above the design waterline. The exported glTF uses the game contract: bow -Z, up +Y, waterline at Y=0.",
+  "budget": {
+    "tier": "hero-blockout",
+    "maxTriangles": 40000,
+    "maxDrawCalls": 12,
+    "maxBytes": 2000000
+  },
+  "hull": {
+    "length": 112,
+    "beam": 15.6,
+    "draft": 5.9,
+    "camber": 0.22,
+    "bootTopping": [
+      -0.35,
+      0.42
+    ],
+    "stationSpacing": 1.05,
+    "lines": [
+      {
+        "aft": 0,
+        "halfDeck": 0,
+        "halfWater": 0,
+        "deck": 6.5,
+        "keel": 0.2,
+        "fullness": 1.15
+      },
+      {
+        "aft": 2.8,
+        "halfDeck": 0.45,
+        "halfWater": 0.2,
+        "deck": 6.42,
+        "keel": -1.1,
+        "fullness": 1.25
+      },
+      {
+        "aft": 7.84,
+        "halfDeck": 1.6,
+        "halfWater": 1.15,
+        "deck": 6.35,
+        "keel": -3.1,
+        "fullness": 1.55
+      },
+      {
+        "aft": 15.68,
+        "halfDeck": 3.7,
+        "halfWater": 3.25,
+        "deck": 6.25,
+        "keel": -5.9,
+        "fullness": 2.25
+      },
+      {
+        "aft": 28,
+        "halfDeck": 6.4,
+        "halfWater": 6.86,
+        "deck": 6.13,
+        "keel": -5.9,
+        "fullness": 4.2
+      },
+      {
+        "aft": 42.56,
+        "halfDeck": 7.41,
+        "halfWater": 7.8,
+        "deck": 6.08,
+        "keel": -5.9,
+        "fullness": 5.4
+      },
+      {
+        "aft": 58.24,
+        "halfDeck": 7.8,
+        "halfWater": 7.8,
+        "deck": 6.05,
+        "keel": -5.9,
+        "fullness": 5.8
+      },
+      {
+        "aft": 73.92,
+        "halfDeck": 7.64,
+        "halfWater": 7.72,
+        "deck": 6.04,
+        "keel": -5.9,
+        "fullness": 5.6
+      },
+      {
+        "aft": 89.6,
+        "halfDeck": 7.02,
+        "halfWater": 7.18,
+        "deck": 6.1,
+        "keel": -5.66,
+        "fullness": 4.5
+      },
+      {
+        "aft": 101.92,
+        "halfDeck": 4.52,
+        "halfWater": 4.06,
+        "deck": 6.17,
+        "keel": -3.89,
+        "fullness": 2.6
+      },
+      {
+        "aft": 109.2,
+        "halfDeck": 1.05,
+        "halfWater": 0.42,
+        "deck": 6.31,
+        "keel": -0.65,
+        "fullness": 1.45
+      },
+      {
+        "aft": 112,
+        "halfDeck": 0,
+        "halfWater": 0,
+        "deck": 6.35,
+        "keel": 0.55,
+        "fullness": 1.2
+      }
+    ]
+  },
+  "guns": 0,
+  "turrets": [],
+  "deckGuns": [],
+  "batteries": [],
+  "superstructures": [
+    {
+      "id": "cargo-hatch-1",
+      "base": "deck",
+      "top": 6.97,
+      "plan": [
+        [
+          10,
+          4.6
+        ],
+        [
+          29,
+          4.6
+        ]
+      ]
+    },
+    {
+      "id": "cargo-hatch-2",
+      "base": "deck",
+      "top": 7.05,
+      "plan": [
+        [
+          33,
+          4.1
+        ],
+        [
+          44,
+          4.1
+        ]
+      ]
+    },
+    {
+      "id": "cargo-hatch-3",
+      "base": "deck",
+      "top": 6.97,
+      "plan": [
+        [
+          73,
+          4.4
+        ],
+        [
+          102,
+          4.4
+        ]
+      ]
+    },
+    {
+      "id": "midships-deckhouse",
+      "base": "deck",
+      "top": 8.75,
+      "plan": [
+        [
+          46,
+          5
+        ],
+        [
+          70,
+          5
+        ]
+      ]
+    },
+    {
+      "id": "bridge-house",
+      "base": 8.6,
+      "top": 11.85,
+      "plan": [
+        [
+          49,
+          3.5
+        ],
+        [
+          66,
+          3.8
+        ]
+      ]
+    },
+    {
+      "id": "wheelhouse",
+      "base": 11.7,
+      "top": 13.55,
+      "plan": [
+        [
+          52,
+          2.7
+        ],
+        [
+          62,
+          2.6
+        ]
+      ]
+    },
+    {
+      "id": "aft-poop-shelter",
+      "base": "deck",
+      "top": 7.8,
+      "plan": [
+        [
+          91,
+          4
+        ],
+        [
+          104,
+          4
+        ]
+      ]
+    }
+  ],
+  "funnels": [
+    {
+      "id": "main",
+      "aft": 62,
+      "base": "deck",
+      "length": 4.7,
+      "width": 3,
+      "top": 20.85,
+      "material": "upper",
+      "casing": {
+        "length": 6,
+        "width": 4,
+        "top": 9.55
+      }
+    }
+  ],
+  "boats": [
+    {
+      "id": "port-lifeboat",
+      "aft": 57.5,
+      "side": -5.6,
+      "base": 8.85,
+      "length": 7,
+      "beam": 2
+    },
+    {
+      "id": "starboard-lifeboat",
+      "aft": 59.5,
+      "side": 5.6,
+      "base": 8.85,
+      "length": 7,
+      "beam": 2
+    }
+  ],
+  "hawsePipes": [
+    {
+      "aft": 5.5,
+      "height": 5.35
+    }
+  ],
+  "rig": {
+    "brace": 0,
+    "belly": 0,
+    "rigging": 0.045,
+    "masts": [
+      {
+        "id": "fore-derrick",
+        "aft": 30,
+        "rake": -1.2,
+        "sections": [
+          {
+            "head": 17.95,
+            "radius": 0.22,
+            "topRadius": 0.15
+          },
+          {
+            "from": 17.55,
+            "head": 21.15,
+            "radius": 0.12,
+            "topRadius": 0.08
+          }
+        ],
+        "crosstrees": [
+          {
+            "z": 17.65,
+            "span": 3.6,
+            "length": 1.4
+          }
+        ],
+        "shrouds": {
+          "count": 2,
+          "aft": [
+            -4,
+            4
+          ],
+          "z": 7.15,
+          "backstays": []
+        }
+      },
+      {
+        "id": "fore-kingpost",
+        "aft": 48,
+        "rake": -1.2,
+        "sections": [
+          {
+            "head": 17.95,
+            "radius": 0.22,
+            "topRadius": 0.15
+          },
+          {
+            "from": 17.55,
+            "head": 21.15,
+            "radius": 0.12,
+            "topRadius": 0.08
+          }
+        ],
+        "crosstrees": [
+          {
+            "z": 17.65,
+            "span": 3.6,
+            "length": 1.4
+          }
+        ],
+        "shrouds": {
+          "count": 2,
+          "aft": [
+            -4,
+            4
+          ],
+          "z": 7.15,
+          "backstays": []
+        }
+      },
+      {
+        "id": "after-kingpost",
+        "aft": 72,
+        "rake": 1.1,
+        "sections": [
+          {
+            "head": 17.95,
+            "radius": 0.22,
+            "topRadius": 0.15
+          },
+          {
+            "from": 17.55,
+            "head": 21.15,
+            "radius": 0.12,
+            "topRadius": 0.08
+          }
+        ],
+        "crosstrees": [
+          {
+            "z": 17.65,
+            "span": 3.6,
+            "length": 1.4
+          }
+        ],
+        "shrouds": {
+          "count": 2,
+          "aft": [
+            -4,
+            4
+          ],
+          "z": 7.15,
+          "backstays": []
+        }
+      },
+      {
+        "id": "after-derrick",
+        "aft": 94,
+        "rake": 1.1,
+        "sections": [
+          {
+            "head": 17.95,
+            "radius": 0.22,
+            "topRadius": 0.15
+          },
+          {
+            "from": 17.55,
+            "head": 21.15,
+            "radius": 0.12,
+            "topRadius": 0.08
+          }
+        ],
+        "crosstrees": [
+          {
+            "z": 17.65,
+            "span": 3.6,
+            "length": 1.4
+          }
+        ],
+        "shrouds": {
+          "count": 2,
+          "aft": [
+            -4,
+            4
+          ],
+          "z": 7.15,
+          "backstays": []
+        }
+      }
+    ],
+    "spars": [
+      {
+        "from": [
+          30,
+          0,
+          17.35
+        ],
+        "to": [
+          19.5,
+          -3.9,
+          7.5
+        ],
+        "radius": 0.13,
+        "endRadius": 0.07,
+        "material": "spar"
+      },
+      {
+        "from": [
+          30,
+          0,
+          17.35
+        ],
+        "to": [
+          38.5,
+          3.4,
+          7.5
+        ],
+        "radius": 0.13,
+        "endRadius": 0.07,
+        "material": "spar"
+      },
+      {
+        "from": [
+          48,
+          0,
+          17.35
+        ],
+        "to": [
+          38.5,
+          -3.4,
+          7.5
+        ],
+        "radius": 0.13,
+        "endRadius": 0.07,
+        "material": "spar"
+      },
+      {
+        "from": [
+          72,
+          0,
+          17.35
+        ],
+        "to": [
+          87.5,
+          -3.7,
+          7.5
+        ],
+        "radius": 0.13,
+        "endRadius": 0.07,
+        "material": "spar"
+      },
+      {
+        "from": [
+          94,
+          0,
+          17.35
+        ],
+        "to": [
+          87.5,
+          -3.7,
+          7.5
+        ],
+        "radius": 0.13,
+        "endRadius": 0.07,
+        "material": "spar"
+      }
+    ],
+    "stays": []
+  },
+  "paint": {
+    "hull": "#35363a",
+    "upper": "#77766d",
+    "deck": "#6a5237",
+    "boot": "#141415",
+    "bottom": "#743227",
+    "dark": "#191816",
+    "canvas": "#bfb291",
+    "spar": "#5c503e"
+  },
+  "surface": {
+    "hull": {
+      "roughness": 0.86,
+      "metalness": 0
+    },
+    "upper": {
+      "roughness": 0.78,
+      "metalness": 0
+    },
+    "deck": {
+      "roughness": 0.9,
+      "metalness": 0
+    },
+    "spar": {
+      "roughness": 0.88,
+      "metalness": 0
+    }
+  },
+  "references": []
+}
