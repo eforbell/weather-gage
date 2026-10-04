@@ -1,0 +1,740 @@
+{
+  "schema": "weather-gage/ship-spec@1",
+  "id": "bns-kestrel",
+  "name": "BNS Kestrel",
+  "className": "Fictional littoral frigate",
+  "era": "modern",
+  "registryKeys": [
+    "bns kestrel"
+  ],
+  "configuration": "Near-future Strait fictional exercise: smaller low-profile littoral frigate with compact angular bridge, single enclosed mast/radar shape, one forward single gun, separated visual launcher/canister groups and a stern helicopter deck. Missile cells and canisters are visual identity cues, not a literal ammunition count.",
+  "units": "meters",
+  "conventions": "aft = metres aft of the stem at deck level; side = metres to starboard (+) or port (-); heights = metres above design waterline. Fictional modern exercise asset built from original parametric geometry for game readability, not a historical reconstruction.",
+  "budget": {
+    "tier": "hero-blockout",
+    "maxTriangles": 40000,
+    "maxDrawCalls": 12,
+    "maxBytes": 2000000
+  },
+  "hull": {
+    "length": 126.0,
+    "beam": 14.8,
+    "draft": 4.3,
+    "camber": 0.18,
+    "bootTopping": [
+      -0.38,
+      0.48
+    ],
+    "stationSpacing": 1.05,
+    "lines": [
+      {
+        "aft": 0.0,
+        "halfDeck": 0.0,
+        "halfWater": 0.0,
+        "deck": 6.7,
+        "keel": -0.09,
+        "fullness": 1.1
+      },
+      {
+        "aft": 3.15,
+        "halfDeck": 0.52,
+        "halfWater": 0.19,
+        "deck": 6.65,
+        "keel": -0.95,
+        "fullness": 1.2
+      },
+      {
+        "aft": 8.82,
+        "halfDeck": 1.63,
+        "halfWater": 0.89,
+        "deck": 6.52,
+        "keel": -2.49,
+        "fullness": 1.35
+      },
+      {
+        "aft": 17.64,
+        "halfDeck": 3.4,
+        "halfWater": 2.81,
+        "deck": 6.34,
+        "keel": -4.3,
+        "fullness": 1.8
+      },
+      {
+        "aft": 30.24,
+        "halfDeck": 5.48,
+        "halfWater": 5.77,
+        "deck": 5.45,
+        "keel": -4.3,
+        "fullness": 3.2
+      },
+      {
+        "aft": 47.88,
+        "halfDeck": 6.73,
+        "halfWater": 7.25,
+        "deck": 5.3,
+        "keel": -4.3,
+        "fullness": 4.6
+      },
+      {
+        "aft": 70.56,
+        "halfDeck": 7.1,
+        "halfWater": 7.4,
+        "deck": 4.95,
+        "keel": -4.3,
+        "fullness": 5.2
+      },
+      {
+        "aft": 90.72,
+        "halfDeck": 6.59,
+        "halfWater": 6.88,
+        "deck": 4.87,
+        "keel": -4.21,
+        "fullness": 4.8
+      },
+      {
+        "aft": 105.84,
+        "halfDeck": 5.03,
+        "halfWater": 4.59,
+        "deck": 4.75,
+        "keel": -3.53,
+        "fullness": 3.0
+      },
+      {
+        "aft": 118.44,
+        "halfDeck": 2.52,
+        "halfWater": 1.63,
+        "deck": 4.79,
+        "keel": -1.81,
+        "fullness": 1.75
+      },
+      {
+        "aft": 124.11,
+        "halfDeck": 0.67,
+        "halfWater": 0.19,
+        "deck": 4.83,
+        "keel": -0.34,
+        "fullness": 1.25
+      },
+      {
+        "aft": 126.0,
+        "halfDeck": 0.0,
+        "halfWater": 0.0,
+        "deck": 4.85,
+        "keel": 0.69,
+        "fullness": 1.1
+      }
+    ]
+  },
+  "references": [],
+  "superstructures": [
+    {
+      "id": "forward-vls-low-bank",
+      "base": "deck",
+      "top": 5.95,
+      "plan": [
+        [
+          22.0,
+          2.8
+        ],
+        [
+          34.0,
+          3.05
+        ]
+      ]
+    },
+    {
+      "id": "low-forward-house",
+      "base": "deck",
+      "top": 8.35,
+      "plan": [
+        [
+          36.0,
+          3.1
+        ],
+        [
+          49.0,
+          4.0
+        ],
+        [
+          61.0,
+          3.05
+        ]
+      ]
+    },
+    {
+      "id": "bridge-wedge",
+      "base": 8.2,
+      "top": 12.4,
+      "plan": [
+        [
+          41.5,
+          2.3
+        ],
+        [
+          52.0,
+          3.1
+        ],
+        [
+          59.0,
+          2.25
+        ]
+      ]
+    },
+    {
+      "id": "compact-mast-base",
+      "base": 12.1,
+      "top": 19.6,
+      "plan": [
+        [
+          53.0,
+          1.35
+        ],
+        [
+          59.2,
+          1.55
+        ],
+        [
+          62.0,
+          1.05
+        ]
+      ]
+    },
+    {
+      "id": "aft-mission-deckhouse",
+      "base": "deck",
+      "top": 6.4,
+      "plan": [
+        [
+          69.0,
+          2.8
+        ],
+        [
+          82.0,
+          3.2
+        ],
+        [
+          87.0,
+          2.35
+        ]
+      ]
+    },
+    {
+      "id": "compact-hangar",
+      "base": "deck",
+      "top": 7.0,
+      "plan": [
+        [
+          88.0,
+          3.4
+        ],
+        [
+          101.5,
+          3.6
+        ],
+        [
+          107.0,
+          2.9
+        ]
+      ]
+    }
+  ],
+  "conningTowers": [
+    {
+      "id": "mast-radome",
+      "aft": 57.0,
+      "base": 19.2,
+      "top": 21.4,
+      "length": 2.3,
+      "width": 2.3
+    },
+    {
+      "id": "aft-comm-dome",
+      "aft": 84.0,
+      "base": 6.3,
+      "top": 8.4,
+      "length": 2.0,
+      "width": 2.0
+    }
+  ],
+  "turrets": [
+    {
+      "id": "A",
+      "aft": 15.0,
+      "base": "deck",
+      "barbette": 0.45,
+      "facing": "fore",
+      "guns": 1
+    }
+  ],
+  "turretType": {
+    "barbetteRadius": 1.25,
+    "length": 3.8,
+    "width": 2.65,
+    "height": 1.1,
+    "frontSlope": 0.4,
+    "gunSpacing": 0.6,
+    "barrelLength": 5.2,
+    "barrelRadius": 0.11,
+    "muzzleRadius": 0.085
+  },
+  "funnels": [
+    {
+      "id": "exhaust",
+      "aft": 67.0,
+      "base": "deck",
+      "top": 13.2,
+      "length": 3.8,
+      "width": 2.0,
+      "casing": {
+        "length": 5.5,
+        "width": 3.7,
+        "top": 7.4
+      }
+    }
+  ],
+  "masts": [
+    {
+      "id": "compact",
+      "type": "pole",
+      "aft": 58.5,
+      "base": 19.0,
+      "top": 29.0,
+      "radius": 0.18,
+      "topmastFrom": 23.0,
+      "spottingTop": {
+        "height": 22.6,
+        "size": [
+          2.9,
+          2.5,
+          0.55
+        ]
+      },
+      "yards": [
+        {
+          "height": 23.7,
+          "span": 6.2
+        },
+        {
+          "height": 26.0,
+          "span": 4.2
+        }
+      ]
+    }
+  ],
+  "searchlightTowers": [
+    {
+      "id": "eo-bridge",
+      "aft": 38.0,
+      "base": 6.0,
+      "top": 7.6,
+      "radius": 0.43
+    }
+  ],
+  "boats": [
+    {
+      "aft": 78.0,
+      "side": 4.0,
+      "base": 5.5,
+      "length": 5.5,
+      "beam": 1.35
+    },
+    {
+      "aft": 78.0,
+      "side": -4.0,
+      "base": 5.5,
+      "length": 5.5,
+      "beam": 1.35
+    }
+  ],
+  "hawsePipes": [
+    {
+      "aft": 5.0,
+      "height": 5.55
+    },
+    {
+      "aft": 7.3,
+      "height": 5.45
+    }
+  ],
+  "rig": {
+    "spars": [
+      {
+        "id": "vls-cross-0",
+        "from": [
+          24.0,
+          -2.25,
+          6.03
+        ],
+        "to": [
+          24.0,
+          2.25,
+          6.03
+        ],
+        "radius": 0.032,
+        "endRadius": 0.032,
+        "material": "dark"
+      },
+      {
+        "id": "vls-cross-1",
+        "from": [
+          25.7,
+          -2.25,
+          6.03
+        ],
+        "to": [
+          25.7,
+          2.25,
+          6.03
+        ],
+        "radius": 0.032,
+        "endRadius": 0.032,
+        "material": "dark"
+      },
+      {
+        "id": "vls-cross-2",
+        "from": [
+          27.4,
+          -2.25,
+          6.03
+        ],
+        "to": [
+          27.4,
+          2.25,
+          6.03
+        ],
+        "radius": 0.032,
+        "endRadius": 0.032,
+        "material": "dark"
+      },
+      {
+        "id": "vls-cross-3",
+        "from": [
+          29.1,
+          -2.25,
+          6.03
+        ],
+        "to": [
+          29.1,
+          2.25,
+          6.03
+        ],
+        "radius": 0.032,
+        "endRadius": 0.032,
+        "material": "dark"
+      },
+      {
+        "id": "vls-cross-4",
+        "from": [
+          30.8,
+          -2.25,
+          6.03
+        ],
+        "to": [
+          30.8,
+          2.25,
+          6.03
+        ],
+        "radius": 0.032,
+        "endRadius": 0.032,
+        "material": "dark"
+      },
+      {
+        "id": "vls-cross-5",
+        "from": [
+          32.5,
+          -2.25,
+          6.03
+        ],
+        "to": [
+          32.5,
+          2.25,
+          6.03
+        ],
+        "radius": 0.032,
+        "endRadius": 0.032,
+        "material": "dark"
+      },
+      {
+        "id": "vls-long-0",
+        "from": [
+          23.0,
+          -1.7,
+          6.07
+        ],
+        "to": [
+          33.5,
+          -1.7,
+          6.07
+        ],
+        "radius": 0.032,
+        "endRadius": 0.032,
+        "material": "dark"
+      },
+      {
+        "id": "vls-long-1",
+        "from": [
+          23.0,
+          -0.85,
+          6.07
+        ],
+        "to": [
+          33.5,
+          -0.85,
+          6.07
+        ],
+        "radius": 0.032,
+        "endRadius": 0.032,
+        "material": "dark"
+      },
+      {
+        "id": "vls-long-2",
+        "from": [
+          23.0,
+          0.0,
+          6.07
+        ],
+        "to": [
+          33.5,
+          0.0,
+          6.07
+        ],
+        "radius": 0.032,
+        "endRadius": 0.032,
+        "material": "dark"
+      },
+      {
+        "id": "vls-long-3",
+        "from": [
+          23.0,
+          0.8499999999999999,
+          6.07
+        ],
+        "to": [
+          33.5,
+          0.8499999999999999,
+          6.07
+        ],
+        "radius": 0.032,
+        "endRadius": 0.032,
+        "material": "dark"
+      },
+      {
+        "id": "vls-long-4",
+        "from": [
+          23.0,
+          1.7,
+          6.07
+        ],
+        "to": [
+          33.5,
+          1.7,
+          6.07
+        ],
+        "radius": 0.032,
+        "endRadius": 0.032,
+        "material": "dark"
+      },
+      {
+        "id": "mast-panel-stbd",
+        "from": [
+          56.0,
+          1.55,
+          13.8
+        ],
+        "to": [
+          57.6,
+          1.55,
+          19.5
+        ],
+        "radius": 0.1,
+        "endRadius": 0.07,
+        "material": "dark"
+      },
+      {
+        "id": "mast-panel-port",
+        "from": [
+          56.0,
+          -1.55,
+          13.8
+        ],
+        "to": [
+          57.6,
+          -1.55,
+          19.5
+        ],
+        "radius": 0.1,
+        "endRadius": 0.07,
+        "material": "dark"
+      },
+      {
+        "id": "box-launcher-starboard",
+        "from": [
+          70.0,
+          4.25,
+          6.62
+        ],
+        "to": [
+          78.0,
+          4.25,
+          6.62
+        ],
+        "radius": 0.19,
+        "endRadius": 0.16,
+        "material": "dark"
+      },
+      {
+        "id": "box-launcher-port",
+        "from": [
+          70.0,
+          -4.25,
+          6.62
+        ],
+        "to": [
+          78.0,
+          -4.25,
+          6.62
+        ],
+        "radius": 0.19,
+        "endRadius": 0.16,
+        "material": "dark"
+      },
+      {
+        "id": "aft-rail-rack",
+        "from": [
+          82.0,
+          0,
+          6.72
+        ],
+        "to": [
+          87.0,
+          0,
+          6.72
+        ],
+        "radius": 0.18,
+        "endRadius": 0.14,
+        "material": "dark"
+      },
+      {
+        "id": "helo-line-fore",
+        "from": [
+          108.0,
+          -3.25,
+          5.08
+        ],
+        "to": [
+          108.0,
+          3.25,
+          5.08
+        ],
+        "radius": 0.04,
+        "endRadius": 0.04,
+        "material": "canvas"
+      },
+      {
+        "id": "helo-line-port",
+        "from": [
+          108.0,
+          -3.25,
+          5.08
+        ],
+        "to": [
+          123.0,
+          -3.25,
+          5.08
+        ],
+        "radius": 0.04,
+        "endRadius": 0.04,
+        "material": "canvas"
+      },
+      {
+        "id": "helo-line-starboard",
+        "from": [
+          108.0,
+          3.25,
+          5.08
+        ],
+        "to": [
+          123.0,
+          3.25,
+          5.08
+        ],
+        "radius": 0.04,
+        "endRadius": 0.04,
+        "material": "canvas"
+      },
+      {
+        "id": "stern-staff",
+        "from": [
+          123.5,
+          0,
+          5.0
+        ],
+        "to": [
+          124.0,
+          0,
+          8.4
+        ],
+        "radius": 0.05,
+        "endRadius": 0.03,
+        "material": "spar"
+      },
+      {
+        "id": "aft-rail-rack-support-0",
+        "from": [
+          82.0,
+          0,
+          4.2
+        ],
+        "to": [
+          82.0,
+          0,
+          6.72
+        ],
+        "radius": 0.1,
+        "endRadius": 0.09,
+        "material": "upper"
+      },
+      {
+        "id": "aft-rail-rack-support-1",
+        "from": [
+          87.0,
+          0,
+          4.2
+        ],
+        "to": [
+          87.0,
+          0,
+          6.72
+        ],
+        "radius": 0.1,
+        "endRadius": 0.09,
+        "material": "upper"
+      }
+    ]
+  },
+  "guns": 1,
+  "paint": {
+    "hull": "#4f5a60",
+    "upper": "#717b80",
+    "deck": "#5f666b",
+    "boot": "#111417",
+    "bottom": "#34383c",
+    "dark": "#20262b",
+    "canvas": "#d8d9ca",
+    "spar": "#444b51"
+  },
+  "surface": {
+    "hull": {
+      "roughness": 0.84,
+      "metalness": 0
+    },
+    "upper": {
+      "roughness": 0.8,
+      "metalness": 0
+    },
+    "dark": {
+      "roughness": 0.76,
+      "metalness": 0
+    }
+  }
+}

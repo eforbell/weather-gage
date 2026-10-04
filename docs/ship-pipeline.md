@@ -237,3 +237,23 @@ A regression and a validated-save viewport check cover a boat already submerged
 when loading begins. Identified submerged enemy contacts remain sensor reports,
 not rendered surface hulls. This does not add a Cold War underwater camera or
 change any submarine mechanics. See [Wolf Pack acceptance](wolf-pack-ship-assets.md).
+
+## Fictional modern Qamar fleet
+
+The four Strait of Qamar ships now use individual original specs and GLBs under
+`public/assets/ships/modern/`, registered by exact public name with `era: modern`.
+Valiant is the larger integrated-mast area-defense destroyer; Kestrel is a smaller
+frigate. Shahin uses a conventional braced mast, two funnels and canister banks;
+Miraj is a compact corvette. Shapes and proportions are best-guess game art,
+not reproductions of real ships or countries. Brief provenance says so explicitly.
+
+Modern gameplay rates missile ammunition and defense, not cannon count. Each
+spec declares `guns: 1` for its single decorative fore mount so the pipeline's
+battery checks remain honest. Visible VLS/canister cells do not encode literal
+scenario ammunition. Radar panels, supports, launcher cradles and helideck marks
+reuse existing generic parts and `rig.spars`; no kit extension or dependency.
+
+The existing210m era reference is unchanged. All47 earlier model files are
+untouched. Tests cover exact-name modern coverage, relative hull sizes, exposed
+barrels, public-contact/fallback boundaries and complete non-Cold-War coverage.
+See [modern acceptance](modern-ship-assets.md) for review/validation evidence.

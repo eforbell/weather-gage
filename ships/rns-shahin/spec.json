@@ -1,0 +1,875 @@
+{
+  "schema": "weather-gage/ship-spec@1",
+  "id": "rns-shahin",
+  "name": "RNS Shahin",
+  "className": "Qamar fictional missile destroyer",
+  "era": "modern",
+  "registryKeys": [
+    "rns shahin"
+  ],
+  "configuration": "Fictional near-future Strait of Qamar game model: original best-guess modern surface combatant silhouette, not a real country ship or historical reconstruction.",
+  "units": "meters",
+  "conventions": "aft = metres aft of the stem at deck level; side = metres to starboard (+) or port (-); heights = metres above design waterline. glTF contract: bow -Z, up +Y, waterline Y=0.",
+  "budget": {
+    "tier": "modern-fictional-blockout",
+    "maxTriangles": 40000,
+    "maxDrawCalls": 12,
+    "maxBytes": 2000000
+  },
+  "hull": {
+    "length": 146.0,
+    "beam": 16.0,
+    "draft": 5.2,
+    "camber": 0.18,
+    "bootTopping": [
+      -0.35,
+      0.45
+    ],
+    "stationSpacing": 1.0,
+    "lines": [
+      {
+        "aft": 0.0,
+        "halfDeck": 0.0,
+        "halfWater": 0.0,
+        "deck": 4.8,
+        "keel": 0.15,
+        "fullness": 1.15
+      },
+      {
+        "aft": 4.38,
+        "halfDeck": 0.64,
+        "halfWater": 0.24,
+        "deck": 4.68,
+        "keel": -0.7,
+        "fullness": 1.25
+      },
+      {
+        "aft": 11.68,
+        "halfDeck": 1.76,
+        "halfWater": 1.12,
+        "deck": 4.5,
+        "keel": -3.38,
+        "fullness": 1.45
+      },
+      {
+        "aft": 23.36,
+        "halfDeck": 3.52,
+        "halfWater": 3.04,
+        "deck": 4.25,
+        "keel": -5.2,
+        "fullness": 1.9
+      },
+      {
+        "aft": 40.88,
+        "halfDeck": 5.76,
+        "halfWater": 5.6,
+        "deck": 4.25,
+        "keel": -5.2,
+        "fullness": 3.0
+      },
+      {
+        "aft": 61.32,
+        "halfDeck": 7.2,
+        "halfWater": 7.36,
+        "deck": 4.0,
+        "keel": -5.2,
+        "fullness": 4.3
+      },
+      {
+        "aft": 87.6,
+        "halfDeck": 7.68,
+        "halfWater": 8.0,
+        "deck": 3.92,
+        "keel": -5.2,
+        "fullness": 4.8
+      },
+      {
+        "aft": 110.96,
+        "halfDeck": 6.72,
+        "halfWater": 7.04,
+        "deck": 3.75,
+        "keel": -4.78,
+        "fullness": 3.4
+      },
+      {
+        "aft": 128.48,
+        "halfDeck": 4.48,
+        "halfWater": 4.0,
+        "deck": 3.7,
+        "keel": -3.22,
+        "fullness": 2.2
+      },
+      {
+        "aft": 141.62,
+        "halfDeck": 1.28,
+        "halfWater": 0.56,
+        "deck": 3.75,
+        "keel": -0.94,
+        "fullness": 1.35
+      },
+      {
+        "aft": 146.0,
+        "halfDeck": 0.0,
+        "halfWater": 0.0,
+        "deck": 3.8,
+        "keel": 0.5,
+        "fullness": 1.15
+      }
+    ]
+  },
+  "paint": {
+    "hull": "#49565b",
+    "upper": "#68767b",
+    "deck": "#596064",
+    "boot": "#101315",
+    "bottom": "#3d3330",
+    "dark": "#1b2227",
+    "canvas": "#9da6a6",
+    "spar": "#30383d"
+  },
+  "surface": {
+    "hull": {
+      "roughness": 0.82,
+      "metalness": 0
+    },
+    "upper": {
+      "roughness": 0.78,
+      "metalness": 0
+    },
+    "dark": {
+      "roughness": 0.72,
+      "metalness": 0
+    },
+    "deck": {
+      "roughness": 0.88,
+      "metalness": 0
+    }
+  },
+  "superstructures": [
+    {
+      "id": "fore-vls-deck",
+      "base": "deck",
+      "top": 6.3,
+      "plan": [
+        [
+          24,
+          3.4
+        ],
+        [
+          39,
+          4.2
+        ],
+        [
+          47,
+          3.2
+        ]
+      ]
+    },
+    {
+      "id": "bridge-lower",
+      "base": "deck",
+      "top": 10.0,
+      "plan": [
+        [
+          39,
+          3.6
+        ],
+        [
+          53,
+          4.3
+        ],
+        [
+          61,
+          3.3
+        ]
+      ]
+    },
+    {
+      "id": "bridge-upper",
+      "base": 10.0,
+      "top": 13.4,
+      "plan": [
+        [
+          43,
+          2.5
+        ],
+        [
+          55,
+          3.0
+        ],
+        [
+          60,
+          2.0
+        ]
+      ]
+    },
+    {
+      "id": "combat-center",
+      "base": "deck",
+      "top": 7.1,
+      "plan": [
+        [
+          64,
+          3.2
+        ],
+        [
+          86,
+          3.8
+        ],
+        [
+          93,
+          2.7
+        ]
+      ]
+    },
+    {
+      "id": "aft-deckhouse",
+      "base": "deck",
+      "top": 5.9,
+      "plan": [
+        [
+          94,
+          2.6
+        ],
+        [
+          111,
+          3.1
+        ],
+        [
+          118,
+          2.1
+        ]
+      ]
+    }
+  ],
+  "conningTowers": [
+    {
+      "id": "bridge-face",
+      "aft": 48,
+      "base": 13.1,
+      "top": 15.4,
+      "length": 4.8,
+      "width": 4.2
+    }
+  ],
+  "turrets": [
+    {
+      "id": "A",
+      "aft": 18.5,
+      "base": "deck",
+      "barbette": 0.65,
+      "facing": "fore",
+      "guns": 1
+    }
+  ],
+  "turretType": {
+    "barbetteRadius": 1.45,
+    "length": 4.4,
+    "width": 3.2,
+    "height": 1.35,
+    "frontSlope": 0.45,
+    "gunSpacing": 0.8,
+    "barrelLength": 6.4,
+    "barrelRadius": 0.14,
+    "muzzleRadius": 0.1
+  },
+  "funnels": [
+    {
+      "id": "1",
+      "aft": 72,
+      "base": "deck",
+      "top": 19.0,
+      "length": 5.5,
+      "width": 3.4,
+      "casing": {
+        "length": 8.0,
+        "width": 5.0,
+        "top": 9.2
+      }
+    },
+    {
+      "id": "2",
+      "aft": 89,
+      "base": "deck",
+      "top": 17.8,
+      "length": 5.0,
+      "width": 3.2,
+      "casing": {
+        "length": 7.2,
+        "width": 4.7,
+        "top": 8.2
+      }
+    }
+  ],
+  "masts": [
+    {
+      "id": "fore",
+      "type": "pole",
+      "aft": 62,
+      "base": "deck",
+      "top": 32.0,
+      "radius": 0.24,
+      "topmastFrom": 22.0,
+      "spottingTop": {
+        "height": 19.5,
+        "size": [
+          2.8,
+          3.2,
+          0.7
+        ]
+      },
+      "yards": [
+        {
+          "height": 24.5,
+          "span": 8.0
+        },
+        {
+          "height": 28.5,
+          "span": 5.8
+        }
+      ]
+    },
+    {
+      "id": "main",
+      "type": "pole",
+      "aft": 101,
+      "base": "deck",
+      "top": 24.0,
+      "radius": 0.16,
+      "topmastFrom": 16.5,
+      "yards": [
+        {
+          "height": 18.0,
+          "span": 5.0
+        }
+      ]
+    }
+  ],
+  "searchlightTowers": [
+    {
+      "id": "bridge-radar",
+      "aft": 57,
+      "base": 13.2,
+      "top": 16.0,
+      "radius": 0.65
+    },
+    {
+      "id": "aft-radar",
+      "aft": 97,
+      "base": 5.8,
+      "top": 9.1,
+      "radius": 0.55
+    }
+  ],
+  "rig": {
+    "spars": [
+      {
+        "id": "angled-canister--1-0",
+        "from": [
+          66.5,
+          -3.65,
+          6.6
+        ],
+        "to": [
+          72.8,
+          -6.25,
+          6.85
+        ],
+        "radius": 0.34,
+        "endRadius": 0.32,
+        "material": "dark"
+      },
+      {
+        "id": "angled-canister--1-1",
+        "from": [
+          67.65,
+          -3.65,
+          7.05
+        ],
+        "to": [
+          73.95,
+          -6.25,
+          7.3
+        ],
+        "radius": 0.34,
+        "endRadius": 0.32,
+        "material": "dark"
+      },
+      {
+        "id": "angled-canister--1-2",
+        "from": [
+          68.8,
+          -3.65,
+          7.5
+        ],
+        "to": [
+          75.1,
+          -6.25,
+          7.75
+        ],
+        "radius": 0.34,
+        "endRadius": 0.32,
+        "material": "dark"
+      },
+      {
+        "id": "angled-canister--1-3",
+        "from": [
+          69.95,
+          -3.65,
+          7.95
+        ],
+        "to": [
+          76.25,
+          -6.25,
+          8.2
+        ],
+        "radius": 0.34,
+        "endRadius": 0.32,
+        "material": "dark"
+      },
+      {
+        "id": "angled-canister-1-0",
+        "from": [
+          66.5,
+          3.65,
+          6.6
+        ],
+        "to": [
+          72.8,
+          6.25,
+          6.85
+        ],
+        "radius": 0.34,
+        "endRadius": 0.32,
+        "material": "dark"
+      },
+      {
+        "id": "angled-canister-1-1",
+        "from": [
+          67.65,
+          3.65,
+          7.05
+        ],
+        "to": [
+          73.95,
+          6.25,
+          7.3
+        ],
+        "radius": 0.34,
+        "endRadius": 0.32,
+        "material": "dark"
+      },
+      {
+        "id": "angled-canister-1-2",
+        "from": [
+          68.8,
+          3.65,
+          7.5
+        ],
+        "to": [
+          75.1,
+          6.25,
+          7.75
+        ],
+        "radius": 0.34,
+        "endRadius": 0.32,
+        "material": "dark"
+      },
+      {
+        "id": "angled-canister-1-3",
+        "from": [
+          69.95,
+          3.65,
+          7.95
+        ],
+        "to": [
+          76.25,
+          6.25,
+          8.2
+        ],
+        "radius": 0.34,
+        "endRadius": 0.32,
+        "material": "dark"
+      },
+      {
+        "id": "foremast-leg--1-59",
+        "from": [
+          59,
+          -2.8,
+          9.8
+        ],
+        "to": [
+          62,
+          0,
+          25.5
+        ],
+        "radius": 0.12,
+        "endRadius": 0.07,
+        "material": "spar"
+      },
+      {
+        "id": "foremast-leg--1-65",
+        "from": [
+          65,
+          -2.8,
+          6.9
+        ],
+        "to": [
+          62,
+          0,
+          25.5
+        ],
+        "radius": 0.12,
+        "endRadius": 0.07,
+        "material": "spar"
+      },
+      {
+        "id": "foremast-leg-1-59",
+        "from": [
+          59,
+          2.8,
+          9.8
+        ],
+        "to": [
+          62,
+          0,
+          25.5
+        ],
+        "radius": 0.12,
+        "endRadius": 0.07,
+        "material": "spar"
+      },
+      {
+        "id": "foremast-leg-1-65",
+        "from": [
+          65,
+          2.8,
+          6.9
+        ],
+        "to": [
+          62,
+          0,
+          25.5
+        ],
+        "radius": 0.12,
+        "endRadius": 0.07,
+        "material": "spar"
+      },
+      {
+        "id": "fore-panel--1",
+        "from": [
+          61.7,
+          -1.0,
+          26.6
+        ],
+        "to": [
+          62.3,
+          -4.2,
+          26.6
+        ],
+        "radius": 0.18,
+        "endRadius": 0.18,
+        "material": "dark"
+      },
+      {
+        "id": "fore-panel-1",
+        "from": [
+          61.7,
+          1.0,
+          26.6
+        ],
+        "to": [
+          62.3,
+          4.2,
+          26.6
+        ],
+        "radius": 0.18,
+        "endRadius": 0.18,
+        "material": "dark"
+      },
+      {
+        "id": "radar-crossbar",
+        "from": [
+          62,
+          -4.2,
+          26.6
+        ],
+        "to": [
+          62,
+          4.2,
+          26.6
+        ],
+        "radius": 0.055,
+        "endRadius": 0.055,
+        "material": "upper"
+      },
+      {
+        "id": "angled-canister--1-0-support-0",
+        "from": [
+          66.5,
+          -3.65,
+          4.6
+        ],
+        "to": [
+          66.5,
+          -3.65,
+          6.6
+        ],
+        "radius": 0.1,
+        "endRadius": 0.09,
+        "material": "upper"
+      },
+      {
+        "id": "angled-canister--1-0-support-1",
+        "from": [
+          72.8,
+          -6.25,
+          4.6
+        ],
+        "to": [
+          72.8,
+          -6.25,
+          6.85
+        ],
+        "radius": 0.1,
+        "endRadius": 0.09,
+        "material": "upper"
+      },
+      {
+        "id": "angled-canister--1-1-support-0",
+        "from": [
+          67.65,
+          -3.65,
+          4.6
+        ],
+        "to": [
+          67.65,
+          -3.65,
+          7.05
+        ],
+        "radius": 0.1,
+        "endRadius": 0.09,
+        "material": "upper"
+      },
+      {
+        "id": "angled-canister--1-1-support-1",
+        "from": [
+          73.95,
+          -6.25,
+          4.6
+        ],
+        "to": [
+          73.95,
+          -6.25,
+          7.3
+        ],
+        "radius": 0.1,
+        "endRadius": 0.09,
+        "material": "upper"
+      },
+      {
+        "id": "angled-canister--1-2-support-0",
+        "from": [
+          68.8,
+          -3.65,
+          4.6
+        ],
+        "to": [
+          68.8,
+          -3.65,
+          7.5
+        ],
+        "radius": 0.1,
+        "endRadius": 0.09,
+        "material": "upper"
+      },
+      {
+        "id": "angled-canister--1-2-support-1",
+        "from": [
+          75.1,
+          -6.25,
+          4.6
+        ],
+        "to": [
+          75.1,
+          -6.25,
+          7.75
+        ],
+        "radius": 0.1,
+        "endRadius": 0.09,
+        "material": "upper"
+      },
+      {
+        "id": "angled-canister--1-3-support-0",
+        "from": [
+          69.95,
+          -3.65,
+          4.6
+        ],
+        "to": [
+          69.95,
+          -3.65,
+          7.95
+        ],
+        "radius": 0.1,
+        "endRadius": 0.09,
+        "material": "upper"
+      },
+      {
+        "id": "angled-canister--1-3-support-1",
+        "from": [
+          76.25,
+          -6.25,
+          4.6
+        ],
+        "to": [
+          76.25,
+          -6.25,
+          8.2
+        ],
+        "radius": 0.1,
+        "endRadius": 0.09,
+        "material": "upper"
+      },
+      {
+        "id": "angled-canister-1-0-support-0",
+        "from": [
+          66.5,
+          3.65,
+          4.6
+        ],
+        "to": [
+          66.5,
+          3.65,
+          6.6
+        ],
+        "radius": 0.1,
+        "endRadius": 0.09,
+        "material": "upper"
+      },
+      {
+        "id": "angled-canister-1-0-support-1",
+        "from": [
+          72.8,
+          6.25,
+          4.6
+        ],
+        "to": [
+          72.8,
+          6.25,
+          6.85
+        ],
+        "radius": 0.1,
+        "endRadius": 0.09,
+        "material": "upper"
+      },
+      {
+        "id": "angled-canister-1-1-support-0",
+        "from": [
+          67.65,
+          3.65,
+          4.6
+        ],
+        "to": [
+          67.65,
+          3.65,
+          7.05
+        ],
+        "radius": 0.1,
+        "endRadius": 0.09,
+        "material": "upper"
+      },
+      {
+        "id": "angled-canister-1-1-support-1",
+        "from": [
+          73.95,
+          6.25,
+          4.6
+        ],
+        "to": [
+          73.95,
+          6.25,
+          7.3
+        ],
+        "radius": 0.1,
+        "endRadius": 0.09,
+        "material": "upper"
+      },
+      {
+        "id": "angled-canister-1-2-support-0",
+        "from": [
+          68.8,
+          3.65,
+          4.6
+        ],
+        "to": [
+          68.8,
+          3.65,
+          7.5
+        ],
+        "radius": 0.1,
+        "endRadius": 0.09,
+        "material": "upper"
+      },
+      {
+        "id": "angled-canister-1-2-support-1",
+        "from": [
+          75.1,
+          6.25,
+          4.6
+        ],
+        "to": [
+          75.1,
+          6.25,
+          7.75
+        ],
+        "radius": 0.1,
+        "endRadius": 0.09,
+        "material": "upper"
+      },
+      {
+        "id": "angled-canister-1-3-support-0",
+        "from": [
+          69.95,
+          3.65,
+          4.6
+        ],
+        "to": [
+          69.95,
+          3.65,
+          7.95
+        ],
+        "radius": 0.1,
+        "endRadius": 0.09,
+        "material": "upper"
+      },
+      {
+        "id": "angled-canister-1-3-support-1",
+        "from": [
+          76.25,
+          6.25,
+          4.6
+        ],
+        "to": [
+          76.25,
+          6.25,
+          8.2
+        ],
+        "radius": 0.1,
+        "endRadius": 0.09,
+        "material": "upper"
+      }
+    ]
+  },
+  "hawsePipes": [
+    {
+      "aft": 5,
+      "height": 4.2
+    },
+    {
+      "aft": 8,
+      "height": 4.0
+    }
+  ],
+  "guns": 1
+}
