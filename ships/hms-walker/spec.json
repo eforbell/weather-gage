@@ -1,0 +1,548 @@
+{
+  "schema": "weather-gage/ship-spec@1",
+  "id": "hms-walker",
+  "name": "HMS Walker",
+  "className": "V/W-class escort destroyer",
+  "era": "ww2",
+  "registryKeys": [
+    "hms walker"
+  ],
+  "configuration": "North Atlantic 1942: old V/W-class destroyer-inspired escort silhouette for Walker, with four single main-gun mounts, two slim funnels, HF/DF/radar-like upperwork and visible stern depth-charge rails. Original fun game geometry, not a measured reconstruction.",
+  "units": "meters",
+  "conventions": "aft = metres aft of the stem at deck level; side = metres to starboard (+) or port (-) of the centreline; heights = metres above the design waterline. The builder converts to Blender and the glTF exporter emits the game contract: bow -Z, up +Y, waterline at Y=0.",
+  "budget": {
+    "tier": "hero-blockout",
+    "maxTriangles": 40000,
+    "maxDrawCalls": 12,
+    "maxBytes": 2000000
+  },
+  "hull": {
+    "length": 95,
+    "beam": 8.6,
+    "draft": 3.1,
+    "camber": 0.14,
+    "bootTopping": [
+      -0.28,
+      0.4
+    ],
+    "stationSpacing": 0.85,
+    "lines": [
+      {
+        "aft": 0,
+        "halfDeck": 0,
+        "halfWater": 0,
+        "deck": 4.75,
+        "keel": 0.12,
+        "fullness": 1.12
+      },
+      {
+        "aft": 2.85,
+        "halfDeck": 0.39,
+        "halfWater": 0.13,
+        "deck": 4.72,
+        "keel": -0.85,
+        "fullness": 1.2
+      },
+      {
+        "aft": 8.55,
+        "halfDeck": 1.14,
+        "halfWater": 0.63,
+        "deck": 4.6,
+        "keel": -2.1,
+        "fullness": 1.38
+      },
+      {
+        "aft": 18.05,
+        "halfDeck": 2.34,
+        "halfWater": 1.99,
+        "deck": 4.42,
+        "keel": -3.1,
+        "fullness": 1.75
+      },
+      {
+        "aft": 29.45,
+        "halfDeck": 3.53,
+        "halfWater": 3.43,
+        "deck": 4.12,
+        "keel": -3.1,
+        "fullness": 3.1
+      },
+      {
+        "aft": 46.55,
+        "halfDeck": 4.09,
+        "halfWater": 4.3,
+        "deck": 3.75,
+        "keel": -3.1,
+        "fullness": 4.6
+      },
+      {
+        "aft": 64.6,
+        "halfDeck": 3.97,
+        "halfWater": 4.23,
+        "deck": 3.54,
+        "keel": -3.1,
+        "fullness": 4.5
+      },
+      {
+        "aft": 79.8,
+        "halfDeck": 2.77,
+        "halfWater": 2.48,
+        "deck": 3.48,
+        "keel": -2.54,
+        "fullness": 2.6
+      },
+      {
+        "aft": 90.25,
+        "halfDeck": 0.9,
+        "halfWater": 0.33,
+        "deck": 3.52,
+        "keel": -0.36,
+        "fullness": 1.35
+      },
+      {
+        "aft": 95,
+        "halfDeck": 0,
+        "halfWater": 0,
+        "deck": 3.58,
+        "keel": 0.68,
+        "fullness": 1.12
+      }
+    ]
+  },
+  "superstructures": [
+    {
+      "id": "forecastle-break",
+      "base": "deck",
+      "top": 5.75,
+      "plan": [
+        [
+          17,
+          1.85
+        ],
+        [
+          29,
+          2.35
+        ],
+        [
+          36,
+          1.65
+        ]
+      ]
+    },
+    {
+      "id": "bridge-block",
+      "base": 5.75,
+      "top": 8.7,
+      "plan": [
+        [
+          21,
+          1.55
+        ],
+        [
+          28,
+          2.05
+        ],
+        [
+          33,
+          1.35
+        ]
+      ]
+    },
+    {
+      "id": "charthouse",
+      "base": 8.7,
+      "top": 10.4,
+      "plan": [
+        [
+          23.2,
+          1.15
+        ],
+        [
+          29.2,
+          1.45
+        ],
+        [
+          31.5,
+          1
+        ]
+      ]
+    },
+    {
+      "id": "midships-casing",
+      "base": "deck",
+      "top": 5.35,
+      "plan": [
+        [
+          39,
+          1.65
+        ],
+        [
+          61,
+          2
+        ],
+        [
+          66,
+          1.4
+        ]
+      ]
+    },
+    {
+      "id": "aft-deckhouse",
+      "base": "deck",
+      "top": 5.2,
+      "plan": [
+        [
+          70,
+          1.55
+        ],
+        [
+          78.5,
+          1.8
+        ],
+        [
+          82,
+          1.25
+        ]
+      ]
+    }
+  ],
+  "conningTowers": [
+    {
+      "id": "wheelhouse",
+      "aft": 27,
+      "base": 8.7,
+      "top": 11.2,
+      "length": 2.4,
+      "width": 2.7
+    }
+  ],
+  "turrets": [
+    {
+      "id": "A",
+      "aft": 12.8,
+      "base": "deck",
+      "barbette": 0.5,
+      "facing": "fore",
+      "guns": 1
+    },
+    {
+      "id": "B",
+      "aft": 20.1,
+      "base": "deck",
+      "barbette": 2.15,
+      "facing": "fore",
+      "guns": 1
+    },
+    {
+      "id": "X",
+      "aft": 75.5,
+      "base": "deck",
+      "barbette": 1.75,
+      "facing": "aft",
+      "guns": 1
+    },
+    {
+      "id": "Y",
+      "aft": 85,
+      "base": "deck",
+      "barbette": 0.5,
+      "facing": "aft",
+      "guns": 1
+    }
+  ],
+  "turretType": {
+    "barbetteRadius": 0.95,
+    "length": 2.8,
+    "width": 2.05,
+    "height": 0.95,
+    "frontSlope": 0.24,
+    "gunSpacing": 0.55,
+    "barrelLength": 3.7,
+    "barrelRadius": 0.09,
+    "muzzleRadius": 0.075
+  },
+  "funnels": [
+    {
+      "id": "1",
+      "aft": 42.5,
+      "base": "deck",
+      "top": 13.7,
+      "length": 2.5,
+      "width": 1.65,
+      "casing": {
+        "length": 4.1,
+        "width": 2.45,
+        "top": 6
+      }
+    },
+    {
+      "id": "2",
+      "aft": 54,
+      "base": "deck",
+      "top": 13.2,
+      "length": 2.7,
+      "width": 1.65,
+      "casing": {
+        "length": 4.2,
+        "width": 2.4,
+        "top": 5.85
+      }
+    }
+  ],
+  "masts": [
+    {
+      "id": "fore",
+      "type": "pole",
+      "aft": 35.5,
+      "base": "deck",
+      "top": 23,
+      "radius": 0.13,
+      "topmastFrom": 14.5,
+      "spottingTop": {
+        "height": 13.4,
+        "size": [
+          1.3,
+          1.55,
+          0.48
+        ]
+      },
+      "yards": [
+        {
+          "height": 15.2,
+          "span": 5
+        }
+      ]
+    },
+    {
+      "id": "main",
+      "type": "pole",
+      "aft": 68.5,
+      "base": "deck",
+      "top": 18.4,
+      "radius": 0.11,
+      "topmastFrom": 11.8,
+      "yards": [
+        {
+          "height": 12,
+          "span": 3.7
+        }
+      ]
+    }
+  ],
+  "searchlightTowers": [
+    {
+      "id": "bridge-sl",
+      "aft": 33.6,
+      "base": 5.8,
+      "top": 7.4,
+      "radius": 0.42
+    },
+    {
+      "id": "aft-sl",
+      "aft": 64.5,
+      "base": "deck",
+      "top": 6.5,
+      "radius": 0.42
+    }
+  ],
+  "boats": [
+    {
+      "aft": 63,
+      "side": 2.65,
+      "base": 5.35,
+      "length": 4.7,
+      "beam": 1
+    },
+    {
+      "aft": 63,
+      "side": -2.65,
+      "base": 5.35,
+      "length": 4.7,
+      "beam": 1
+    }
+  ],
+  "secondaryGuns": {
+    "barrelLength": 1.6,
+    "radius": 0.045,
+    "mounts": [
+      {
+        "aft": 49,
+        "height": 5.65,
+        "angle": 86
+      },
+      {
+        "aft": 79,
+        "height": 5.4,
+        "angle": 102
+      }
+    ]
+  },
+  "hawsePipes": [
+    {
+      "aft": 3.5,
+      "height": 3.75
+    },
+    {
+      "aft": 5.8,
+      "height": 3.72
+    }
+  ],
+  "rig": {
+    "spars": [
+      {
+        "id": "stern-dc-rail--1",
+        "from": [
+          88,
+          -1.05,
+          4
+        ],
+        "to": [
+          93.2,
+          -1.05,
+          3.8499999999999996
+        ],
+        "radius": 0.12,
+        "endRadius": 0.1,
+        "material": "dark"
+      },
+      {
+        "id": "stern-dc-load--1",
+        "from": [
+          88.7,
+          -1.55,
+          4.25
+        ],
+        "to": [
+          92.8,
+          -1.55,
+          4.12
+        ],
+        "radius": 0.18,
+        "endRadius": 0.16,
+        "material": "dark"
+      },
+      {
+        "id": "stern-dc-rail-1",
+        "from": [
+          88,
+          1.05,
+          4
+        ],
+        "to": [
+          93.2,
+          1.05,
+          3.8499999999999996
+        ],
+        "radius": 0.12,
+        "endRadius": 0.1,
+        "material": "dark"
+      },
+      {
+        "id": "stern-dc-load-1",
+        "from": [
+          88.7,
+          1.55,
+          4.25
+        ],
+        "to": [
+          92.8,
+          1.55,
+          4.12
+        ],
+        "radius": 0.18,
+        "endRadius": 0.16,
+        "material": "dark"
+      },
+      {
+        "id": "k-gun--1-0",
+        "from": [
+          75,
+          -3.1,
+          4.1
+        ],
+        "to": [
+          75.9,
+          -4.1,
+          4.5
+        ],
+        "radius": 0.105,
+        "endRadius": 0.08,
+        "material": "dark"
+      },
+      {
+        "id": "k-gun--1-1",
+        "from": [
+          79,
+          -3.1,
+          4.1
+        ],
+        "to": [
+          79.9,
+          -4.1,
+          4.5
+        ],
+        "radius": 0.105,
+        "endRadius": 0.08,
+        "material": "dark"
+      },
+      {
+        "id": "k-gun-1-0",
+        "from": [
+          75,
+          3.1,
+          4.1
+        ],
+        "to": [
+          75.9,
+          4.1,
+          4.5
+        ],
+        "radius": 0.105,
+        "endRadius": 0.08,
+        "material": "dark"
+      },
+      {
+        "id": "k-gun-1-1",
+        "from": [
+          79,
+          3.1,
+          4.1
+        ],
+        "to": [
+          79.9,
+          4.1,
+          4.5
+        ],
+        "radius": 0.105,
+        "endRadius": 0.08,
+        "material": "dark"
+      }
+    ]
+  },
+  "paint": {
+    "hull": "#4f5a5f",
+    "upper": "#697478",
+    "deck": "#706756",
+    "boot": "#131618",
+    "bottom": "#4b3029",
+    "dark": "#202528",
+    "canvas": "#aaa28d",
+    "spar": "#464944"
+  },
+  "surface": {
+    "hull": {
+      "roughness": 0.86,
+      "metalness": 0
+    },
+    "upper": {
+      "roughness": 0.82,
+      "metalness": 0
+    },
+    "dark": {
+      "roughness": 0.78,
+      "metalness": 0
+    }
+  },
+  "references": [],
+  "guns": 4
+}

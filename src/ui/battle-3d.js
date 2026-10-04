@@ -430,12 +430,14 @@ export function createBattle3D(host, onFailure = () => {}) {
               return;
             }
             const previous = pendingItem.model;
-            adoptAuthoredModel(previous, loaded);
+            adoptAuthoredModel(previous, loaded, {
+              floating: pendingItem.floats && pendingItem.afloat,
+              underway: pendingItem.underway && pendingItem.afloat,
+            });
             world.remove(previous);
             disposeActorModel(previous);
             pendingItem.model = loaded;
             world.add(loaded);
-            if (loaded.userData.wake) loaded.userData.wake.visible = pendingItem.underway;
             anchorSurfaceFoam(loaded);
             if (focusId === actor.id) frameCamera();
             if (reduced.matches) renderOnce();

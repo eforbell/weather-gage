@@ -214,3 +214,26 @@ and exposed geometry at every barrel lane (including the centre triple barrel).
 It allows later WW2 packs to add other named ships without weakening Esperance
 coverage. Visual review still checks boats, mast feet and fittings that those
 rays do not cover. See [WW2 fleet acceptance](ww2-ship-assets.md) for evidence.
+
+## Wolf Pack escorts, merchants and U-boats
+
+The fourteen named hulls in `SCENARIO_SETUPS.convoy` have original WWII assets.
+Walker and Stork carry4 and6 scenario guns; the two Flower-style corvettes carry1.
+The six merchant freighters and four Type VII-style boats carry0, as the scenario
+requires. Their silhouettes are approximate game art, not measured individual
+ship reconstructions. U-boat deck cannons are deliberately omitted rather than
+fudging gun metadata. Brief provenance records authorship and those departures.
+
+The existing kit handles these shapes without changes: cargo hatches/derricks,
+rounded conning towers, periscope poles, low cambered boat hulls and supported
+railings. Only the14 new specs were built; the earlier33 models remain unchanged.
+The same180m era reference applies to every hull. U-boats have no funnel anchors
+and emit no conventional funnel smoke.
+
+A surfaced authored boat receives contour-sized foam and wake. A submerged or
+sunk boat does not. Async adoption now takes explicit `floating`/`underway`
+visibility flags: rebuilding the contour must not reset the current actor state.
+A regression and a validated-save viewport check cover a boat already submerged
+when loading begins. Identified submerged enemy contacts remain sensor reports,
+not rendered surface hulls. This does not add a Cold War underwater camera or
+change any submarine mechanics. See [Wolf Pack acceptance](wolf-pack-ship-assets.md).
