@@ -1,7 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createGame, getView, step } from '../src/sim/engine.js';
-import { battleActors } from '../src/ui/battle-presentation.js';
+import { battleActors, classStandIns } from '../src/ui/battle-presentation.js';
+import { SCENARIO_SETUPS } from '../src/sim/scenarios.js';
+import { shipAssetIdFor, shipAssetSpecFor } from '../src/ui/ship-assets.js';
 
 test('3D actors contain only player-view ships and reports', () => {
   const state = createGame('dogger', 4);
@@ -35,6 +37,46 @@ test('uncertain and stale contacts never become detailed enemy models', () => {
   assert.equal(report.uncertainty, 2);
   const stale = battleActors({ ...view, contacts: [{ ...contact, stale: true, confidence: 'identified' }] }, view.ships[0].id).actors.at(-1);
   assert.equal(stale.uncertain, true);
+});
+
+test('a classified ship in plain sight is drawn as her class, never her name', () => {
+  const view = getView(createGame('line', 6));
+  const standIns = classStandIns(SCENARIO_SETUPS.line.ships, 'blue', name => shipAssetIdFor({ name }, 'sail'));
+  assert.deepEqual(standIns, { 'ship of the line': 'french-74' });
+  const contact = { id: 'c_blue_2', q: 9, r: 5, className: 'Ship of the line', confidence: 'classified', stale: false, facing: 4 };
+  const actor = battleActors({ ...view, contacts: [contact] }, view.ships[0].id, standIns).actors.at(-1);
+  assert.equal(actor.uncertain, false);
+  assert.equal(actor.name, 'Ship of the line');
+  assert.equal(actor.facing, 4);
+  assert.equal(shipAssetSpecFor(actor, 'sail').specId, 'french-74');
+  // The renderer gets a model id, never a hidden ship's name (Nevis has one heavy frigate a side).
+  const nevis = classStandIns(SCENARIO_SETUPS.nevis.ships, 'blue', name => shipAssetIdFor({ name }, 'sail'));
+  const names = SCENARIO_SETUPS.nevis.ships.filter(s => s.side === 'red').map(s => s.name);
+  assert.ok(Object.values(nevis).every(id => !names.includes(id)), JSON.stringify(nevis));
+  assert.ok(!JSON.stringify(actor).includes('Vengeur'));
+  const sighted = battleActors({ ...view, contacts: [{ id: 'c_blue_2', q: 9, r: 5, confidence: 'sighted', stale: false }] }, view.ships[0].id, standIns).actors.at(-1);
+  assert.equal(sighted.uncertain, true);
+  assert.equal(sighted.assetId, undefined);
+});
+
+test('class stand-ins are withheld when a class could belong to more than one side', () => {
+  const ships = [{ side: 'blue', name: 'A', className: 'Frigate' }, { side: 'red', name: 'B', className: 'Frigate' }, { side: 'green', name: 'C', className: 'Frigate' }];
+  const modelOf = name => `model-${name}`;
+  assert.deepEqual(classStandIns(ships, 'blue', modelOf), {});
+  assert.deepEqual(classStandIns(ships.slice(0, 2), 'blue', modelOf), { frigate: 'model-B' });
+});
+
+test('classified contacts report a heading; sightings and last-known reports do not', () => {
+  let state = createGame('line', 6);
+  let headed = null;
+  for (let t = 0; t < 30 && !headed; t++) {
+    state = step(state);
+    headed = getView(state).contacts.find(c => c.confidence === 'classified' && !c.stale);
+  }
+  assert.ok(headed, 'the French line is classified before the action');
+  const truth = state.ships.find(s => s.side === 'red' && s.q === headed.q && s.r === headed.r);
+  assert.equal(headed.facing, truth.facing);
+  for (const c of getView(state).contacts) if (c.stale || c.confidence === 'sighted') assert.equal(c.facing, undefined);
 });
 
 test('surface camera shows surface hulls, not friendly submerged boats', () => {

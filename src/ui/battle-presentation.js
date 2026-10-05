@@ -26,10 +26,33 @@ export const hexToWorld = ({ q, r }, focus) => ({
   z: (r - focus.r) * HEX * Math.sqrt(3) / 2,
 });
 
+// A fresh report that names a class, at a plotted position, is a ship you can
+// see: draw her hull. Sightings, estimates and last-known positions stay markers.
+const seenHull = c => !c.stale && Boolean(c.className) && !c.uncertainty;
+
+// A classified contact shows her class, not her name, so she is drawn with the
+// model of the first ship of that class on the other side of the order of
+// battle: every French "Ship of the line" wears the French 74, whichever ship
+// she really is. Chosen by class alone, it never tells one contact from another.
+// `modelOf(name)` gives a ship's authored model id (or null); only that id, never
+// the ship's name, is handed to the renderer.
+export function classStandIns(ships, side, modelOf = () => null) {
+  const others = new Set(ships.filter(s => s.side !== side).map(s => s.side));
+  const standIns = {};
+  if (others.size !== 1) return standIns; // with third parties, a class does not say whose ship it is
+  for (const s of ships) {
+    const key = String(s.className || '').toLowerCase();
+    const model = s.side !== side && key && !standIns[key] ? modelOf(s.name) : null;
+    if (model) standIns[key] = model;
+  }
+  return standIns;
+}
+
 // The only data allowed to enter the 3D renderer is the selected ship's
-// public getView() result. These actors deliberately contain no hidden IDs,
-// enemy health, or authoritative positions from the simulation state.
-export function battleActors(view, selectedId) {
+// public getView() result, plus the class stand-ins above. These actors
+// deliberately contain no hidden IDs, enemy health, or authoritative positions
+// from the simulation state.
+export function battleActors(view, selectedId, standIns = {}) {
   const focus = view.ships.find(s => s.id === selectedId) || view.ships[0];
   if (!focus) return { focus: null, actors: [] };
   const coldwar = focus.era === 'coldwar';
@@ -56,8 +79,11 @@ export function battleActors(view, selectedId) {
     ...view.contacts.filter(c => !coldwar && !c.submerged && Number.isFinite(c.q) && Number.isFinite(c.r)).map(c => ({
       id: c.id, own: false,
       name: c.confidence === 'identified' ? c.name : c.className || 'Unresolved contact',
-      type: c.confidence === 'identified' ? c.className : null,
-      uncertain: c.stale || c.confidence !== 'identified',
+      type: c.confidence === 'identified' || seenHull(c) ? c.className : null,
+      className: seenHull(c) ? c.className : undefined,
+      ...(seenHull(c) && c.confidence !== 'identified' && standIns[c.className.toLowerCase()] ? { assetId: standIns[c.className.toLowerCase()] } : {}),
+      ...(Number.isInteger(c.facing) ? { facing: c.facing } : {}),
+      uncertain: c.confidence === 'identified' ? c.stale : !seenHull(c),
       stale: Boolean(c.stale),
       uncertainty: c.uncertainty || 0,
       anchored: Boolean(c.anchored),

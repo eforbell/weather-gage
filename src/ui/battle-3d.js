@@ -7,14 +7,15 @@ import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
 import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
 import { ShaderPass } from 'three/addons/postprocessing/ShaderPass.js';
 import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
-import { battleActors, hexToWorld, HEX } from './battle-presentation.js';
+import { battleActors, classStandIns, hexToWorld, HEX } from './battle-presentation.js';
+import { SCENARIO_SETUPS } from '../sim/scenarios.js';
 import { createActorModel, disposeActorModel, animateWakes } from './battle-models.js';
 import { createEffects } from './battle-effects.js';
 import { lookFor } from './battle-looks.js';
 import { anchorSurfaceFoam } from './battle-waterline.js';
 import { createCameraDirector } from './battle-camera.js';
 import { createWaterNormals, configureSea } from './battle-sea.js';
-import { adoptAuthoredModel, createShipAssetManager, hasShipAsset, disposeShipAssetInstance } from './ship-assets.js';
+import { adoptAuthoredModel, createShipAssetManager, hasShipAsset, shipAssetIdFor, disposeShipAssetInstance } from './ship-assets.js';
 
 const ORIGIN = { q: 0, r: 0 };
 const dirs = [[1, 0], [0, 1], [-1, 1], [-1, 0], [0, -1], [1, -1]];
@@ -379,9 +380,16 @@ export function createBattle3D(host, onFailure = () => {}) {
     } else disposeActorModel(item.model);
     models.delete(id);
   }
+  const standInCache = new Map();
+  function standInsFor(view, nextEra) {
+    const side = view.ships[0]?.side;
+    const key = `${view.scenarioId}|${side}|${nextEra}`;
+    if (!standInCache.has(key)) standInCache.set(key, classStandIns(SCENARIO_SETUPS[view.scenarioId]?.ships || [], side, name => shipAssetIdFor({ name }, nextEra)));
+    return standInCache.get(key);
+  }
   function sync(view, selectedId, nextEra, events = []) {
     if (disposed) return { reports: 0 };
-    const presented = battleActors(view, selectedId);
+    const presented = battleActors(view, selectedId, standInsFor(view, nextEra));
     if (!presented.focus) return { reports: 0 };
     const undersea = nextEra === 'coldwar' && presented.focus.depth !== 'surface';
     const nextLook = view.scenarioId || nextEra;
@@ -409,15 +417,15 @@ export function createBattle3D(host, onFailure = () => {}) {
     for (const id of models.keys()) if (!ids.has(id) || changedEra) removeModel(id);
     for (const actor of presented.actors) {
       let item = models.get(actor.id);
-      if (item && (item.type !== actor.type || item.className !== actor.className || item.name !== actor.name || item.uncertain !== actor.uncertain || item.stale !== actor.stale)) { removeModel(actor.id); item = null; }
+      if (item && (item.type !== actor.type || item.className !== actor.className || item.name !== actor.name || item.assetId !== actor.assetId || item.uncertain !== actor.uncertain || item.stale !== actor.stale)) { removeModel(actor.id); item = null; }
       const sunk = actor.own && actor.status === 'sunk', struck = actor.own && actor.status === 'struck';
       const target = new THREE.Vector3(actor.x + origin.x, actor.y - (sunk ? 2.6 : struck ? 0.15 : 0), actor.z + origin.z);
       if (!item) {
         const model = createActorModel(actor, nextEra);
         model.position.copy(target);
-        model.rotation.y = actor.own ? facingAngle(actor.facing) : Math.PI * 0.3;
+        model.rotation.y = Number.isInteger(actor.facing) ? facingAngle(actor.facing) : Math.PI * 0.3;
         world.add(model);
-        item = { model, target, y: target.y, pitch: 0, roll: 0, type: actor.type, className: actor.className, name: actor.name, uncertain: actor.uncertain, stale: actor.stale, phase: hashPhase(actor.id) };
+        item = { model, target, y: target.y, pitch: 0, roll: 0, type: actor.type, className: actor.className, name: actor.name, assetId: actor.assetId, uncertain: actor.uncertain, stale: actor.stale, phase: hashPhase(actor.id) };
         models.set(actor.id, item);
         // Keep the procedural hull visible until a registered local asset is
         // ready. Identity check rejects late loads after contact/era changes.
@@ -454,7 +462,7 @@ export function createBattle3D(host, onFailure = () => {}) {
       item.hull = actor.own ? actor.hull : undefined;
       if (item.model.userData.wake) item.model.userData.wake.visible = item.underway && !sunk;
       if (item.model.userData.waterlineFoam) item.model.userData.waterlineFoam.visible = item.floats && !sunk;
-      if (actor.own) item.model.rotation.y = facingAngle(actor.facing);
+      if (Number.isInteger(actor.facing)) item.model.rotation.y = facingAngle(actor.facing);
     }
     if (reframe) frameCamera();
     const pos = ref => {
