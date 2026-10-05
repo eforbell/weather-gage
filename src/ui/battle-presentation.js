@@ -34,14 +34,16 @@ const seenHull = c => !c.stale && Boolean(c.className) && !c.uncertainty;
 // model of the first ship of that class on the other side of the order of
 // battle: every French "Ship of the line" wears the French 74, whichever ship
 // she really is. Chosen by class alone, it never tells one contact from another.
-// `hasAsset(name)` limits the choice to ships with an authored model.
-export function classStandIns(ships, side, hasAsset = () => true) {
+// `modelOf(name)` gives a ship's authored model id (or null); only that id, never
+// the ship's name, is handed to the renderer.
+export function classStandIns(ships, side, modelOf = () => null) {
   const others = new Set(ships.filter(s => s.side !== side).map(s => s.side));
   const standIns = {};
   if (others.size !== 1) return standIns; // with third parties, a class does not say whose ship it is
   for (const s of ships) {
     const key = String(s.className || '').toLowerCase();
-    if (s.side !== side && key && !standIns[key] && hasAsset(s.name)) standIns[key] = s.name;
+    const model = s.side !== side && key && !standIns[key] ? modelOf(s.name) : null;
+    if (model) standIns[key] = model;
   }
   return standIns;
 }
@@ -79,7 +81,7 @@ export function battleActors(view, selectedId, standIns = {}) {
       name: c.confidence === 'identified' ? c.name : c.className || 'Unresolved contact',
       type: c.confidence === 'identified' || seenHull(c) ? c.className : null,
       className: seenHull(c) ? c.className : undefined,
-      ...(seenHull(c) && c.confidence !== 'identified' && standIns[c.className.toLowerCase()] ? { assetName: standIns[c.className.toLowerCase()] } : {}),
+      ...(seenHull(c) && c.confidence !== 'identified' && standIns[c.className.toLowerCase()] ? { assetId: standIns[c.className.toLowerCase()] } : {}),
       ...(Number.isInteger(c.facing) ? { facing: c.facing } : {}),
       uncertain: c.confidence === 'identified' ? c.stale : !seenHull(c),
       stale: Boolean(c.stale),

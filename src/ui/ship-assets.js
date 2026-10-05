@@ -578,8 +578,7 @@ function actorKeys(actor) {
   const publicName = String(actor?.name || '').toLowerCase();
   const className = String(actor?.className || '').toLowerCase();
   const type = String(actor?.type || '').toLowerCase();
-  const standIn = String(actor?.assetName || '').toLowerCase(); // a classified contact's class model (classStandIns)
-  return [...new Set([standIn, publicName, className, type].filter(Boolean))];
+  return [...new Set([publicName, className, type].filter(Boolean))];
 }
 
 // `era` picks the metre-to-world factor for metre assets (modelMetersToWorld);
@@ -608,15 +607,27 @@ export function normalizeShipAssetSpec(spec, era = spec?.era) {
   });
 }
 
-export function shipAssetSpecFor(actor, era, registry = SHIP_ASSET_REGISTRY) {
-  const eraRegistry = registry?.[era] || {};
-  for (const key of actorKeys(actor)) if (eraRegistry[key]) return normalizeShipAssetSpec(eraRegistry[key], era);
+// A classified contact names no ship: she carries the model id of her class
+// stand-in (classStandIns), looked up by id rather than by public name.
+function registryEntryFor(actor, eraRegistry) {
+  if (actor?.assetId) return Object.values(eraRegistry).find(entry => entry.specId === actor.assetId) || null;
+  for (const key of actorKeys(actor)) if (eraRegistry[key]) return eraRegistry[key];
   return null;
+}
+
+export function shipAssetSpecFor(actor, era, registry = SHIP_ASSET_REGISTRY) {
+  const entry = registryEntryFor(actor, registry?.[era] || {});
+  return entry ? normalizeShipAssetSpec(entry, era) : null;
+}
+
+// The authored model id a ship would load, for choosing class stand-ins.
+export function shipAssetIdFor(actor, era, registry = SHIP_ASSET_REGISTRY) {
+  return registryEntryFor(actor, registry?.[era] || {})?.specId || null;
 }
 
 export function hasShipAsset(actor, era, registry = SHIP_ASSET_REGISTRY) {
   const eraRegistry = registry?.[era] || {};
-  return actorKeys(actor).some(key => !!eraRegistry[key]);
+  return !!registryEntryFor(actor, eraRegistry);
 }
 
 function cloneMaterial(material) {
