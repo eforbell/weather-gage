@@ -183,12 +183,30 @@ dialog.launcher{max-width:1240px;width:calc(100% - 32px)}
 .battle-kicker{font-size:8px;letter-spacing:1.7px;color:#f0cf9d}
 .battle-head strong{font:24px var(--serif);font-weight:normal;text-shadow:0 1px 6px #122b34}
 .battle-head #battle-position{font-size:9px;letter-spacing:1px;color:#e3d2b4;margin-left:auto}
-#battle-reset{pointer-events:auto;border:1px solid #f4ddb28c;color:#f8ead3;background:#142f4188;min-height:32px;font-size:9px}
-#battle-reset:hover{background:#254c62}
+.battle-buttons{display:flex;gap:6px}
+.battle-view button{pointer-events:auto;border:1px solid #f4ddb28c;color:#f8ead3;background:#142f4188;min-height:32px;font-size:9px}
+.battle-view button:hover:not(:disabled){background:#254c62;border-color:#f4ddb2}
+#battle-full[aria-pressed=true]{background:#6a4938;border-color:#6a4938}
+/* Full screen: the chart wrap fills the display, with the clock on the water. */
+.chart-wrap.immersive{position:fixed;inset:0;z-index:50;width:auto;height:auto;min-height:0;padding:0;outline:none}
+.chart-wrap:fullscreen{width:100%;height:100%}
+.chart-wrap.immersive .chart-caption{display:none}
+.chart-wrap.immersive .banner{z-index:5;top:84px;font-size:15px;padding:13px 22px}
+.chart-wrap.immersive .battle-head{padding:22px 28px 40px}
+.chart-wrap.immersive .battle-head strong{font-size:30px}
+.chart-wrap.immersive .battle-foot{padding:40px 28px 18px}
+.battle-transport{display:none}
+.chart-wrap.immersive .battle-transport{display:flex;position:absolute;z-index:4;left:50%;bottom:52px;transform:translateX(-50%);gap:6px;padding:6px;background:#0b2230b3;border:1px solid #f4ddb240;backdrop-filter:blur(3px)}
+body:has(.chart-wrap.immersive){overflow:hidden}
+.battle-transport button{min-height:40px;font-size:11px;padding:8px 14px;white-space:nowrap}
+@media(hover:none){.chart-wrap.immersive #battle-hint{display:none}}
+.battle-transport #battle-prev,.battle-transport #battle-next{font-size:18px;padding:4px 14px}
+.battle-transport #battle-step{background:#f2edde;color:#162c35;border-color:#f2edde}
+.battle-transport #battle-step:hover:not(:disabled){background:#fff8e6}
 .battle-foot{bottom:0;padding:32px 20px 14px;background:linear-gradient(transparent,#0d293bd9);display:flex;justify-content:space-between;gap:15px;font-size:9px;line-height:1.5;letter-spacing:.4px}
 .battle-foot span:first-child{color:#ffe4b3;text-transform:uppercase}
 .battle-foot span:last-child{text-align:right;color:#e3d7c7}
-@media(max-width:700px){.chart-toolbar{align-items:flex-start}.chart-toolbar .toolbar-buttons{max-width:70%}.battle-head{padding:12px 14px}.battle-head strong{font-size:18px}.battle-head #battle-position{margin-left:0}.battle-foot{padding:25px 14px 10px;display:block}.battle-foot span{display:block!important;text-align:left!important}.chart-wrap.battle-on{min-height:340px}}
+@media(max-width:700px){.chart-toolbar{align-items:flex-start}.chart-toolbar .toolbar-buttons{max-width:70%}.battle-head{padding:12px 14px}.battle-head strong{font-size:18px}.battle-head #battle-position{margin-left:0}.battle-foot{padding:25px 14px 10px;display:block}.battle-foot span{display:block!important;text-align:left!important}.chart-wrap.battle-on{min-height:340px}.chart-wrap.immersive .battle-transport{bottom:64px}.battle-transport button{padding:8px 10px}}
 
 /* Command visibility: dispatch uses the objective's spare center-column space.
    Keep the chart independent of the tallest sidebar; never crop SVG geometry. */
