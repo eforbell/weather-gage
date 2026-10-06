@@ -297,3 +297,34 @@ body:has(.chart-wrap.immersive){overflow:hidden}
 .card-body .card-foot{margin-top:auto;padding-top:8px;border-top:1px dashed var(--line);display:flex;justify-content:space-between;align-items:center;gap:10px}
 @media(max-width:900px){.launcher-body{grid-template-columns:1fr}.era-rail{position:static;border-right:0;border-bottom:1px solid var(--line);padding:10px 0;overflow-x:auto}.era-rail ol{display:flex;gap:4px}.era-rail ol::before{display:none}.era-rail li+li{margin-top:0}.era-rail button{white-space:nowrap;padding:6px 10px;border:1px solid var(--line)}.era-rail button::before{display:none}.era-rail button span{display:none}.mission-list{padding:14px 0 18px;max-height:none}.launcher-intro{grid-template-columns:1fr}}
 @media(max-width:650px){.launcher .mission-grid{grid-template-columns:1fr}.era-head h2{font-size:21px}}
+/* Turn-level captain controls reuse the chart-room paper/ink system. */
+.captain-station{border-top:2px solid var(--blue);margin-top:14px;padding-top:12px;min-width:0}
+.captain-heading{display:flex;align-items:flex-start;gap:10px;justify-content:space-between}
+.captain-heading strong{display:block;font:18px/1.2 var(--serif);margin-top:4px}
+.captain-heading button{font-size:9px;flex-shrink:0;padding:7px}
+.captain-station>.hint{margin-block:10px}
+.captain-station fieldset{margin:12px 0;padding:0;border:0;min-width:0}
+.captain-station legend{font-size:10px;margin-bottom:8px;line-height:1.5}
+.captain-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.captain-actions button{min-height:44px;font-size:10px;padding:8px;white-space:normal}
+.captain-station [data-captain-resolve],button[data-captain-enter]{min-height:44px}
+.captain-actions .chosen{background:var(--blue);color:var(--paper);border-color:var(--blue)}
+.captain-station select{width:100%;min-height:44px;min-width:0}
+.captain-feedback{border-left:2px solid var(--blue);padding:9px 10px;margin:12px 0;background:#28586708}
+.captain-feedback p{font:13px/1.5 var(--serif);margin-top:5px}
+.captain-feedback .hint{font:10px/1.5 var(--mono);color:var(--muted)}
+.captain-glossary,.captain-ship-status{font-size:10px;line-height:1.5;margin-top:8px}
+.captain-glossary summary,.captain-ship-status summary{cursor:pointer;padding:4px 0}
+.captain-readiness{margin:12px 0;font-size:10px;line-height:1.5}
+.captain-readiness summary{cursor:pointer;padding:4px 0}
+.captain-readiness ul{padding-left:16px;margin:7px 0}
+.captain-readiness li{margin-bottom:6px}
+#bridge-station{position:absolute;z-index:6;top:80px;right:16px;width:320px;max-height:calc(100% - 160px);overflow:auto;background:var(--paper);color:var(--ink);border:1px solid var(--line);padding:0 14px 14px;pointer-events:auto}
+#bridge-station[hidden]{display:none}
+#bridge-station button{color:var(--ink);background:transparent;border-color:var(--line);min-height:44px}
+#bridge-station button:hover:not(:disabled){background:#dce1d5;border-color:var(--blue)}
+#bridge-station button[aria-pressed=true]{background:var(--blue);color:var(--paper);border-color:var(--blue)}
+#bridge-station button.primary{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.captain-station.compact .captain-feedback p{font-size:12px}
+@media(min-width:651px) and (max-width:1150px){#inspector>.captain-station{grid-column:2;grid-row:1/9}#inspector>.captain-feedback{grid-column:1}}
+@media(max-width:650px){#bridge-station{top:auto;bottom:70px;right:8px;left:8px;width:auto;max-height:55%;padding-inline:12px}.captain-heading strong{font-size:17px}.captain-actions button{font-size:11px}}

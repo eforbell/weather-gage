@@ -134,8 +134,12 @@ function pickTarget(state, ship, maxRange, prefer) {
   return best.s;
 }
 
-export function combat(state) {
+export function combat(state, manualShipIds = new Set(), manualCombat = null) {
   for (const ship of state.ships) {
+    if (manualShipIds.has(ship.id)) {
+      if (manualCombat) state = manualCombat(state, ship);
+      continue;
+    }
     if (!isActive(ship) || ship.doctrine.roe === 'hold' || ship.weapons <= 10) continue;
     if (ship.guns > 0) {
       const target = pickTarget(state, ship, isCapital(ship) ? ship.gunRange : Math.min(ship.gunRange, ship.doctrine.range + 1), isCapital(ship) ? 'capital' : 'any');
@@ -209,6 +213,35 @@ function launchTorpedoes(state, ship, target) {
   state.pending.push({ kind: 'torpedo', shipId: ship.id, targetId: target.id, side: ship.side, salvo: 1, deliverAt: state.tick + eta, q: ship.q, r: ship.r, aimQ: aim.q, aimR: aim.r });
   state = addLog(state, `${ship.name} fires a spread of torpedoes at ${target.name}.`, 'combat');
   return addFx(state, { type: 'torpedo', shooterId: ship.id, targetId: target.id, at: aim, eta });
+}
+
+export function manualFire(state, ship, target, weapon, publicClassName = null) {
+  if (!isActive(ship)) return { state, report: `${ship.name}: unable to fire; we are out of action.` };
+  if (!target || !isActive(target) || target.side === ship.side) return { state, report: `${ship.name}: target is no longer available.` };
+  if (ship.weapons <= 10) return { state, report: `${ship.name}: weapons are too damaged to bear.` };
+  if (ship.doctrine.roe === 'hold') return { state, report: `${ship.name}: fire withheld under hold-fire doctrine.` };
+  if (weapon === 'torpedoes') {
+    if (ship.torpedoes <= 0) return { state, report: `${ship.name}: no torpedoes remain.` };
+    if (ship.reloadUntil > state.tick) return { state, report: `${ship.name}: torpedo tubes are still reloading.` };
+    if (!publicClassName) return { state, report: `${ship.name}: Classification required for torpedo solution.` };
+    if (/destroyer|torpedo/i.test(publicClassName)) return { state, report: `${ship.name}: no capital-ship torpedo solution.` };
+    if (!isCapital(target)) return { state, report: `${ship.name}: torpedo solution rejected; target is not worth the spread.` };
+    if (distance(ship, target) > TORPEDO_RANGE) return { state, report: `${ship.name}: torpedo target is out of range.` };
+    return { state: launchTorpedoes(state, ship, target), report: `${ship.name}: torpedoes away.` };
+  }
+  if (weapon !== 'guns') return { state, report: `${ship.name}: batteries held.` };
+  let fired = false;
+  if (ship.guns > 0 && distance(ship, target) <= ship.gunRange) {
+    state = fireBattery(state, ship, target, ship.calibre, ship.guns, true);
+    fired = true;
+  }
+  if (ship.secondary > 0 && isActive(target) && distance(ship, target) <= SECONDARY_RANGE) {
+    state = fireBattery(state, ship, target, 'light', ship.secondary, false);
+    fired = true;
+  }
+  return fired
+    ? { state, report: `${ship.name}: gunnery action complete.` }
+    : { state, report: `${ship.name}: target is beyond gun range.` };
 }
 
 export function torpedoRun(state, item) {

@@ -9,6 +9,7 @@ import * as dreadnought from './eras/dreadnought.js';
 import * as ironclad from './eras/ironclad.js';
 import * as coldwar from './eras/coldwar.js';
 import * as ww2 from './eras/ww2.js';
+import { movesThisTick } from './eras/steam.js';
 
 // Era rule modules. Each may provide: validateShip, onOrder, orderDelay, beforeTick,
 // moveShip, afterMove, combat, detection, validateEntities, publicEntities. Sail and modern still use the engine's
@@ -24,6 +25,10 @@ const DEPTHS = new Set(['shallow', 'deep', 'surface']);
 const CONTACT_SOURCES = new Set(['radar', 'eyes', 'flash', 'receiver', 'sonar', 'hfdf']);
 // Fields a scripted scenario event may change on a ship.
 const EVENT_FIELDS = new Set(['quiet', 'speed', 'passiveClass', 'depth']);
+const CAPTAIN_ERAS = new Set(['sail', 'dreadnought']);
+const CAPTAIN_HELM = new Set(['hold', 'port', 'starboard', 'ahead']);
+const CAPTAIN_WEAPONS = new Set(['hold', 'guns', 'torpedoes']);
+const DEFAULT_CAPTAIN_PLAN = Object.freeze({ helm: 'hold', targetId: null, weapon: 'hold' });
 
 export function createGame(scenarioId = 'nevis', seed = 1799) {
   const meta = scenarioFor(scenarioId);
@@ -71,6 +76,7 @@ export function step(input) {
   if (rules.beforeTick) state = rules.beforeTick(state);
   state = deliverPending(state);
   state = updateContacts(state);
+  state = validateActiveCaptainControl(state);
   state = autoDoctrine(state);
   state = moveShips(state, meta.era);
   state = updateContacts(state);
@@ -78,6 +84,8 @@ export function step(input) {
   state = resolveCombat(state, meta.era);
   state = updateContacts(state);
   state = checkOutcome(state, meta);
+  state = validateActiveCaptainControl(state);
+  if (state.captainControl) state.captainControl.plan = { ...DEFAULT_CAPTAIN_PLAN };
   return trimLog(state);
 }
 
@@ -89,7 +97,8 @@ export function issueOrder(input, shipIds, order) {
   if (!clean) return addLog(state, 'Invalid order rejected.', 'warn');
   if (clean.type === 'proceed' && terrainAt(state, clean.q, clean.r) === 'land') return addLog(state, 'Proceed order rejected: destination is land.', 'warn');
   const idSet = new Set(ids.filter((id) => typeof id === 'string'));
-  const ships = state.ships.filter((s) => idSet.has(s.id) && isActive(s));
+  const manualId = state.captainControl?.shipId || null;
+  const ships = state.ships.filter((s) => idSet.has(s.id) && isActive(s) && s.id !== manualId);
   if (!ships.length) return addLog(state, 'No active ships could receive that order.', 'warn');
   const replaceIds = new Set(ships.map((s) => s.id));
   state.pending = state.pending.filter((p) => p.kind || !replaceIds.has(p.shipId));
@@ -125,6 +134,51 @@ export function setRadar(input, shipIds, enabled) {
   // Emission control: modern ships, and WWII ships that carry a search radar.
   for (const ship of state.ships) if (ids.has(ship.id) && (ship.era === 'modern' || (ship.era === 'ww2' && ship.sensors?.search))) ship.radar = Boolean(enabled);
   return updateContacts(trimLog(addLog(state, `Radar ${enabled ? 'enabled' : 'secured'} for ${ids.size} ship(s).`, 'order', state.ships.filter(s => ids.has(s.id)).map(s => s.side))));
+}
+
+export function takeCommand(input, side = 'blue', shipId) {
+  let state = validateState(input);
+  if (state.outcome) return cloneState(state);
+  state = cloneState(state);
+  const safeSide = sidesOf(state).includes(side) ? side : 'blue';
+  const ship = state.ships.find((s) => s.id === shipId && s.side === safeSide && isActive(s));
+  const era = scenarioFor(state.scenarioId).era;
+  if (!ship || !CAPTAIN_ERAS.has(era)) return trimLog(addLog(state, 'Take Command rejected: no eligible active ship.', 'warn', [safeSide]));
+  state.pending = state.pending.filter((p) => p.kind || p.shipId !== ship.id);
+  state.captainControl = {
+    side: safeSide,
+    shipId: ship.id,
+    plan: { ...DEFAULT_CAPTAIN_PLAN },
+  };
+  return trimLog(addLog(state, `${ship.name}: captain has the deck.`, 'order', [safeSide]));
+}
+
+export function releaseCommand(input, side = 'blue') {
+  let state = validateState(input);
+  if (state.outcome) return cloneState(state);
+  state = cloneState(state);
+  const safeSide = sidesOf(state).includes(side) ? side : 'blue';
+  if (state.captainControl?.side !== safeSide) return state;
+  const ship = state.ships.find((s) => s.id === state.captainControl.shipId);
+  delete state.captainControl;
+  return ship ? trimLog(addLog(state, `${ship.name}: released to squadron doctrine.`, 'order', [safeSide])) : state;
+}
+
+export function planCaptainAction(input, side = 'blue', patch = {}) {
+  let state = validateState(input);
+  if (state.outcome) return cloneState(state);
+  state = cloneState(state);
+  const safeSide = sidesOf(state).includes(side) ? side : 'blue';
+  const control = state.captainControl;
+  if (!control || control.side !== safeSide) return trimLog(addLog(state, 'No ship is under direct command.', 'warn', [safeSide]));
+  const ship = state.ships.find((s) => s.id === control.shipId && s.side === safeSide && isActive(s));
+  if (!ship) return clearCaptainControl(state, 'Command ended: the ship is no longer in action.');
+  const clean = { ...control.plan };
+  if (CAPTAIN_HELM.has(patch?.helm)) clean.helm = patch.helm;
+  if (Object.hasOwn(patch || {}, 'targetId')) clean.targetId = cleanCaptainTarget(state, safeSide, patch.targetId);
+  if (CAPTAIN_WEAPONS.has(patch?.weapon)) clean.weapon = patch.weapon;
+  control.plan = clean;
+  return state;
 }
 
 // Active sonar: one ping next tick gives an exact fix on everything nearby,
@@ -182,6 +236,10 @@ export function getView(input, side = 'blue', observerId = null) {
     entities: state.contactTracks ? (observer ? rulesFor(state).publicEntities?.(state, observer.side, observer.id) || [] : []) : uniqueEntities(mine.flatMap((sd) => rulesFor(state).publicEntities?.(state, sd) || [])),
     hostileFrom: sidesOf(state).filter((s) => hostile(state, s, safeSide)),
     hostileTo: state.hostile ? [...(state.hostile[safeSide] || [])] : sidesOf(state).filter((s) => s !== safeSide),
+    ...(state.captainControl?.side === safeSide ? {
+      captainControl: publicCaptainControl(state, safeSide),
+      captainOptions: captainOptions(state, safeSide),
+    } : {}),
     outcome: state.outcome ? { ...state.outcome } : null,
   };
 }
@@ -270,6 +328,7 @@ function validateState(value) {
     validateContacts(value.contactTracks, ids, sidesOf(value), trackIds, value.map);
   }
   validatePending(value.pending, ids, value.tick, value.map, value.ships);
+  validateCaptainControl(value.captainControl, value, ids, meta.era);
   validateLog(value.log);
   validateOutcome(value.outcome);
   if (value.fx !== undefined) validateFx(value.fx, value.map);
@@ -442,6 +501,20 @@ function validateOutcome(outcome) {
   if (!['victory', 'defeat', 'draw'].includes(outcome.result) || !nonEmptyString(outcome.title) || !nonEmptyString(outcome.summary)) throw new Error('Invalid outcome');
 }
 
+function validateCaptainControl(control, state, ids, era) {
+  if (control === undefined) return;
+  if (!control || typeof control !== 'object' || Array.isArray(control)) throw new Error('Invalid captain control');
+  if (!CAPTAIN_ERAS.has(era)) throw new Error('Captain control is not part of this era');
+  if (!sidesOf(state).includes(control.side) || !ids.has(control.shipId)) throw new Error('Invalid captain control');
+  const ship = state.ships.find((s) => s.id === control.shipId);
+  if (!ship || ship.side !== control.side || !isActive(ship) || state.outcome) throw new Error('Invalid captain control');
+  if (!control.plan || typeof control.plan !== 'object' || Array.isArray(control.plan)) throw new Error('Invalid captain plan');
+  if (!CAPTAIN_HELM.has(control.plan.helm) || !CAPTAIN_WEAPONS.has(control.plan.weapon)) throw new Error('Invalid captain plan');
+  if (control.plan.targetId !== null && !nonEmptyString(control.plan.targetId)) throw new Error('Invalid captain target');
+  if (control.plan.targetId && !state.ships.some((s) => s.side !== control.side && contactId(state, control.side, s.id) === control.plan.targetId)) throw new Error('Invalid captain target');
+  if (control.report !== undefined && !nonEmptyString(control.report)) throw new Error('Invalid captain report');
+}
+
 
 
 function cleanOrder(order, map) {
@@ -552,6 +625,7 @@ function arriveReserves(state) {
 
 function autoDoctrine(state) {
   for (const ship of state.ships) {
+    if (isCaptainShip(state, ship)) continue;
     if (!isActive(ship) || ship.speed === 0) continue; // ships at anchor fight until they strike
     if (ship.hull <= ship.doctrine.withdraw || ship.crew <= ship.doctrine.withdraw || ship.propulsion <= 15) ship.order = { type: 'withdraw' };
   }
@@ -562,6 +636,10 @@ function moveShips(state, era) {
   const occupied = new Set(state.ships.filter(isActive).map((s) => key(s.q, s.r)));
   for (const ship of state.ships) {
     if (!isActive(ship)) continue;
+    if (isCaptainShip(state, ship)) {
+      state = applyCaptainHelm(state, ship, occupied, era);
+      continue;
+    }
     if (ship.order.type === 'withdraw' && escapeEdge(state, ship)) {
       ship.status = 'escaped';
       state = addLog(state, `${ship.name} withdraws beyond the action.`, 'escape');
@@ -715,23 +793,20 @@ function turnToward(ship, targetFacing) {
 
 function resolveCombat(state, era) {
   if (era === 'modern') return modernCombat(state);
-  if (ERA_RULES[era]?.combat) return ERA_RULES[era].combat(state);
+  if (ERA_RULES[era]?.combat) return ERA_RULES[era].combat(state, captainShipIds(state), (next, ship) => resolveCaptainCombat(next, era, ship));
   return sailCombat(state);
 }
 
 function sailCombat(state) {
   for (const ship of state.ships) {
+    if (isCaptainShip(state, ship)) {
+      state = resolveCaptainCombat(state, 'sail', ship);
+      continue;
+    }
     if (!isActive(ship) || ship.doctrine.roe === 'hold' || ship.reloadUntil > state.tick || ship.order.type === 'withdraw') continue;
     const target = targetFromContacts(state, ship, Math.min(ship.doctrine.range, 3));
     if (!target || !broadsideArc(ship, target)) continue;
-    ship.reloadUntil = state.tick + 2;
-    const quality = (ship.weapons / 100) * (ship.crew / 100) * ((ship.guns || 30) / 36);
-    const base = 8 + Math.floor(nextRandom(state) * 8);
-    const damage = Math.max(3, Math.round(base * quality * (1.15 - distance(ship, target) * 0.18)));
-    applyDamage(target, { hull: damage, propulsion: damage * 0.55, weapons: damage * 0.7, crew: damage * 0.5 });
-    state = addLog(state, `${ship.name} fires a broadside at ${target.name}.`, 'combat');
-    state = addFx(state, { type: 'broadside', shooterId: ship.id, targetId: target.id, hits: 1, damage, heavy: damage >= 12 });
-    state = resolveStatus(state, target);
+    state = fireSailBroadside(state, ship, target);
   }
   return state;
 }
@@ -775,6 +850,185 @@ function targetFromContacts(state, ship, maxRange) {
   if (!contact || CONF_RANK[contact.confidence] < 1) return null;
   const target = state.ships.find((s) => s.id === contact.targetId);
   return target && isActive(target) ? target : null;
+}
+
+function captainShipIds(state) {
+  return state.captainControl ? new Set([state.captainControl.shipId]) : new Set();
+}
+
+function isCaptainShip(state, ship) {
+  return Boolean(state.captainControl && ship?.id === state.captainControl.shipId && ship.side === state.captainControl.side);
+}
+
+function validateActiveCaptainControl(state) {
+  const control = state.captainControl;
+  if (!control) return state;
+  const ship = state.ships.find((s) => s.id === control.shipId && s.side === control.side);
+  const era = scenarioFor(state.scenarioId).era;
+  if (!ship || !isActive(ship) || !CAPTAIN_ERAS.has(era) || state.outcome) return clearCaptainControl(state, ship ? `${ship.name}: direct command ended.` : 'Direct command ended.');
+  return state;
+}
+
+function clearCaptainControl(state, report) {
+  if (state.captainControl) state.captainControl.report = report;
+  delete state.captainControl;
+  return state;
+}
+
+function cleanCaptainTarget(state, side, publicId) {
+  if (publicId === null || publicId === undefined || publicId === '') return null;
+  if (typeof publicId !== 'string') return null;
+  const contact = (state.contacts[side] || []).find((c) => c.id === publicId && !c.stale && believedHostile(state, { side }, c));
+  return contact ? contact.id : null;
+}
+
+function captainTarget(state, side, publicId) {
+  if (!publicId) return null;
+  const contact = (state.contacts[side] || []).find((c) => c.id === publicId && !c.stale && believedHostile(state, { side }, c));
+  if (!contact) return null;
+  const target = state.ships.find((s) => s.id === contact.targetId && isActive(s));
+  return target || null;
+}
+
+function captainPlanSummary(state, ship, plan) {
+  const contact = (state.contacts[ship.side] || []).find((c) => c.id === plan.targetId && !c.stale);
+  const helm = plan.helm === 'port' ? 'come port' : plan.helm === 'starboard' ? 'come starboard' : plan.helm === 'ahead' ? 'make way ahead' : 'hold station';
+  const weapon = plan.weapon === 'guns' ? 'guns ready' : plan.weapon === 'torpedoes' ? 'torpedoes selected' : 'weapons tight';
+  const label = contact?.name || contact?.className || (contact ? 'reported contact' : null);
+  const targetText = label ? ` on ${label}` : plan.targetId ? '; target report is stale or invalid' : '';
+  return `${ship.name}: ${helm}; ${weapon}${targetText}.`;
+}
+
+function applyCaptainHelm(state, ship, occupied, era) {
+  const helm = state.captainControl?.plan?.helm || 'hold';
+  if (ship.propulsion <= 0 || helm === 'hold') {
+    state.captainControl.report = `${ship.name}: holding station.`;
+    return state;
+  }
+  if (helm === 'port' || helm === 'starboard') {
+    if (era === 'dreadnought' && movesThisTick(state, ship) <= 0) {
+      state.captainControl.report = `${ship.name}: helm has no effect at this speed this turn.`;
+      return state;
+    }
+    ship.facing = (ship.facing + (helm === 'port' ? 5 : 1)) % 6;
+    state.captainControl.report = `${ship.name}: helm ${helm}.`;
+    return state;
+  }
+  if (helm !== 'ahead') return state;
+  if (era === 'dreadnought') {
+    const before = { q: ship.q, r: ship.r, facing: ship.facing };
+    const moves = movesThisTick(state, ship);
+    for (let i = 0; i < moves && isActive(ship); i += 1) {
+      const [dq, dr] = DIRECTIONS[ship.facing];
+      const next = { q: ship.q + dq, r: ship.r + dr };
+      const terrain = inBounds(next, state.map) ? terrainAt(state, next.q, next.r) : 'land';
+      if (!inBounds(next, state.map) || terrain === 'land' || (terrain === 'shoal' && ship.draft === 'deep') || occupied.has(key(next.q, next.r))) break;
+      occupied.delete(key(ship.q, ship.r));
+      ship.q = next.q; ship.r = next.r;
+      occupied.add(key(ship.q, ship.r));
+      if (terrain === 'mines' && roll(state, 0.3)) {
+        applyDamage(ship, { hull: 26, propulsion: 30, weapons: 8, crew: 12 });
+        state = addLog(state, `${ship.name} strikes a mine.`, 'damage');
+        state = addFx(state, { type: 'mine', targetId: ship.id, hits: 1, damage: 26, heavy: true });
+        state = resolveStatus(state, ship);
+        if (!isActive(ship)) { occupied.delete(key(ship.q, ship.r)); break; }
+      }
+    }
+    state.captainControl.report = ship.q !== before.q || ship.r !== before.r ? `${ship.name}: steaming ahead.` : `${ship.name}: holding station.`;
+    return state;
+  }
+  const [dq, dr] = DIRECTIONS[ship.facing];
+  const next = { q: ship.q + dq, r: ship.r + dr };
+  const blocked = !inBounds(next, state.map) || terrainAt(state, next.q, next.r) === 'land' || occupied.has(key(next.q, next.r));
+  if (blocked || ship.facing === state.wind || (turnDistance(ship.facing, state.wind) === 1 && state.tick % 2 === 1) || (ship.propulsion < 40 && state.tick % 2 === 1)) {
+    state.captainControl.report = `${ship.name}: cannot make way ahead this turn.`;
+    return state;
+  }
+  occupied.delete(key(ship.q, ship.r));
+  ship.q = next.q; ship.r = next.r;
+  occupied.add(key(ship.q, ship.r));
+  state.captainControl.report = `${ship.name}: makes way ahead.`;
+  if (terrainAt(state, ship.q, ship.r) === 'shoal' && roll(state, 0.18)) {
+    applyDamage(ship, { hull: 4, propulsion: 8, crew: 0, weapons: 0 });
+    state = addLog(state, `${ship.name} scrapes over shoal water.`, 'damage');
+    state = addFx(state, { type: 'aground', targetId: ship.id });
+  }
+  return state;
+}
+
+function resolveCaptainCombat(state, era, slotShip = null) {
+  const control = state.captainControl;
+  if (!control) return state;
+  const ship = slotShip || state.ships.find((s) => s.id === control.shipId && s.side === control.side && isActive(s));
+  if (!isCaptainShip(state, ship)) return state;
+  if (!ship) return state;
+  const plan = control.plan || DEFAULT_CAPTAIN_PLAN;
+  if (plan.weapon === 'hold') return state;
+  const target = captainTarget(state, control.side, plan.targetId);
+  if (!target) {
+    appendCaptainCombatReport(control, ship, `${ship.name}: fire withheld; target report is stale or not hostile.`);
+    return state;
+  }
+  if (era === 'dreadnought') {
+    const publicContact = (state.contacts[control.side] || []).find((c) => c.id === plan.targetId && !c.stale);
+    if (plan.weapon === 'torpedoes') {
+      const torpedoReason = captainTorpedoReason(state, ship, publicContact, distance(ship, target));
+      if (torpedoReason !== 'Ready.') {
+        appendCaptainCombatReport(control, ship, `${ship.name}: ${torpedoReason}`);
+        return state;
+      }
+    }
+    const result = dreadnought.manualFire(state, ship, target, plan.weapon, publicContact?.className);
+    state = result.state;
+    appendCaptainCombatReport(state.captainControl, ship, result.report);
+    return state;
+  }
+  if (plan.weapon === 'torpedoes') {
+    appendCaptainCombatReport(control, ship, `${ship.name}: torpedoes are not fitted in this action.`);
+    return state;
+  }
+  if (ship.doctrine.roe === 'hold') {
+    appendCaptainCombatReport(control, ship, `${ship.name}: fire withheld under hold-fire doctrine.`);
+    return state;
+  }
+  if (ship.weapons <= 10) {
+    appendCaptainCombatReport(control, ship, `${ship.name}: weapons are too damaged to bear.`);
+    return state;
+  }
+  if (ship.reloadUntil > state.tick) {
+    appendCaptainCombatReport(control, ship, `${ship.name}: broadside not reloaded.`);
+    return state;
+  }
+  if (distance(ship, target) > Math.min(ship.doctrine.range, 3)) {
+    appendCaptainCombatReport(control, ship, `${ship.name}: target is out of broadside range.`);
+    return state;
+  }
+  if (!broadsideArc(ship, target)) {
+    appendCaptainCombatReport(control, ship, `${ship.name}: no broadside bears on target.`);
+    return state;
+  }
+  state = fireSailBroadside(state, ship, target);
+  appendCaptainCombatReport(state.captainControl, ship, `${ship.name}: broadside fired.`);
+  return state;
+}
+
+function appendCaptainCombatReport(control, ship, text) {
+  if (!control) return;
+  if (!control.report) { control.report = text; return; }
+  const prefix = `${ship.name}: `;
+  const suffix = text.startsWith(prefix) ? text.slice(prefix.length) : text;
+  control.report = `${control.report} ${suffix}`;
+}
+
+function fireSailBroadside(state, ship, target) {
+  ship.reloadUntil = state.tick + 2;
+  const quality = (ship.weapons / 100) * (ship.crew / 100) * ((ship.guns || 30) / 36);
+  const base = 8 + Math.floor(nextRandom(state) * 8);
+  const damage = Math.max(3, Math.round(base * quality * (1.15 - distance(ship, target) * 0.18)));
+  applyDamage(target, { hull: damage, propulsion: damage * 0.55, weapons: damage * 0.7, crew: damage * 0.5 });
+  state = addLog(state, `${ship.name} fires a broadside at ${target.name}.`, 'combat');
+  state = addFx(state, { type: 'broadside', shooterId: ship.id, targetId: target.id, hits: 1, damage, heavy: damage >= 12 });
+  return resolveStatus(state, target);
 }
 
 
@@ -956,6 +1210,119 @@ function publicOwnShip(s, state, side) {
   const out = deepClone(s);
   if (out.fc?.targetId) out.fc.targetId = contactId(state, side, out.fc.targetId); // the target as your contact, not its true id
   return out;
+}
+
+function publicCaptainControl(state, side) {
+  const control = state.captainControl;
+  const ship = state.ships.find((s) => s.id === control.shipId && s.side === side);
+  return {
+    side: control.side,
+    shipId: control.shipId,
+    shipName: ship?.name,
+    plan: { ...control.plan },
+    report: control.report,
+  };
+}
+
+function captainOptions(state, side) {
+  const control = state.captainControl;
+  const ship = control && state.ships.find((s) => s.id === control.shipId && s.side === side && isActive(s));
+  if (!ship) return { helm: [], weapons: [], summary: 'No active ship under command.' };
+  const nextState = { ...state, tick: state.tick + 1 };
+  const preview = previewCaptainPosition(nextState, ship, control.plan?.helm || 'hold');
+  const aheadPreview = previewCaptainPosition(nextState, ship, 'ahead');
+  const target = captainTarget(state, side, control.plan?.targetId);
+  const contactPoint = target ? (state.contacts[side] || []).find((c) => c.id === control.plan.targetId) : null;
+  const targetPoint = contactPoint ? { ...contactPoint, selfQ: preview.q, selfR: preview.r, selfFacing: preview.facing ?? ship.facing } : null;
+  const range = targetPoint ? distance(preview, targetPoint) : null;
+  const canGuns = targetPoint ? captainGunsReason(nextState, ship, targetPoint, range) : 'Select a reported hostile contact.';
+  const canTorp = ship.era === 'dreadnought'
+    ? (targetPoint ? captainTorpedoReason(nextState, ship, contactPoint, range) : 'Select a reported hostile contact.')
+    : captainTorpedoReason(nextState, ship, contactPoint, range);
+  return {
+    helm: [
+      { id: 'hold', label: 'Hold station', enabled: true, reason: 'Keep station and a steady firing platform.' },
+      helmTurnOption(nextState, ship, 'port'),
+      helmTurnOption(nextState, ship, 'starboard'),
+      { id: 'ahead', label: 'Make way ahead', enabled: aheadPreview.moved, reason: aheadPreview.reason },
+    ],
+    weapons: [
+      { id: 'hold', label: 'Hold fire', enabled: true, reason: 'Do not spend this turn’s shot.' },
+      { id: 'guns', label: ship.era === 'sail' ? 'Release broadside' : 'Fire guns', enabled: canGuns === 'Ready.', reason: canGuns },
+      { id: 'torpedoes', label: 'Fire torpedoes', enabled: canTorp === 'Ready.', reason: canTorp },
+    ],
+    summary: `${captainPlanSummary(state, ship, control.plan || DEFAULT_CAPTAIN_PLAN)} Preview ${preview.q},${preview.r}; ${range === null ? 'no target selected' : `target range ${range}`}.`.trim(),
+  };
+}
+
+function previewCaptainPosition(state, ship, helm) {
+  if (helm === 'hold') return { q: ship.q, r: ship.r, facing: ship.facing, moved: true, reason: 'Hold station.' };
+  if (helm === 'port' || helm === 'starboard') return { q: ship.q, r: ship.r, facing: (ship.facing + (helm === 'port' ? 5 : 1)) % 6, moved: ship.propulsion > 0, reason: ship.propulsion > 0 ? 'Turn without advancing.' : 'No propulsion.' };
+  const occupied = new Set([
+    ...state.ships.filter((s) => isActive(s) && s.id !== ship.id && s.side === ship.side).map((s) => key(s.q, s.r)),
+    ...(state.contacts[ship.side] || []).filter((c) => !c.stale).map((c) => key(c.q, c.r)),
+  ]);
+  if (ship.propulsion <= 0) return { q: ship.q, r: ship.r, facing: ship.facing, moved: false, reason: 'No propulsion.' };
+  const [dq, dr] = DIRECTIONS[ship.facing];
+  if (ship.era === 'dreadnought') {
+    const moves = movesThisTick(state, ship);
+    if (moves <= 0) return { q: ship.q, r: ship.r, facing: ship.facing, moved: false, reason: 'Engines answer next turn at this speed.' };
+    let pos = { q: ship.q, r: ship.r };
+    let risk = false;
+    for (let i = 0; i < moves; i += 1) {
+      const next = { q: pos.q + dq, r: pos.r + dr };
+      const terrain = inBounds(next, state.map) ? terrainAt(state, next.q, next.r) : 'land';
+      if (!inBounds(next, state.map)) return { ...pos, facing: ship.facing, moved: i > 0, reason: i > 0 ? 'Chart edge limits further advance.' : 'Chart edge ahead.' };
+      if (terrain === 'land' || (terrain === 'shoal' && ship.draft === 'deep')) return { ...pos, facing: ship.facing, moved: i > 0, reason: i > 0 ? 'Shoal or land limits further advance.' : 'Land or shoal ahead.' };
+      if (occupied.has(key(next.q, next.r))) return { ...pos, facing: ship.facing, moved: i > 0, reason: i > 0 ? 'Traffic limits further advance.' : 'Another report blocks the water ahead.' };
+      if (terrain === 'mines') risk = true;
+      pos = next;
+    }
+    return { ...pos, facing: ship.facing, moved: true, reason: risk ? 'Straight-ahead course crosses mines.' : `Straight-ahead course can make ${moves} hex${moves > 1 ? 'es' : ''}.` };
+  }
+  const next = { q: ship.q + dq, r: ship.r + dr };
+  if (!inBounds(next, state.map)) return { q: ship.q, r: ship.r, facing: ship.facing, moved: false, reason: 'Chart edge ahead.' };
+  if (terrainAt(state, next.q, next.r) === 'land') return { q: ship.q, r: ship.r, facing: ship.facing, moved: false, reason: 'Land ahead.' };
+  if (occupied.has(key(next.q, next.r))) return { q: ship.q, r: ship.r, facing: ship.facing, moved: false, reason: 'Another report blocks the water ahead.' };
+  if (ship.era === 'sail' && ship.facing === state.wind) return { q: ship.q, r: ship.r, facing: ship.facing, moved: false, reason: 'Wind is dead ahead.' };
+  if (ship.era === 'sail' && turnDistance(ship.facing, state.wind) === 1 && state.tick % 2 === 1) return { q: ship.q, r: ship.r, facing: ship.facing, moved: false, reason: 'Close-hauled; she will gather way next turn.' };
+  if (ship.era === 'sail' && ship.propulsion < 40 && state.tick % 2 === 1) return { q: ship.q, r: ship.r, facing: ship.facing, moved: false, reason: 'Damage slows her this turn.' };
+  return { ...next, facing: ship.facing, moved: true, reason: terrainAt(state, next.q, next.r) === 'mines' ? 'Straight-ahead course crosses mines.' : 'Water ahead is clear.' };
+}
+
+function helmTurnOption(state, ship, helm) {
+  const label = helm === 'port' ? 'Come port' : 'Come starboard';
+  if (ship.propulsion <= 0) return { id: helm, label, enabled: false, reason: 'No propulsion.' };
+  if (ship.era === 'dreadnought' && movesThisTick(state, ship) <= 0) return { id: helm, label, enabled: false, reason: 'Helm answers next turn at this speed.' };
+  return { id: helm, label, enabled: true, reason: `Turn one point to ${helm}.` };
+}
+
+function captainGunsReason(state, ship, targetPoint, range) {
+  const firingPlatform = { ...ship, q: targetPoint.selfQ ?? ship.q, r: targetPoint.selfR ?? ship.r, facing: targetPoint.selfFacing ?? ship.facing };
+  if (ship.era === 'sail') {
+    if (ship.doctrine.roe === 'hold') return 'Hold-fire doctrine is in force.';
+    if (ship.weapons <= 10) return 'Weapons too damaged.';
+    if (ship.reloadUntil > state.tick) return 'Broadside not reloaded.';
+    if (range > Math.min(ship.doctrine.range, 3)) return 'Out of broadside range.';
+    if (!broadsideArc(firingPlatform, targetPoint)) return 'No broadside bears after planned helm.';
+    return 'Ready.';
+  }
+  if (ship.doctrine.roe === 'hold') return 'Hold-fire doctrine is in force.';
+  if (ship.weapons <= 10) return 'Weapons too damaged.';
+  if (range > ship.gunRange && range > 4) return 'Out of gun range.';
+  return 'Ready.';
+}
+
+function captainTorpedoReason(state, ship, contact, range) {
+  if (ship.era !== 'dreadnought') return 'Torpedoes are not fitted in this action.';
+  if (ship.doctrine.roe === 'hold') return 'Hold-fire doctrine is in force.';
+  if (ship.weapons <= 10) return 'Weapons too damaged.';
+  if (ship.torpedoes <= 0) return 'No torpedoes remain.';
+  if (ship.reloadUntil > state.tick) return 'Torpedo tubes are reloading.';
+  if (!contact?.className) return 'Classification required for torpedo solution.';
+  if (/destroyer|torpedo/i.test(contact.className)) return 'No capital-ship torpedo solution.';
+  if (range > 3) return 'Out of torpedo range.';
+  return 'Ready.';
 }
 
 

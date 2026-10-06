@@ -2,9 +2,9 @@
 
 ![USS Constellation under fighting sail off Nevis, 1799](docs/images/nevis-frigates.jpg)
 
-A browser-first naval command game. **You are the commodore, not the captain:** you issue squadron orders, work from imperfect contact reports, and your captains fight the engagement. It spans frigates under sail, ironclads, dreadnoughts, a radar-lit night action, Cold War submarines and near-future missiles, all on one simulation.
+A browser-first naval command game. **You command the squadron:** issue orders, work from imperfect contact reports, and let your captains fight the engagement—or **Take Command** of one sail or dreadnought vessel for deliberate next-turn helm and weapon decisions. It spans frigates under sail, ironclads, dreadnoughts, a radar-lit night action, Cold War submarines and near-future missiles, all on one simulation.
 
-**Status:** a playable research build, not a finished naval simulator. Single player, seven scenarios. Each has a paper-and-ink tactical chart and an orbitable 3D battle camera with authored ship models. Combat and balance values are game abstractions. No accounts, telemetry, external fonts or remote services.
+**Status:** a playable research build, not a finished naval simulator. Single player, nine scenarios. Each has a paper-and-ink tactical chart and an orbitable 3D battle camera with authored ship models. Combat and balance values are game abstractions. No accounts, telemetry, external fonts or remote services.
 
 | | |
 |---|---|
@@ -37,6 +37,19 @@ Open **http://127.0.0.1:4173**. The development server binds only to your comput
 9. Review the dispatch at mission end. **New sortie** restarts; the mission selector switches eras. Both start a fresh game, so save/export first if you want to keep the current sortie.
 
 Keyboard: **Space** run/pause, **N** advance, outside form controls. Native controls work with Tab/Enter. The coordinate inputs are the keyboard alternative to map clicking.
+
+### Take Command — sail and dreadnoughts
+
+Select an operational vessel at Nevis, The Line of Battle, or Dogger Bank, then choose **Take Command**. The clock pauses and the captain's station replaces that vessel's signal controls:
+
+1. Choose **Hold station**, **Port** (left), **Starboard** (right), or **Ahead**.
+2. Designate a reported contact and choose whether to hold weapons, fire guns, or release dreadnought torpedoes where available.
+3. Read the **XO's assessment** and nearby readiness explanations. These are forecasts, not guarantees: wind, contacts and traffic can change during the turn.
+4. Choose **Resolve captain's turn** or **Advance tick**. Your plan resolves once, with everyone else's normal actions. Then choose the next plan. Other vessels continue on doctrine; automatic running is disabled until you return to the flag.
+
+No turret aiming, precision trigger timing, or bonus actions. Gun arcs, readiness, rules of engagement and ammunition still matter. **Return to flag** resumes the preserved standing order; entering command clears that vessel's queued signals. Selecting another vessel does not transfer command automatically. Group signals address the other vessels.
+
+The station also works alongside the 3D camera, with compact controls in full screen. Saves retain your staged plan and resume paused. Outside Take Command, **Captain's report** explains the selected vessel's standing order and its main known constraint in plain language. Shot types and other eras are not part of this first slice. See the [Take Command plan](docs/design/take-command-plan.md) for scope, acceptance criteria and follow-on decisions.
 
 ## Six eras, one simulation
 
@@ -105,6 +118,6 @@ The original scaffold was dependency-free. The 3D experiment follows the [offici
 
 ## What's deliberately not here yet?
 
-Campaigns, fitting-out, direct Take Command controls, shot selection, historical balance, full line-of-sight/weather/signal obstruction, individually flown aircraft or air combat, multiplayer, desktop packaging, and carrier air power (designed in the WWII notes, not built). The era models remain deliberately small; a complete plug-in registry is a next step, not a claim of this scaffold.
+Campaigns, fitting-out, Take Command for other eras, shot selection, historical balance, full line-of-sight/weather/signal obstruction, individually flown aircraft or air combat, multiplayer, desktop packaging, and carrier air power (designed in the WWII notes, not built). The era models remain deliberately small; a complete plug-in registry is a next step, not a claim of this scaffold.
 
 See [concept review](docs/concept-review.md), [architecture](docs/architecture.md), [roadmap](docs/roadmap.md), and the [simulation improvement backlog](docs/backlog.md).
