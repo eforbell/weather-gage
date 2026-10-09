@@ -1,161 +1,107 @@
 # Take Command plan
 
-Status: draft product plan; first playable prototype implemented and technically checked on `feature/take-command`, awaiting merge. Player playtesting and follow-on scope remain open.
-Last updated: 2026-10-06.
+Status: playable on `feature/take-command` (PR #27). First slice by Codex on 2026-10-06; standing-intent revision after playtest sweeps on 2026-10-08. Human playtesting remains open.
+Last updated: 2026-10-08.
 
 ## Goal
 
-Make Weather Gage more enjoyable by letting the player step down from fleet doctrine into one vessel's captaincy for a single resolved turn. The feature should add agency, teach the tactical model, and create a stronger sense of ownership without becoming an action game or a more detailed realism simulator.
+Make Weather Gage more enjoyable by letting the player step down from fleet doctrine onto one vessel's quarterdeck. The feature should add agency, teach the tactical model, and create a stronger sense of ownership without becoming an action game or a more detailed realism simulator.
 
-The player should feel: "I can see why this ship is or is not useful this turn, choose the captain's next intention, and then watch that decision resolve with the rest of the battle."
+The player should feel: "I can see what my ship is about to do, I can see the opening her captain would miss, and when I take it the battle shows me it mattered."
+
+The original design (`reference/Design Doc.dc.html` §4) gave Take Command "helm, sail, shot type and which broadside fires", applied with no signal delay, and §8 named raking as the sail era's geometry bonus. The `reference/Frigate Duel v2.dc.html` prototype implemented round/chain/grape shot and raking.
 
 ## Confirmed decisions
 
-- Support both the sail and dreadnought eras in the first slice.
-- The player plans while paused, then resolves the plan on the same ordinary Advance tick as every other vessel.
+- Support both the sail and dreadnought eras.
+- The player plans while paused, then the orders resolve on the same ordinary Advance tick as every other vessel.
 - Take Command bypasses signal delay for the commanded vessel only. It grants no extra turns, moves, reloads, attacks, or hidden information.
 - Do not add turret rotation, trigger timing, aim-point clicking, bridge art, or crew-station simulation.
 - The rest of the squadron stays on its existing orders and AI doctrine.
-- The feature should teach naval command language through XO forecasts and captain reports, not require the player to know phrases in advance.
+- The feature teaches naval command language through XO forecasts and captain reports.
 
-## Current delivery target
+## What the playtest sweeps found in the first slice
 
-The first playable slice should ship only this loop:
+The first slice reset every plan to *hold station / no target / weapons tight* after each turn, turned dreadnoughts in place without moving, and offered guns and torpedoes as alternatives. Scripted players using only the station (`scripts/sweep-command.mjs`, 100 seeds) showed that taking command made a ship worse than her own captain:
 
-1. Select one operational friendly sail or dreadnought vessel and choose **Take Command**.
-2. Pause the clock and clear pending fleet signals for that vessel only.
-3. Pick a one-turn helm intention: hold station, port, starboard, or ahead.
-4. Choose a public contact report as the intended target, or no target.
-5. Choose weapons tight, guns/broadside, or dreadnought-era torpedoes where the vessel has tubes and the target is a valid capital-ship solution.
-6. Read the XO forecast and readiness reasons before resolution.
-7. Resolve the captain's turn with the fleet's next ordinary tick.
-8. Show what actually happened as a last-turn captain report, reset the staged plan to hold/no target/weapons tight, and remain paused for the next captain decision.
-9. Let the player return to flag control, preserving the ship's standing order and doctrine.
+| Scenario, ship | Doctrine | Took command, did nothing | Followed the XO each turn |
+|---|---:|---:|---:|
+| Nevis, Constellation | 59% | 0% | 56% |
+| The Line of Battle, Bellerophon | 61% | 0% | 1% |
+| Dogger Bank, Lion | 73% | 7% | 3% |
+| Dogger Bank, Orion | 73% | 1% | 8% |
 
-Everything outside that loop is follow-up work.
+(Blue win rates.) Causes, from traces:
+- Entering command stopped the ship and silenced her guns. Forgetting to re-arm each turn left her as a target.
+- A dreadnought's port/starboard turned her on the spot for the whole tick, while her captain turns and steams.
+- The XO said guns were "Ready." while Lion lay end-on with Seydlitz crossing her T: readiness checked range, not arc.
+- Torpedo warnings told players to turn when her captain's zig-zagging course already spoiled the aim (Lion was hit twice in 563 spreads over 200 games).
 
-## Player-facing design
+## Standing-intent design (2026-10-08)
 
-### Captain station
-The captain station replaces the selected ship's fleet-signal controls while that ship is under direct command. It should stay small, textual, and chart-room native:
+Principle: **taking command never makes her worse by default; it hands you the levers her captain does not pull.**
 
-- **Helm:** hold station, come port, come starboard, make way ahead.
-- **Target:** public reported contact IDs only; stale/lost reports stay labelled as estimates.
-- **Weapons:** hold fire, release broadside/fire guns, and fitted dreadnought torpedo release.
-- **Readiness:** immediate reasons for disabled or risky actions: reload, ROE, range, arc, wind, terrain, traffic, target freshness, ammunition.
-- **Resolve:** a single primary action that advances the ordinary tick.
-- **Return to flag:** exits direct command and resumes captain automation.
+- **Default is her captain.** On entry the helm is *Captain's course* and the guns are *fire at will at her captain's choice*. Taking command and changing nothing is move-for-move identical to doctrine (regression test across three scenarios and several seeds).
+- **Orders stand until changed.** A one-point turn lasts one tick and the helm returns to *Steady*. Torpedo release is spent after one tick. A designated target stays until it leaves the plot, which is reported. A quiet turn is one click.
+- **Helm.** Captain's course, Steady, Port, Starboard, Hard a-port/a-starboard (steam), Heave to/Stop engines. Sail: one point or one hex a turn, wind and rigging permitting, as her captain's. Steam: turns while steaming at her turn rate; a hard turn costs fire control as her captain's does. While the player holds the helm she does not withdraw on doctrine.
+- **Target.** Sail: the broadside is kept for the designated ship. Dreadnought: the main battery stays on her and builds fire control. Destroyers keep light guns on light craft and keep torpedoes for the designated capital ship.
+- **Shot (sail).** Round to 3 hexes (hull and guns, the doctrine load); chain to 2 (rigging); grape at 1 (crew; drives a ship to strike, which gives prizes).
+- **Shared rules for every ship.** Raking ×1.25 from ahead and ×1.5 from astern. Shot-away rigging (under 40%) answers the helm only every other turn, which is what makes chain shot open raking windows. The Line of Battle's French crews moved from 95 to 92 so its doctrine baseline stays at 61%.
+- **XO forecast.** From the side's own reports only. For each helm it gives the end-of-turn position and heading (drawn as a ghost on the chart), and for her captain's own course too. It covers arcs and range bands, raking and crossing-the-T openings, being raked or T-crossed, whether each course crosses an incoming torpedo track, a target switch that throws away fire control, and orders that would quietly achieve nothing. Each line has a tone: warn, good or info.
+- **Debrief.** Raking broadsides given and taken; turns on the quarterdeck and broadsides or salvos fired from her.
 
-The station must work in the inspector and as a compact control in the 3D battle view. The 3D view remains presentation only; ship meshes are not target geometry.
+## Playtest evidence for the revision
 
-### XO forecast
-The XO gives immediate feedback before the tick resolves. The tone should be practical and honest:
+`npm run sweep:command -- 300 <scenario> [ship]`, 300 seeds. *Careless* takes the helm and holds a steady course. *Skilled* is described in the script header: a three-turn look-ahead for sail; for dreadnoughts it designates and keeps a capital, crosses the T, and leaves torpedo tracks.
 
-- Explain the current plan in plain language.
-- Say why a selected action is unavailable or likely weak.
-- Mark forecasts as provisional because wind, traffic, contacts, and enemy action may change during resolution.
-- Teach terms such as port, starboard, broadside, fire-control, and ROE in context.
-- Use only the player view: own-ship state, public contacts, public pending signals, and the engine-provided captain options.
+| Scenario, ship | Doctrine | Idle in command | Careless | Skilled | Skilled detail |
+|---|---:|---:|---:|---:|---|
+| Nevis, Constellation | 61% | 61% | 0% | 63% | prizes appear (0.10/game) |
+| The Line of Battle, Bellerophon | 61% | 61% | 1% | 67% | rakes 0.8 → 1.7/game |
+| Dogger Bank, Orion | 66% | 66% | 55% | 73% | crossing the T 3.3 → 4.3/game |
+| Dogger Bank, Lion | 66% | 66% | 36% | 68% | |
+| Dogger Bank, Meteor | 66% | 66% | 72% | 66% | see open questions |
 
-### Captain reports upward
-Outside Take Command, the inspector should expose a bounded **Captain's report** for supported vessels. This is how captains "manage up" to the admiral:
+Lever-by-lever sweeps (scratch harness, 200–300 seeds) that shaped these choices:
+- Re-designating the nearest capital every turn cost Lion 4 points: each switch throws away fire control. Keeping the designation turned it into +7 for Orion. The XO now warns before a switch.
+- Turning away from every torpedo spread cost Lion 14 points. Turning only when the planned course crosses the track was neutral, so the XO reports risk per course instead of advising a turn.
+- Shot types are worth nothing while her captain keeps the helm: doctrine fights stay at three hexes. They matter once the player closes the range. Grape at one hex produces the first struck prizes.
+- A playtest in the browser left chain shot loaded for six turns with the enemy at three hexes, and the ship never fired. That is why the XO now flags wasted standing orders.
 
-- current acknowledged standing order,
-- pending signal timing,
-- main known constraint,
-- a short lesson that connects the order to game behavior.
-
-This report is not a new fleet alert system. It should teach doctrine terms without cluttering the event log or revealing hidden state.
+Sweeps measure scripted players, not people; a thoughtful human may find more or less. The aim is a curve: no penalty for taking command, real cost for careless orders, and a measurable gain for good ones.
 
 ## Engine contract
-Take Command should remain a thin override on the existing simulation:
 
-- `src/sim/engine.js` owns the captain-control state, public view, save/load validation, staged plan, and resolution hooks.
-- Era movement and combat still decide what can happen. Captain actions should call the ordinary sail/dreadnought rules rather than duplicate them.
-- Hidden ship IDs must never cross into the player-facing plan. Plans store public contact IDs and resolve them back to real targets only inside the simulation.
-- Manual movement and manual fire must exclude the commanded ship from automatic movement/fire for that tick, while all other ships continue normally.
-- The plan is consumed once after resolution. A second tick with no new plan must not repeat a turn or fire again.
-- Old saves without captain-control state must still load. Malformed captain-control saves must be rejected instead of repaired into unsafe state.
+- `src/sim/engine.js` owns captain-control state, the public view (`captainControl`, `captainOptions` with `helm`, `weapons`, `shots`, `forecast`, `summary`), save/load validation, and resolution hooks.
+- Era movement and combat decide what can happen. Sail helm uses the same wind/rigging rules as `bestStep`; steam helm calls `steamMove`; captain's course calls the same `autoMove` as every AI ship; dreadnought fire calls `dreadnought.shipCombat` with the player's intent.
+- Hidden ship IDs never cross into the player view. Plans store public contact IDs and resolve them inside the simulation.
+- Previews run ordinary rules on copies, against own ships and public reports. Sail and dreadnought reports are exact positions, so her captain's previewed course shows nothing the chart does not.
+- Old saves without captain control load unchanged; plans saved without `shot` load with round shot; malformed controls are rejected.
+- Entering command clears signals in flight to that ship, and fleet signals skip her until Return to flag (unchanged from the first slice). So "changing nothing equals doctrine" holds when no signal to her is in transit, and Captain's course follows the standing order she had on entry.
+- The XO's torpedo-track forecast reads the spread's aim point. The target side could reckon it from its own course, speed and the public eta; only the firing side's *view* of the aim stays hidden.
 
 ## Implementation touchpoints
 
-Observed current work aligns with these files:
-
-- `DESIGN.md` records the first-slice product contract.
-- `README.md` explains the playable Take Command loop for users.
-- `src/sim/engine.js` contains `takeCommand`, `planCaptainAction`, `releaseCommand`, `captainOptions`, and captain resolution helpers.
-- `src/sim/eras/dreadnought.js` owns dreadnought-era manual fire behavior.
-- `src/ui/app.js` wires the inspector, clock pause, 3D command entry, focus handling, and event handlers.
-- `src/ui/captain-panel.js` renders the captain station.
-- `src/ui/captain-feedback.js` renders XO forecasts and captain reports.
-- `src/ui/style.css` adds the captain-station visual treatment.
-- `tests/take-command.test.js`, `tests/captain-panel.test.js`, and `tests/captain-feedback.test.js` cover the first-slice contract.
-- `reference/Frigate Duel v2.dc.html` has an older direct-command prototype: useful as design evidence, not a drop-in implementation.
-
-## Milestones and acceptance criteria
-
-### 1. Simulation contract
-Acceptance:
-- Taking command is immutable, side-private, and clears only the commanded ship's pending signal.
-- Planning does not move or fire before the tick resolves.
-- The commanded ship ignores fleet orders and automatic fire while under manual control.
-- Public contact IDs are accepted; hidden internal IDs are rejected.
-- Sail movement respects wind, terrain, traffic, and propulsion constraints.
-- Dreadnought guns and fitted torpedoes use ordinary range, reload, ammunition, and target rules.
-- Save/load preserves valid staged plans and rejects malformed ones.
-
-### 2. UI captain station
-Acceptance:
-- The station exposes staged choices, not immediate fire controls.
-- Disabled choices show nearby reasons without relying on hover tooltips.
-- The inspector and compact 3D station share the same public options and event paths.
-- Clock running is disabled while in Take Command; Advance/Resolve consumes one ordinary tick.
-- Focus remains usable after rerenders and on return to flag.
-
-### 3. Explanation layer
-Acceptance:
-- XO forecasts summarize the staged plan, availability reasons, and last resolution report.
-- Captain reports explain standing orders and constraints in under one short paragraph.
-- Reports do not serialize or echo hidden enemy IDs, true names, or hidden positions.
-- Wording teaches game abstractions and avoids implying real-world precision.
-
-### 4. Final QA before merge
-Acceptance:
-- Full regression test suite passes on the feature branch.
-- Static check and production build pass.
-- Manual smoke covers Nevis and Dogger Bank in chart mode and 3D mode.
-- Save/export/import resumes a paused captain plan.
-- Phone-width layout remains usable enough to resolve and return to flag.
-
-### Verification recorded for this prototype
-- `npm test`: 648 tests passed, including the captain-control, panel, feedback, and existing automated-sortie regressions.
-- `npm run check`: JavaScript syntax checks passed. No TypeScript compiler or full lint/LSP gate is configured for this repository.
-- `npm run build`: passed; the pre-existing large 3D chunk warning remains.
-- Browser smoke: staged sail helm leaves the tick/ship unchanged until resolution; dreadnought target designation and gun release resolve once; station remains paused; other-vessel selection does not transfer control; immersive resolve retains focus; local save/load retains the staged plan; return to flag enables normal running.
-- Responsive smoke: desktop and 390px phone viewport checks; no phone horizontal overflow and captain primary/helm targets are at least 44px tall. These are desktop-browser viewport checks, not certification on physical phones.
-- Independent code review found no remaining blocking defects after fixes for ownership, readiness, fog safety, movement budgets, mine losses, and normal combat initiative.
-- Remaining validation: separate browser export/import roundtrip, Safari/Firefox and physical-device checks, and player assessment of whether the new choices feel worthwhile.
+- `src/sim/engine.js`: captain control, standing intent, helm, sail shot and raking, XO forecast.
+- `src/sim/eras/dreadnought.js`: `shipCombat` shared by AI and commanded ships; `manualFire`.
+- `src/sim/scenarios.js`: The Line of Battle French crews 92.
+- `src/ui/captain-panel.js`, `src/ui/captain-feedback.js`, `src/ui/app.js`, `src/ui/fx.js`, `src/ui/style.css`: station, XO, chart ghost, raking callouts, debrief.
+- `scripts/sweep-command.mjs` (`npm run sweep:command`): the playtest harness.
+- `tests/take-command.test.js`, `tests/captain-panel.test.js`, `tests/captain-feedback.test.js`.
 
 ## Risks and mitigations
-- **Fog-of-war leak:** keep all UI on `getView` output and public contact IDs; test hidden-ID rejection.
-- **Double movement or double fire:** exclude the commanded ship from automatic AI movement/fire and consume each plan once.
-- **Stale readiness:** label XO text as a forecast and write the actual resolution report after the tick.
-- **Save migration bugs:** make `captainControl` optional for old saves and strict for new malformed saves.
-- **Pause confusion:** clock label should clearly say the player is paused to plan the captain's turn; Run stays disabled until return to flag.
-- **Ownership confusion:** selecting another ship should not silently transfer command; explicit transfer should warn that the old staged plan is discarded.
-- **AI regression:** default fleet doctrine must remain the baseline when not taking command.
 
-## Deferred decisions
-- Shot types for sail: round, chain, grape, or simplified special actions.
-- More expressive maneuvers: tack, wear ship, smoke turn, destroyer attack run, or hold bearing.
-- Target retention: whether a stale target remains selected as an intent, clears automatically, or prompts the player.
-- Fleet-level captain alerts: whether captains should proactively surface "what is working/not working" beyond the selected-vessel inspector.
-- Objective medals, scenario scoring, or end-of-mission captain grades.
-- Damage-control budget or repair party tradeoffs.
-- Take Command support for ironclads, WWII, Cold War, and modern missile engagements.
-- Detailed bridge art or crew portraits; not needed for the first playable slice.
+- **Fog-of-war leak:** UI reads only `getView`; previews use public reports; tests assert no hidden IDs or names in the options.
+- **Double movement or double fire:** the commanded ship is excluded from automatic movement and fire and acts once, in her own initiative slot.
+- **Standing orders going stale:** helm turns expire after a tick, torpedo releases are spent, lost targets are dropped with a report, and the XO warns about orders that achieve nothing.
+- **Balance drift from raking:** doctrine baselines re-measured; The Line of Battle retuned to its previous 61%.
+- **Pause friction:** standing orders make each quiet turn a single click; the clock still stays paused while in command (a confirmed decision).
 
-## Alternative rejected for this slice
-- **Instant captain acts:** not chosen because they would need a separate action-budget and ordering model to avoid extra tempo. The user selected staged decisions resolved within the ordinary tick instead.
-- **Turret/trigger action controls:** rejected because they reward precision timing instead of captain-level decisions.
-- **Full era rollout now:** rejected because it would dilute the first slice before the sail and dreadnought loop proves fun.
+## Open questions and follow-ons
+
+- Human playtests: do players find the raking and crossing-the-T openings without the XO pointing at them, and is per-turn pausing tolerable over a 50-turn action now that turns are one click?
+- Whether to let the clock run while in command, with the standing orders carrying on and pauses on XO warnings. This would revisit the confirmed paused-planning decision, so it is the user's call.
+- Port and starboard broadsides with separate reloads, so that breaking the line fires both (design doc §4).
+- Meteor steaming straight away from the action wins more often (72%) than on doctrine (66%), which suggests the destroyer AI's attack runs cost more than they earn at Dogger Bank. This is an AI and scenario question, not a Take Command one.
+- Whether signals should reach a commanded ship while her captain has the helm, so a player can change her standing order without returning to the flag.
+- Boarding and prize crews; damage-control choices; Take Command for ironclads, WWII, Cold War and modern.

@@ -127,11 +127,13 @@ test('XO report mirrors engine summary, planned helm, target, and resolution rep
   assert.doesNotMatch(report.detail, /Helm: Port turn/);
   assert.doesNotMatch(report.detail, /Weapon: Fire broadside/);
   assert.doesNotMatch(report.detail, /Target: frigate/);
-  assert.match(report.detail, /Last resolution: Broadside held/);
-  assert.match(report.lesson, /Port means left 60°/);
-  assert.match(report.lesson, /sail guns are broadsides/);
+  assert.match(report.detail, /Last turn: Broadside held/);
+  assert.match(report.lesson, /Port is left/);
+  assert.match(report.lesson, /Broadsides fire off the beam/);
+  assert.match(report.lesson, /rakes her/);
+  assert.match(report.lesson, /chain cuts rigging/);
   assert.doesNotMatch(report.lesson, /Dreadnought turrets/);
-  assert.ok(report.detail.split(/\s+/).length < 70);
+  assert.ok(report.detail.split(/\s+/).length < 85);
 });
 
 test('XO dreadnought gun lesson uses turret arcs, not sail broadside wording', () => {
@@ -145,9 +147,10 @@ test('XO dreadnought gun lesson uses turret arcs, not sail broadside wording', (
     },
     contacts: [{ id: 'D-1', q: 6, r: 5, confidence: 'sighted', stale: false, className: 'battlecruiser' }],
   });
-  assert.match(report.lesson, /dreadnought turrets bear best abeam/);
+  assert.match(report.lesson, /Turrets bear fully abeam/);
+  assert.match(report.lesson, /cross her T/);
   assert.doesNotMatch(report.lesson, /broadside/);
-  assert.ok(report.detail.split(/\s+/).length < 70);
+  assert.ok(report.detail.split(/\s+/).length < 85);
 });
 
 test('XO report uses option reasons without recomputing validity math', () => {
@@ -161,9 +164,10 @@ test('XO report uses option reasons without recomputing validity math', () => {
   });
   assert.match(report.detail, /Starboard unavailable: Minefield blocks that heading/);
   assert.match(report.detail, /Loose torpedoes unavailable: No public target selected/);
-  assert.match(report.detail, /Forecast: resolves with the fleet on Advance/);
-  assert.match(report.lesson, /starboard means right 60°/);
-  assert.ok(report.detail.split(/\s+/).length < 70);
+  assert.match(report.forecastNote, /Forecasts use your own reports/);
+  assert.match(report.detail, /Standing orders: Plan a destroyer attack/);
+  assert.match(report.lesson, /starboard right/);
+  assert.ok(report.detail.split(/\s+/).length < 85);
 });
 
 

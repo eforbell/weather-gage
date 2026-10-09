@@ -140,21 +140,61 @@ export function combat(state, manualShipIds = new Set(), manualCombat = null) {
       if (manualCombat) state = manualCombat(state, ship);
       continue;
     }
-    if (!isActive(ship) || ship.doctrine.roe === 'hold' || ship.weapons <= 10) continue;
-    if (ship.guns > 0) {
-      const target = pickTarget(state, ship, isCapital(ship) ? ship.gunRange : Math.min(ship.gunRange, ship.doctrine.range + 1), isCapital(ship) ? 'capital' : 'any');
-      if (target) state = fireBattery(state, ship, target, ship.calibre, ship.guns, true);
+    state = shipCombat(state, ship);
+  }
+  return state;
+}
+
+// One ship's fire for the tick. Her captain picks targets from fresh reports; a
+// commanded ship passes the player's intent: `target` is the designated ship for the
+// main battery and torpedoes, and `torpedoes` is 'auto' (her captain's judgement),
+// 'force' (release at the designated ship now) or 'hold'. `notes` collects what
+// happened in words that name no enemy, for the captain's report.
+export function shipCombat(state, ship, intent = {}, notes = []) {
+  if (!isActive(ship) || ship.doctrine.roe === 'hold' || ship.weapons <= 10) return state;
+  const designated = intent.target && isActive(intent.target) ? intent.target : null;
+  if (ship.guns > 0) {
+    // Light guns stay on light craft: a destroyer's designated capital ship is for her torpedoes.
+    // Judged from the public report, never the target's true type: an unclassified designation
+    // leaves the light guns to her captain.
+    const forGuns = designated && (ship.calibre === 'heavy' || /destroyer|torpedo/i.test(intent.publicClass || '')) ? designated : null;
+    let target = forGuns && distance(ship, forGuns) <= ship.gunRange ? forGuns : null;
+    if (forGuns && !target) notes.push('the designated target is beyond gun range');
+    if (!target) target = pickTarget(state, ship, isCapital(ship) ? ship.gunRange : Math.min(ship.gunRange, ship.doctrine.range + 1), isCapital(ship) ? 'capital' : 'any');
+    if (target) {
+      state = fireBattery(state, ship, target, ship.calibre, ship.guns, true);
+      notes.push(target === designated ? 'main battery on the designated target' : forGuns ? 'main battery on her captain\'s choice' : 'main battery in action');
     }
-    if (ship.secondary > 0) {
-      const target = pickTarget(state, ship, SECONDARY_RANGE, 'light');
-      if (target && isActive(target)) state = fireBattery(state, ship, target, 'light', ship.secondary, false);
-    }
-    if (ship.torpedoes > 0 && ship.reloadUntil <= state.tick && ship.order.type !== 'withdraw') {
-      const target = pickTarget(state, ship, TORPEDO_RANGE, 'capital');
-      if (target && isCapital(target)) state = launchTorpedoes(state, ship, target);
+  }
+  if (ship.secondary > 0) {
+    const target = pickTarget(state, ship, SECONDARY_RANGE, 'light');
+    if (target && isActive(target)) state = fireBattery(state, ship, target, 'light', ship.secondary, false);
+  }
+  if (intent.torpedoes === 'force') {
+    const reason = torpedoBlock(state, ship, designated, intent.publicClass);
+    if (reason) notes.push(`torpedoes withheld: ${reason}`);
+    else { state = launchTorpedoes(state, ship, designated); notes.push('torpedoes away'); }
+  } else if (intent.torpedoes !== 'hold' && ship.torpedoes > 0 && ship.reloadUntil <= state.tick && ship.order.type !== 'withdraw') {
+    const preferred = designated && isCapital(designated) && intent.publicClass && !/destroyer|torpedo/i.test(intent.publicClass) && distance(ship, designated) <= TORPEDO_RANGE ? designated : null;
+    const target = preferred || pickTarget(state, ship, TORPEDO_RANGE, 'capital');
+    if (target && isCapital(target) && isActive(target)) {
+      state = launchTorpedoes(state, ship, target);
+      notes.push('her captain fired a torpedo spread');
     }
   }
   return state;
+}
+
+// Why a commanded torpedo release cannot go, judged from the public report; null if it can.
+function torpedoBlock(state, ship, target, publicClass) {
+  if (ship.torpedoes <= 0) return 'no torpedoes remain';
+  if (ship.reloadUntil > state.tick) return 'the tubes are still reloading';
+  if (!target) return 'no designated target';
+  if (!publicClass) return 'classification required for a torpedo solution';
+  if (/destroyer|torpedo/i.test(publicClass)) return 'no capital-ship solution';
+  if (!isCapital(target)) return 'the target is not worth the spread';
+  if (distance(ship, target) > TORPEDO_RANGE) return 'out of torpedo range';
+  return null;
 }
 
 function fireBattery(state, ship, target, calibre, guns, main) {
@@ -215,34 +255,33 @@ function launchTorpedoes(state, ship, target) {
   return addFx(state, { type: 'torpedo', shooterId: ship.id, targetId: target.id, at: aim, eta });
 }
 
+// The commanded ship's fire: everything her captain would fire, with the player's
+// designated target and torpedo decision. Returns a report that names no enemy.
 export function manualFire(state, ship, target, weapon, publicClassName = null) {
   if (!isActive(ship)) return { state, report: `${ship.name}: unable to fire; we are out of action.` };
-  if (!target || !isActive(target) || target.side === ship.side) return { state, report: `${ship.name}: target is no longer available.` };
-  if (ship.weapons <= 10) return { state, report: `${ship.name}: weapons are too damaged to bear.` };
+  if (weapon === 'hold') return { state, report: `${ship.name}: batteries held.` };
   if (ship.doctrine.roe === 'hold') return { state, report: `${ship.name}: fire withheld under hold-fire doctrine.` };
-  if (weapon === 'torpedoes') {
-    if (ship.torpedoes <= 0) return { state, report: `${ship.name}: no torpedoes remain.` };
-    if (ship.reloadUntil > state.tick) return { state, report: `${ship.name}: torpedo tubes are still reloading.` };
-    if (!publicClassName) return { state, report: `${ship.name}: Classification required for torpedo solution.` };
-    if (/destroyer|torpedo/i.test(publicClassName)) return { state, report: `${ship.name}: no capital-ship torpedo solution.` };
-    if (!isCapital(target)) return { state, report: `${ship.name}: torpedo solution rejected; target is not worth the spread.` };
-    if (distance(ship, target) > TORPEDO_RANGE) return { state, report: `${ship.name}: torpedo target is out of range.` };
-    return { state: launchTorpedoes(state, ship, target), report: `${ship.name}: torpedoes away.` };
+  if (ship.weapons <= 10) return { state, report: `${ship.name}: weapons are too damaged to bear.` };
+  if (target && (!isActive(target) || target.side === ship.side)) target = null;
+  if (weapon === 'torpedoes' && !publicClassName) {
+    // Do not reveal the hidden type of an unclassified target through the tubes.
+    const notes = ['torpedoes withheld: classification required for a torpedo solution'];
+    state = shipCombat(state, ship, { target, torpedoes: 'hold', publicClass: null }, notes);
+    return { state, report: `${ship.name}: ${notes.join('; ')}.` };
   }
-  if (weapon !== 'guns') return { state, report: `${ship.name}: batteries held.` };
-  let fired = false;
-  if (ship.guns > 0 && distance(ship, target) <= ship.gunRange) {
-    state = fireBattery(state, ship, target, ship.calibre, ship.guns, true);
-    fired = true;
-  }
-  if (ship.secondary > 0 && isActive(target) && distance(ship, target) <= SECONDARY_RANGE) {
-    state = fireBattery(state, ship, target, 'light', ship.secondary, false);
-    fired = true;
-  }
-  return fired
-    ? { state, report: `${ship.name}: gunnery action complete.` }
-    : { state, report: `${ship.name}: target is beyond gun range.` };
+  const notes = [];
+  state = shipCombat(state, ship, { target, torpedoes: weapon === 'torpedoes' ? 'force' : 'auto', publicClass: publicClassName }, notes);
+  return { state, report: `${ship.name}: ${notes.length ? notes.join('; ') : 'nothing bears this turn'}.` };
 }
+
+// Where a turret battery bears on a point after a planned course: 'full' abeam, 'half'
+// end-on. Public geometry only, for the XO's forecast.
+export function batteryArc(ship, point) {
+  const rel = (directionToward(ship, point) - ship.facing + 6) % 6;
+  return rel === 0 || rel === 3 ? 'half' : 'full';
+}
+
+export { TORPEDO_RANGE, SECONDARY_RANGE };
 
 export function torpedoRun(state, item) {
   const target = state.ships.find((s) => s.id === item.targetId);

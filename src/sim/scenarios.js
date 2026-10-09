@@ -244,9 +244,9 @@ export const SCENARIO_SETUPS = {
       sailShip('b_bellerophon', 'blue', 'HMS Bellerophon', 'Ship of the line', 4, 4, 1, 74),
       sailShip('b_marlborough', 'blue', 'HMS Marlborough', 'Ship of the line', 3, 6, 1, 74),
       sailShip('b_russell', 'blue', 'HMS Russell', 'Ship of the line', 2, 8, 1, 74),
-      { ...sailShip('r_vengeur', 'red', 'Le Vengeur du Peuple', 'Ship of the line', 14, 3, 1, 74), crew: 95 }, // the Revolution's navy had lost much of its officer corps and trained gunners
-      { ...sailShip('r_achille', 'red', 'L’Achille', 'Ship of the line', 13, 5, 1, 74), crew: 95 },
-      { ...sailShip('r_northumberland', 'red', 'Le Northumberland', 'Ship of the line', 12, 7, 1, 74), crew: 95 },
+      { ...sailShip('r_vengeur', 'red', 'Le Vengeur du Peuple', 'Ship of the line', 14, 3, 1, 74), crew: 92 }, // the Revolution's navy had lost much of its officer corps and trained gunners
+      { ...sailShip('r_achille', 'red', 'L’Achille', 'Ship of the line', 13, 5, 1, 74), crew: 92 },
+      { ...sailShip('r_northumberland', 'red', 'Le Northumberland', 'Ship of the line', 12, 7, 1, 74), crew: 92 },
     ],
   },
   convoy: {

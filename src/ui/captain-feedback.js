@@ -17,9 +17,9 @@ const ORDER_LESSONS = Object.freeze({
 });
 
 const ACTION_GLOSSARY = Object.freeze({
-  sail: 'Port means left 60°; starboard means right 60°; sail guns are broadsides off the ship’s sides.',
-  dreadnought: 'Port means left 60°; starboard means right 60°; dreadnought turrets bear best abeam, and steady ranging helps accuracy.',
-  default: 'Port means left 60°; starboard means right 60°; choose a reported target before resolving.',
+  sail: 'Port is left, starboard right; a sailing ship comes round one point a turn and loses way doing it. Broadsides fire off the beam. Lie off an enemy’s bow or stern and your broadside rakes her: she cannot reply, and it strikes harder (from astern hardest). Round shot smashes hull and guns; chain cuts rigging, so she can neither turn nor run; grape at one hex sweeps her crew until she strikes.',
+  dreadnought: 'Port is left, starboard right; your ship turns while she steams. Turrets bear fully abeam and half end-on: lie across her bow or stern with every turret bearing and you cross her T. Fire control builds while you keep steady on one target; a hard turn spoils it. A torpedo spread is aimed where you would be if you held your course.',
+  default: 'Port is left, starboard right. Choose a reported target, or leave it to her captain.',
 });
 
 function fallbackText(value, fallback = '') {
@@ -191,19 +191,22 @@ export function xoReport(view) {
     };
   }
   const plan = control.plan;
-  const helm = fallbackText(plan.helm, 'hold');
-  const weapon = fallbackText(plan.weapon, 'hold');
-  const helmOption = optionById(options.helm, helm);
-  const weaponOption = optionById(options.weapons, weapon);
+  const helmOption = optionById(options.helm, fallbackText(plan.helm, 'captain'));
+  const weaponOption = optionById(options.weapons, fallbackText(plan.weapon, 'guns'));
   const report = fallbackText(control.report);
-  const summary = fallbackText(options.summary, 'Plan the captain action, then resolve with the fleet.');
+  // The engine summary leads with the ship's name and ends with a preview hex; the
+  // station already names her and the chart shows the hex.
+  const name = view.ships?.find((s) => s?.id === control.shipId)?.name;
+  const summary = fallbackText(options.summary, 'Plan the captain action, then resolve with the fleet.')
+    .replace(/ Preview \d+,\d+/u, '').replace(name ? `${name}: ` : /^$/u, '').replace(/\.{2,}/gu, '.');
   const blockers = [unavailablePhrase('Helm', helmOption), unavailablePhrase('Weapon', weaponOption)].filter(Boolean).join(' ');
-  const phase = report ? `Last resolution: ${report}` : 'Forecast: resolves with the fleet on Advance.';
-  const detail = [summary, blockers, phase].filter(Boolean).join(' ');
+  const phase = report ? `Last turn: ${report}` : '';
+  const detail = [phase, `Standing orders: ${summary[0]?.toUpperCase() || ''}${summary.slice(1)}`, blockers].filter(Boolean).join(' ');
   const glossary = ACTION_GLOSSARY[controlEra(view)] || ACTION_GLOSSARY.default;
   return {
-    title: 'XO Take Command brief',
-    detail: wordCount(detail) > 70 ? [blockers || summary, phase].filter(Boolean).join(' ') : detail,
-    lesson: `${glossary} Choose a helm intention and reported target; the fleet moves when you resolve.`,
+    title: 'XO',
+    detail: wordCount(detail) > 80 ? [phase, blockers || `Standing orders: ${summary}`].filter(Boolean).join(' ') : detail,
+    forecastNote: 'Forecasts use your own reports; wind, traffic and the enemy all move during the turn.',
+    lesson: `${glossary} Your orders stand until you change them; Return to flag hands her back to her captain.`,
   };
 }

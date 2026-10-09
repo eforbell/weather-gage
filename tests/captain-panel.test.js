@@ -5,17 +5,19 @@ import { captainStation } from '../src/ui/captain-panel.js';
 const view = () => ({
   tick: 2, ships: [{ id: 'own', name: 'Test <ship>', era: 'sail', status: 'active' }],
   contacts: [{ id: 'c_public', name: 'Reported <contact>', confidence: 'identified', q: 3, r: 4, stale: false }],
-  captainControl: { shipId: 'own', side: 'blue', plan: { helm: 'hold', targetId: null, weapon: 'hold' } },
+  captainControl: { shipId: 'own', side: 'blue', plan: { helm: 'hold', targetId: null, weapon: 'hold', shot: 'grape' } },
   captainOptions: {
     summary: 'Preview only; contacts may change.',
-    helm: [{ id: 'hold', label: 'Hold station', enabled: true, reason: 'Stay here.' }, { id: 'ahead', label: 'Ahead', enabled: false, reason: 'Wind prevents this move.' }],
+    helm: [{ id: 'hold', label: 'Hold station', enabled: true, reason: 'Stay here.' }, { id: 'ahead', label: 'Ahead', enabled: false, reason: 'Wind prevents this move.', torpedoRisk: 'high' }],
     weapons: [{ id: 'hold', label: 'Hold weapons', enabled: true, reason: 'Wait.' }, { id: 'guns', label: 'Fire guns', enabled: false, reason: 'Designate a contact first.' }],
+    shots: [{ id: 'round', label: 'Round shot', enabled: true, reason: 'Hull and guns; reaches 3 hexes.' }, { id: 'grape', label: 'Grape shot', enabled: true, reason: 'Crew; reaches 1 hex.' }],
+    forecast: [{ tone: 'warn', text: 'Torpedo tracks running at us, due T03.' }, { tone: 'good', text: 'Raking position: we are off her stern.' }, { tone: 'info', text: 'Plain <note>.' }],
   },
 });
 
 test('station exposes staged choices, not immediate fire controls', () => {
   const html = captainStation(view());
-  assert.match(html, /Plan here, then advance one turn/);
+  assert.match(html, /Your orders stand until you change them/);
   assert.match(html, /data-captain-resolve/);
   assert.match(html, /data-captain-release/);
   assert.match(html, /data-captain-helm="hold" aria-pressed="true"/);
@@ -25,6 +27,25 @@ test('station exposes staged choices, not immediate fire controls', () => {
   assert.match(html, /Captain's station for Test &lt;ship&gt;/);
   assert.match(html, /Reported &lt;contact&gt;/);
   assert.doesNotMatch(html, /data-captain-weapon="torpedoes"/);
+});
+
+test('station shows shot, the XO forecast with warnings, and torpedo-track risk in text', () => {
+  const html = captainStation(view());
+  assert.match(html, /data-captain-shot="grape" aria-pressed="true"/);
+  assert.match(html, /Crew; reaches 1 hex/);
+  assert.match(html, /<li class="warn">Torpedo tracks running at us/);
+  assert.match(html, /<li class="good">Raking position/);
+  assert.match(html, /captain-feedback alert/);
+  assert.match(html, /data-captain-helm="ahead"[^>]*>Ahead<small> · torpedo track<\/small>/);
+  assert.match(html, /Her captain’s choice/);
+  assert.match(html, /<li class="">Plain &lt;note&gt;\./);
+});
+
+test('dreadnought stations have no shot row', () => {
+  const state = view();
+  state.ships[0].era = 'dreadnought';
+  state.captainOptions.shots = [];
+  assert.doesNotMatch(captainStation(state), /data-captain-shot/);
 });
 
 test('chart and immersive station labels have separate IDs', () => {

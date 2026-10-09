@@ -19,7 +19,8 @@
     "build:fixture": "node scripts/build-ship-fixture.mjs",
     "test:fixture": "node scripts/verify-ship-fixture.mjs",
     "ship:build": "node scripts/build-ship.mjs",
-    "ship:report": "node scripts/ship-asset-report.mjs"
+    "ship:report": "node scripts/ship-asset-report.mjs",
+    "sweep:command": "node scripts/sweep-command.mjs"
   },
   "dependencies": {
     "three": "0.186.1"
