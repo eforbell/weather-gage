@@ -2,7 +2,7 @@
 
 ## Source of truth
 - Status: Active, playable command workspace with optional 3D view. Refreshed: 2026-09-29.
-- Surfaces: briefing, tactical chart, squadron orders, contact reports, dispatch/debrief.
+- Surfaces: briefing, tactical chart, squadron orders, contact reports, captain's station, dispatch/debrief.
 - Evidence: `reference/Design Doc.dc.html` §§1–15; `reference/Frigate Duel v2.dc.html`; `reference/Admiral View.dc.html`.
 - User override: modern naval tactics are a first-class requirement, extending the source document's pre-WWII scope.
 
@@ -10,7 +10,7 @@
 A working naval chart, not a generic dashboard. Paper, ink, restrained blue and vermilion. Trust comes from legible orders, explained mechanics, and honest uncertainty. Avoid glossy panels, excessive ornament, and false historical precision.
 
 ## Product goals
-- Give a commodore useful decisions, then let captains execute.
+- Give a commodore useful decisions, then let captains execute; optionally take command of one vessel for turn-level helm and weapon decisions.
 - Make each era feel different using one simulation (sail, ironclad, dreadnought, Cold War, fictional modern).
 - Teach as you play: a tactics primer in the briefing, a live flag-lieutenant advisor, and a debrief lesson.
 - Complete a mission from brief to outcome; save and resume locally.
@@ -25,7 +25,7 @@ Strategy/simulation players who enjoy Fleet Command's information warfare and Ci
 Single tactical workspace: identity/time bar, mission ribbon, squadron roster, primary chart, command inspector, event dispatch. Action dispatch and recent log entries belong beneath the mission objective in the center column, not after the tallest sidebar. Briefing/help and mission debrief use dialogs. Scenario switching is explicit.
 
 ## Design principles
-Command rather than micro-control. Information before firepower. Show uncertainty instead of cheating. Keep the map dominant. An initial limited model is preferable to a broad fake one.
+Command rather than reflex micro-control. Optional captaincy is deliberate turn-level decision-making, not turret aiming or trigger timing. Information before firepower. Show uncertainty instead of cheating. Keep the map dominant. An initial limited model is preferable to a broad fake one.
 
 ## Visual language
 Warm paper #f2edde, ink #242b2d, muted #656b65, ocean #e2e8df, blue #285867, red #9d463c. Serif display with monospace operational labels; system fonts only, no network font dependency. 4px spacing rhythm, squared controls, thin rules, no floating-card shadows. Hex geometry and vector ship silhouettes instead of bitmap assets. Combat is animated on the chart (ship glide, muzzle flash, shell flight, splash/hit, torpedo wakes, sinking, callout banners) because a text-only transcript made play feel like reading a simulation. Animation is presentation only, derived from per-side `fx` events, and collapses to static markers under reduced motion. Sound is synthesized, opt-in and remembered per browser: quiet era-specific ambience begins after a sound-enabled user gesture, with combat effects layered above it.
@@ -59,6 +59,20 @@ JavaScript ES modules, SVG chart, semantic HTML/CSS, Three.js for the optional 3
 - Next modern layer: missiles in flight / aircraft / submarines / electronic warfare?
 - Historical rigor versus accessible tactics; initial numbers are game abstractions.
 - Whether the 3D art direction should be handcrafted/stylized or licensed high-fidelity glTF ship assets; the procedural meshes are a technical prototype, not a Craig-ready content pass.
+
+## Take Command (first slice 2026-10-06; standing-intent revision 2026-10-08)
+- User decisions: support both sail and dreadnoughts; stage actions while paused and resolve them with everyone else on the next ordinary tick. No precision aiming, trigger timing, extra turns, or detailed crew simulation.
+- Principle from playtest sweeps: taking command never makes a ship worse than her captain by default, and hands the player levers her captain does not pull. Taking command and changing nothing plays out identically to doctrine (tested move for move).
+- One active friendly vessel is under direct command. Other vessels keep their existing orders and doctrine. Selecting another vessel does not silently transfer command.
+- Orders are a standing intent, not a one-turn plan: they carry on until changed. Helm: Captain's course (default; her captain steers for her standing order), Steady, Port/Starboard for one turn (then the helm returns to Steady), Hard a-port/a-starboard for steam, Heave to/Stop. Target: her captain's choice or a designated public contact, dropped with a report when it leaves the plot. Guns: hold fire or fire at will (default); a dreadnought torpedo release is spent after one turn. Sail ships load round, chain or grape shot (from the original design doc §4).
+- Captain actions use ordinary rules: a sailing ship turns or moves a hex per turn, wind and damage permitting; a steam ship turns while she steams at her turn rate, and a hard turn costs fire control exactly as her captain's does. While the player holds the helm, the ship does not withdraw on doctrine; on Captain's course she does.
+- Sail combat gains raking for every ship (×1.25 from ahead, ×1.5 from astern; design doc §8) and shot-away rigging (under 40%) answers the helm only every other turn. The French crews in The Line of Battle were tuned from 95 to 92 to keep its doctrine baseline (61% blue wins over 300 seeds, as before raking).
+- The XO forecasts every choice from the side's own reports: the end-of-turn position and heading for each helm (drawn as a ghost on the chart), arcs, raking and crossing-the-T openings, being raked or T-crossed, torpedo tracks against each course, fire control that a target switch would throw away, and standing orders that would quietly achieve nothing. Lines carry a tone (warn/good/info); warnings are text, not colour alone. Sail and dreadnought reports are exact positions, so previewing her captain's own course reveals nothing the chart does not.
+- Captains report upward in plain language in the normal inspector: what their standing order means, pending signal timing, known constraints, and a short tactics lesson. This is a bounded first report surface, not a fleet-wide alert system.
+- Reuse paper/ink components and native labeled controls. Keep action buttons and nearby explanatory text keyboard accessible; retain focus after rerenders. Do not rely on disabled-button tooltips to teach. The debrief counts raking broadsides given/taken and turns on the quarterdeck.
+- The ordinary 3D view retains the sidebar captain's station; immersive 3D gets a compact station using the same simulation API. Rendered ship meshes are never authoritative targeting geometry.
+- Saves preserve standing orders and resume paused. Older saves without the optional captain-control field, or plans without shot, still load. New/restored sorties reset UI receipts safely.
+- Verification: deterministic stage/resolve/save tests, idle-equals-doctrine parity, fog and ownership tests, raking/shot/rigging/torpedo-track tests, `npm run sweep:command` playtest sweeps, and desktop/phone/immersive keyboard smoke checks.
 
 ## Command visibility acceptance (priority 1)
 - Evidence: user-provided desktop screenshot; baseline `app.js` placed dispatch after the workspace, while `.chart-wrap` flexed to sidebar height and left the objective followed by empty center space.

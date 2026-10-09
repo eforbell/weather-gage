@@ -131,3 +131,4 @@ For reference, so older docs aren't read as open issues:
 - Per-ship sonar pictures.
 - Wire guidance, re-attack and torpedo speed against evasion.
 - Datums, ASROC, sonobuoys and air-dropped torpedoes.
+- A Take Command sweep (`npm run sweep:command`): scripted players on one commanded ship against doctrine. The plan sweep and submarine-fate measures from item 23 are still scratch files.

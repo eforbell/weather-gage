@@ -13,10 +13,11 @@ export function createFx({ layer, tracks, wrap, banner, pt }) {
   let bannerQueue = [];
   let bannerBusy = false;
   let lastTee = -99;
+  let lastRake = -99;
   let generation = 0;
   const sfx = createSound();
 
-  function blankStats() { return { fired: 0, hits: 0, taken: 0, torpedoHits: 0, tees: 0 }; }
+  function blankStats() { return { fired: 0, hits: 0, taken: 0, torpedoHits: 0, tees: 0, rakes: 0, raked: 0, commandTurns: 0, commandFired: 0 }; }
   function later(ms, fn) { const gen = generation; const id = setTimeout(() => { timers.delete(id); if (gen === generation) fn(); }, Math.max(0, ms)); timers.add(id); }
   function el(tag, attrs, parent = layer) {
     const node = document.createElementNS(NS, tag);
@@ -163,13 +164,22 @@ export function createFx({ layer, tracks, wrap, banner, pt }) {
     let sounds = 0;
     const sound = (kind, delay) => { if (sounds++ < 10) sfx.play(kind, delay); };
 
+    // The ship that was under command when this tick resolved, even if she is gone now.
+    const commanded = names.commandedId;
+    if (commanded) stats.commandTurns += 1;
     view.fx.forEach((f, i) => {
       const t0 = start + i * gap;
       const from = f.from && pt(f.from);
       const to = f.to && pt(f.to);
       const at = f.at && pt(f.at);
       if (f.to && !f.to.own && f.hits && f.type !== 'ram') observed.set(f.to.id, (observed.get(f.to.id) || 0) + f.hits * (f.type === 'salvo' && !f.heavy ? 0.4 : f.type === 'salvo' || f.type === 'broadside' ? 1 : 3));
-      if (f.from?.own && (f.type === 'salvo' || f.type === 'broadside')) { stats.fired += 1; stats.hits += f.hits || 0; if (f.crossingT) stats.tees += 1; }
+      if (f.from?.own && (f.type === 'salvo' || f.type === 'broadside')) {
+        stats.fired += 1; stats.hits += f.hits || 0;
+        if (f.crossingT) stats.tees += 1;
+        if (f.raking) stats.rakes += 1;
+        if (commanded && f.from.id === commanded) stats.commandFired += 1;
+      }
+      if (f.to?.own && f.raking) stats.raked += 1;
       if (f.to?.own && f.hits) stats.taken += f.hits;
 
       switch (f.type) {
@@ -198,6 +208,8 @@ export function createFx({ layer, tracks, wrap, banner, pt }) {
                 sound('splash', 0);
               }
               if (f.crossingT && f.from?.own && view.tick - lastTee > 5) { lastTee = view.tick; showBanner('CROSSING THE T', 'good'); }
+              if (f.raking && f.from?.own && view.tick - lastRake > 3) { lastRake = view.tick; showBanner('RAKING FIRE', 'good'); }
+              else if (f.raking && f.to?.own && view.tick - lastRake > 3) { lastRake = view.tick; showBanner(`${label(f.to)} RAKED`, 'alert'); }
             };
             if (from) shell(from, to, flight, heavy, land); else later(flight * 0.5, land);
           });
@@ -348,6 +360,7 @@ export function createFx({ layer, tracks, wrap, banner, pt }) {
       torpedoes = [];
       stats = blankStats();
       lastTee = -99;
+      lastRake = -99;
       generation += 1;
       bannerQueue = [];
       bannerBusy = false;
